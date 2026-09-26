@@ -113,7 +113,8 @@ def main():
     root = args.data_dir
     queries = read(root / "benchmark_queries.parquet", ("query_id", *SEARCH_FIELDS))
     item_columns = (
-        "item_id", "item_title_raw", "item_infm_params_text", "item_description_raw"
+        "item_id", "item_title_raw", "item_infm_params_text", "item_description_raw",
+        "item_category_id",
     )
     items = read(root / "benchmark_items.parquet", item_columns)
     ids = {x["item_id"] for x in items}
@@ -156,6 +157,10 @@ def main():
         model = build_retriever(args, items)
         predictions = {key: model.retrieve(representatives[key]) for key in keys}
         save_json(args.output, {"method": args.method,
+            "fusion": (
+                "flat_bm25_fields_dense" if args.method == "hybrid"
+                else "bm25_fields" if args.method == "bm25" else None
+            ),
             "bm25_fields": {
                 "title": {"k1": args.k1 if args.k1 is not None else args.title_k1,
                           "b": args.b if args.b is not None else args.title_b,
@@ -176,6 +181,10 @@ def main():
             ),
             "embedding_description_words": (
                 args.embedding_description_words if args.method != "bm25" else None
+            ),
+            "embedding_query_fields": (
+                ["search_query", "search_infm_params_text", "search_category"]
+                if args.method != "bm25" else None
             ),
             "candidate_k": args.candidate_k if args.method == "hybrid" else None,
             "bm25_weight": args.bm25_weight if args.method == "hybrid" else None,

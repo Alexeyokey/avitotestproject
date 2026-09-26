@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import math
+
 
 def reciprocal_rank_fusion(
     ranked_lists,
@@ -55,7 +57,9 @@ class HybridRetriever:
     ):
         if candidate_k <= 0:
             raise ValueError("candidate_k must be positive")
-        if bm25_weight < 0 or dense_weight < 0 or bm25_weight + dense_weight <= 0:
+        weights = (bm25_weight, dense_weight)
+        if (any(not math.isfinite(weight) or weight < 0 for weight in weights)
+                or sum(weights) <= 0):
             raise ValueError("At least one retrieval weight must be positive")
         self.bm25 = bm25
         self.dense = dense
@@ -68,7 +72,12 @@ class HybridRetriever:
     def retrieve(self, query, limit=50):
         ranked_lists = []
         if self.bm25_weight > 0:
-            ranked_lists.append((self.bm25.retrieve(query, self.candidate_k), self.bm25_weight))
+            bm25_lists = self.bm25.ranked_lists(query, self.candidate_k)
+            total_field_weight = sum(weight for _name, _items, weight in bm25_lists)
+            ranked_lists.extend(
+                (item_ids, self.bm25_weight * field_weight / total_field_weight)
+                for _name, item_ids, field_weight in bm25_lists
+            )
         if self.dense_weight > 0:
             ranked_lists.append((self.dense.retrieve(query, self.candidate_k), self.dense_weight))
         return reciprocal_rank_fusion(
