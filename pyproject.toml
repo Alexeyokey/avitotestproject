@@ -1,0 +1,16 @@
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "avito-candidates"
+version = "0.1.0"
+description = "Offline service-ad candidate retrieval with Recall@50 evaluation"
+requires-python = ">=3.11"
+dependencies = ["pandas>=2.2,<4", "pyarrow>=18,<26", "scikit-learn>=1.5,<2"]
+
+[project.scripts]
+avito = "avito_candidates.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]

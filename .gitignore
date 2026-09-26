@@ -216,3 +216,12 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Local competition data and generated artifacts
+dataset/
+artifacts/
+*.parquet
+answer.csv
+models/
+indexes/
+.env
