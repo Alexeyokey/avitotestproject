@@ -31,6 +31,8 @@ def main():
     parser.add_argument("--answer", type=Path, default=Path("artifacts/answer.csv"))
     parser.add_argument("--split", choices=["pairs", "queries"], default="pairs")
     parser.add_argument("--seed", type=int, default=42)
+    parser.add_argument("--k1", type=float, default=1.5, help="BM25 term-frequency saturation")
+    parser.add_argument("--b", type=float, default=0.75, help="BM25 document-length normalization")
     parser.add_argument("--max-queries", type=int, default=0,
                         help="Evaluation smoke-test limit; 0 evaluates all queries")
     args = parser.parse_args()
@@ -44,7 +46,8 @@ def main():
             validate_answers(list(csv.DictReader(stream)), [q["query_id"] for q in queries], ids)
         print("Submission valid")
         return
-    train = read(root / "train.parquet", (*SEARCH_FIELDS, "item_id"))
+    if args.command in {"profile", "evaluate"}:
+        train = read(root / "train.parquet", (*SEARCH_FIELDS, "item_id"))
     if args.command == "profile":
         texts = {normalize(x["search_query"]) for x in train}
         keys = {query_key(x) for x in train}
@@ -75,15 +78,16 @@ def main():
         keys = sorted(truth, key=lambda x: hashlib.sha256(repr(x).encode()).digest())
         if args.max_queries > 0:
             keys = keys[:args.max_queries]
-        model = Baseline(items, fit)
+        model = Baseline(items, k1=args.k1, b=args.b)
         predictions = {key: model.retrieve(representatives[key]) for key in keys}
-        save_json(args.output, {"split": args.split, "seed": args.seed,
+        save_json(args.output, {"method": "bm25", "k1": args.k1, "b": args.b,
+            "split": args.split, "seed": args.seed,
             "fit_rows": len(fit), "heldout_rows": len(valid), "evaluated_queries": len(keys),
             "heldout_in_corpus_fraction": sum(x["item_id"] in ids for x in valid) / len(valid),
             "recall_at_50": recall_at_k(predictions, {k: truth[k] for k in keys}),
             "max_queries": args.max_queries})
     else:
-        model = Baseline(items, train)
+        model = Baseline(items, k1=args.k1, b=args.b)
         rows = [{"query_id": q["query_id"], "answer": " ".join(model.retrieve(q))} for q in queries]
         validate_answers(rows, [q["query_id"] for q in queries], ids)
         args.answer.parent.mkdir(parents=True, exist_ok=True)
