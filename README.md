@@ -81,6 +81,11 @@ avito evaluate --data-dir dataset --split queries --output artifacts/bm25-querie
 Silicon можно передать `--device mps`; если этот режим работает нестабильно,
 используйте `--device cpu`.
 
+Dense-тексты ограничены 128 токенами через `--embedding-max-length`. Во время
+первой индексации сохраняются контрольные точки, поэтому прерванный запуск можно
+продолжить. На Mac с достаточной памятью можно попробовать
+`--embedding-batch-size 128`.
+
 Сначала отдельно измерьте dense-поиск:
 
 ```bash
