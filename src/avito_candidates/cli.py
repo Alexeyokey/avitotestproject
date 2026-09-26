@@ -106,15 +106,14 @@ def main():
     parser.add_argument("--rrf-k", type=int, default=60)
     parser.add_argument("--bm25-weight", type=float, default=1.0)
     parser.add_argument("--dense-weight", type=float, default=1.0)
-    parser.add_argument("--channel-quota", type=int, default=0)
+    parser.add_argument("--channel-quota", type=int, default=10)
     parser.add_argument("--max-queries", type=int, default=0,
                         help="Evaluation smoke-test limit; 0 evaluates all queries")
     args = parser.parse_args()
     root = args.data_dir
     queries = read(root / "benchmark_queries.parquet", ("query_id", *SEARCH_FIELDS))
     item_columns = (
-        "item_id", "item_title_raw", "item_infm_params_text", "item_description_raw",
-        "item_category_id",
+        "item_id", "item_title_raw", "item_infm_params_text", "item_description_raw"
     )
     items = read(root / "benchmark_items.parquet", item_columns)
     ids = {x["item_id"] for x in items}
@@ -155,55 +154,24 @@ def main():
         if args.max_queries > 0:
             keys = keys[:args.max_queries]
         model = build_retriever(args, items)
-        retrieval_diagnostics = None
+        candidate_pool_recall = None
         if args.method == "hybrid":
             predictions = {}
             candidate_pools = {}
-            predictions_without_quota = {}
-            predictions_with_quota_10 = {}
-            channel_results = defaultdict(dict)
             for key in keys:
-                prediction, details = model.retrieve_with_diagnostics(representatives[key])
+                prediction, candidate_pool = model.retrieve_with_candidates(
+                    representatives[key]
+                )
                 predictions[key] = prediction
-                candidate_pools[key] = details["candidate_pool"]
-                predictions_without_quota[key] = details["prediction_without_quota"]
-                predictions_with_quota_10[key] = details["prediction_with_quota_10"]
-                for channel, item_ids in details["channels"].items():
-                    channel_results[channel][key] = item_ids
-            relevant = {key: truth[key] for key in keys}
-            pool_recall = recall_at_k(candidate_pools, relevant, args.candidate_k * 4)
-            top50_recall = recall_at_k(predictions, relevant)
-            recall_without_quota = recall_at_k(predictions_without_quota, relevant)
-            recall_with_quota_10 = recall_at_k(predictions_with_quota_10, relevant)
-            retrieval_diagnostics = {
-                "candidate_pool_recall": pool_recall,
-                "candidate_pool_complete_query_fraction": sum(
-                    set(relevant[key]).issubset(candidate_pools[key]) for key in keys
-                ) / len(keys),
-                "candidate_pool_average_size": sum(map(len, candidate_pools.values())) / len(keys),
-                "complete_query_fraction_at_50": sum(
-                    set(relevant[key]).issubset(predictions[key]) for key in keys
-                ) / len(keys),
-                "recall_lost_when_cutting_pool_to_50": pool_recall - top50_recall,
-                "quota_comparison": {
-                    "recall_at_50_without_quota": recall_without_quota,
-                    "recall_at_50_with_quota_10": recall_with_quota_10,
-                    "without_quota_minus_quota_10": (
-                        recall_without_quota - recall_with_quota_10
-                    ),
-                },
-                "channel_recall_at_candidate_k": {
-                    channel: recall_at_k(results, relevant, args.candidate_k)
-                    for channel, results in channel_results.items()
-                },
-            }
+                candidate_pools[key] = candidate_pool
+            candidate_pool_recall = recall_at_k(
+                candidate_pools,
+                {key: truth[key] for key in keys},
+                args.candidate_k * 2,
+            )
         else:
             predictions = {key: model.retrieve(representatives[key]) for key in keys}
         save_json(args.output, {"method": args.method,
-            "fusion": (
-                "flat_bm25_fields_dense" if args.method == "hybrid"
-                else "bm25_fields" if args.method == "bm25" else None
-            ),
             "bm25_fields": {
                 "title": {"k1": args.k1 if args.k1 is not None else args.title_k1,
                           "b": args.b if args.b is not None else args.title_b,
@@ -225,16 +193,12 @@ def main():
             "embedding_description_words": (
                 args.embedding_description_words if args.method != "bm25" else None
             ),
-            "embedding_query_fields": (
-                ["search_query", "search_infm_params_text", "search_category"]
-                if args.method != "bm25" else None
-            ),
             "candidate_k": args.candidate_k if args.method == "hybrid" else None,
             "bm25_weight": args.bm25_weight if args.method == "hybrid" else None,
             "dense_weight": args.dense_weight if args.method == "hybrid" else None,
             "rrf_k": args.rrf_k if args.method == "hybrid" else None,
             "channel_quota": args.channel_quota if args.method == "hybrid" else None,
-            "retrieval_diagnostics": retrieval_diagnostics,
+            "candidate_pool_recall": candidate_pool_recall,
             "split": args.split, "seed": args.seed,
             "fit_rows": len(fit), "heldout_rows": len(valid), "evaluated_queries": len(keys),
             "heldout_in_corpus_fraction": sum(x["item_id"] in ids for x in valid) / len(valid),
