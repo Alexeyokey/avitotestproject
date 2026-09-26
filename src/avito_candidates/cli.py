@@ -26,8 +26,22 @@ def save_json(path, value):
 def build_retriever(args, items):
     from .baseline import Baseline
 
+    bm25_kwargs = {
+        "title_k1": args.k1 if args.k1 is not None else args.title_k1,
+        "title_b": args.b if args.b is not None else args.title_b,
+        "params_k1": args.k1 if args.k1 is not None else args.params_k1,
+        "params_b": args.b if args.b is not None else args.params_b,
+        "description_k1": args.k1 if args.k1 is not None else args.description_k1,
+        "description_b": args.b if args.b is not None else args.description_b,
+        "title_weight": args.title_weight,
+        "params_weight": args.params_weight,
+        "description_weight": args.description_weight,
+        "candidate_k": args.candidate_k,
+        "rank_constant": args.bm25_rrf_k,
+        "channel_quota": args.bm25_channel_quota,
+    }
     if args.method == "bm25":
-        return Baseline(items, k1=args.k1, b=args.b)
+        return Baseline(items, **bm25_kwargs)
 
     from .dense import DenseRetriever
 
@@ -45,7 +59,7 @@ def build_retriever(args, items):
     from .hybrid import HybridRetriever
 
     return HybridRetriever(
-        Baseline(items, k1=args.k1, b=args.b),
+        Baseline(items, **bm25_kwargs),
         dense,
         candidate_k=args.candidate_k,
         rank_constant=args.rrf_k,
@@ -64,8 +78,19 @@ def main():
     parser.add_argument("--split", choices=["pairs", "queries"], default="pairs")
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--method", choices=["bm25", "dense", "hybrid"], default="bm25")
-    parser.add_argument("--k1", type=float, default=1.5, help="BM25 term-frequency saturation")
-    parser.add_argument("--b", type=float, default=0.75, help="BM25 document-length normalization")
+    parser.add_argument("--k1", type=float, help="Override k1 for all BM25 fields")
+    parser.add_argument("--b", type=float, help="Override b for all BM25 fields")
+    parser.add_argument("--title-k1", type=float, default=1.0)
+    parser.add_argument("--title-b", type=float, default=0.2)
+    parser.add_argument("--params-k1", type=float, default=1.2)
+    parser.add_argument("--params-b", type=float, default=0.7)
+    parser.add_argument("--description-k1", type=float, default=1.0)
+    parser.add_argument("--description-b", type=float, default=0.8)
+    parser.add_argument("--title-weight", type=float, default=2.0)
+    parser.add_argument("--params-weight", type=float, default=1.0)
+    parser.add_argument("--description-weight", type=float, default=0.5)
+    parser.add_argument("--bm25-rrf-k", type=int, default=30)
+    parser.add_argument("--bm25-channel-quota", type=int, default=10)
     parser.add_argument("--embedding-model", default="intfloat/multilingual-e5-small")
     parser.add_argument("--embedding-batch-size", type=int, default=64)
     parser.add_argument("--device", help="Sentence Transformers device: cpu, mps or cuda")
@@ -81,7 +106,9 @@ def main():
     args = parser.parse_args()
     root = args.data_dir
     queries = read(root / "benchmark_queries.parquet", ("query_id", *SEARCH_FIELDS))
-    item_columns = ("item_id", "item_title_raw", "item_infm_params_text")
+    item_columns = (
+        "item_id", "item_title_raw", "item_infm_params_text", "item_description_raw"
+    )
     items = read(root / "benchmark_items.parquet", item_columns)
     ids = {x["item_id"] for x in items}
     if args.command == "validate":
@@ -122,7 +149,21 @@ def main():
             keys = keys[:args.max_queries]
         model = build_retriever(args, items)
         predictions = {key: model.retrieve(representatives[key]) for key in keys}
-        save_json(args.output, {"method": args.method, "k1": args.k1, "b": args.b,
+        save_json(args.output, {"method": args.method,
+            "bm25_fields": {
+                "title": {"k1": args.k1 if args.k1 is not None else args.title_k1,
+                          "b": args.b if args.b is not None else args.title_b,
+                          "weight": args.title_weight},
+                "params": {"k1": args.k1 if args.k1 is not None else args.params_k1,
+                           "b": args.b if args.b is not None else args.params_b,
+                           "weight": args.params_weight},
+                "description": {
+                    "k1": args.k1 if args.k1 is not None else args.description_k1,
+                    "b": args.b if args.b is not None else args.description_b,
+                    "weight": args.description_weight},
+                "rrf_k": args.bm25_rrf_k,
+                "channel_quota": args.bm25_channel_quota,
+            } if args.method != "dense" else None,
             "embedding_model": args.embedding_model if args.method != "bm25" else None,
             "candidate_k": args.candidate_k if args.method == "hybrid" else None,
             "bm25_weight": args.bm25_weight if args.method == "hybrid" else None,
