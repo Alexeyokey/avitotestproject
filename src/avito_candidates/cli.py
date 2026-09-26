@@ -50,6 +50,7 @@ def build_retriever(args, items):
         model_name=args.embedding_model,
         cache_dir=args.dense_cache,
         batch_size=args.embedding_batch_size,
+        max_seq_length=args.embedding_max_length,
         device=args.device,
         ef_search=args.ef_search,
     )
@@ -93,6 +94,7 @@ def main():
     parser.add_argument("--bm25-channel-quota", type=int, default=10)
     parser.add_argument("--embedding-model", default="intfloat/multilingual-e5-small")
     parser.add_argument("--embedding-batch-size", type=int, default=64)
+    parser.add_argument("--embedding-max-length", type=int, default=128)
     parser.add_argument("--device", help="Sentence Transformers device: cpu, mps or cuda")
     parser.add_argument("--dense-cache", type=Path, default=Path("artifacts/dense"))
     parser.add_argument("--ef-search", type=int, default=300)

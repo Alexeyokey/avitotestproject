@@ -12,11 +12,12 @@ class DenseHelpersTest(unittest.TestCase):
 
     def test_fingerprint_changes_with_corpus_or_model(self):
         items = [{"item_id": "a", "item_title_raw": "ремонт"}]
-        original = _fingerprint(items, "model-a")
+        original = _fingerprint(items, "model-a", 128)
         self.assertNotEqual(original, _fingerprint(items, "model-b"))
         self.assertNotEqual(original, _fingerprint(
             [{"item_id": "a", "item_title_raw": "монтаж"}], "model-a"
         ))
+        self.assertNotEqual(original, _fingerprint(items, "model-a", 256))
 
 
 if __name__ == "__main__":
