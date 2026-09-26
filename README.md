@@ -3,8 +3,13 @@
 Проект решает задачу кандидатогенерации: для каждого поискового запроса нужно
 выбрать до 50 объявлений из корпуса. Качество оценивается по Recall@50.
 
-Поиск использует BM25 по заголовкам и параметрам услуг. В ответ попадают до 50
-лучших объявлений. Если совпадений меньше, список получается короче.
+В проекте есть три режима поиска:
+
+- `bm25` ищет совпадения слов в заголовках и параметрах услуг;
+- `dense` ищет близкие по смыслу объявления с помощью эмбеддингов;
+- `hybrid` объединяет результаты BM25 и эмбеддингов через RRF.
+
+В ответ попадают до 50 лучших объявлений.
 
 ## Установка
 
@@ -18,6 +23,12 @@ pip install -e . --no-deps
 ```
 
 В Windows окружение активируется командой `.venv\Scripts\Activate.ps1`.
+
+Для режимов `dense` и `hybrid` установите дополнительные зависимости:
+
+```bash
+pip install -e '.[dense]'
+```
 
 Положите `train.parquet`, `benchmark_queries.parquet` и
 `benchmark_items.parquet` в папку `dataset`. Вместо этого можно передать
@@ -56,10 +67,36 @@ avito evaluate --data-dir dataset --split queries --output artifacts/bm25-querie
 Индекс хранит готовые веса слов, поэтому его нужно перестроить при изменении
 параметров. Каждая команда `evaluate` или `predict` строит индекс заново.
 
+Первый запуск семантического поиска скачивает модель
+`intfloat/multilingual-e5-small`, кодирует корпус и сохраняет HNSW-индекс в
+`artifacts/dense`. Следующие команды используют готовый индекс. На Mac с Apple
+Silicon можно передать `--device mps`; если этот режим работает нестабильно,
+используйте `--device cpu`.
+
+Сначала отдельно измерьте dense-поиск:
+
+```bash
+avito evaluate --data-dir dataset --split queries --method dense --device mps \
+  --output artifacts/dense-queries.json
+```
+
+Затем проверьте объединение с BM25:
+
+```bash
+avito evaluate --data-dir dataset --split queries --method hybrid --device mps \
+  --output artifacts/hybrid-queries.json
+```
+
+Гибридный поиск берёт по 300 кандидатов каждого канала. RRF объединяет их с
+равными весами, при этом первые 10 результатов каждого канала сохраняют место
+в итоговых 50. Параметры можно менять через `--candidate-k`, `--rrf-k`,
+`--bm25-weight`, `--dense-weight` и `--channel-quota`.
+
 Собрать и проверить файл для отправки:
 
 ```shell
-avito predict --data-dir dataset --answer artifacts/answer.csv
+avito predict --data-dir dataset --method hybrid --device mps \
+  --answer artifacts/answer.csv
 avito validate --data-dir dataset --answer artifacts/answer.csv
 ```
 

@@ -23,6 +23,38 @@ def save_json(path, value):
     print(json.dumps(value, ensure_ascii=False, indent=2))
 
 
+def build_retriever(args, items):
+    from .baseline import Baseline
+
+    if args.method == "bm25":
+        return Baseline(items, k1=args.k1, b=args.b)
+
+    from .dense import DenseRetriever
+
+    dense = DenseRetriever(
+        items,
+        model_name=args.embedding_model,
+        cache_dir=args.dense_cache,
+        batch_size=args.embedding_batch_size,
+        device=args.device,
+        ef_search=args.ef_search,
+    )
+    if args.method == "dense":
+        return dense
+
+    from .hybrid import HybridRetriever
+
+    return HybridRetriever(
+        Baseline(items, k1=args.k1, b=args.b),
+        dense,
+        candidate_k=args.candidate_k,
+        rank_constant=args.rrf_k,
+        bm25_weight=args.bm25_weight,
+        dense_weight=args.dense_weight,
+        channel_quota=args.channel_quota,
+    )
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("command", choices=["profile", "evaluate", "predict", "validate"])
@@ -31,8 +63,19 @@ def main():
     parser.add_argument("--answer", type=Path, default=Path("artifacts/answer.csv"))
     parser.add_argument("--split", choices=["pairs", "queries"], default="pairs")
     parser.add_argument("--seed", type=int, default=42)
+    parser.add_argument("--method", choices=["bm25", "dense", "hybrid"], default="bm25")
     parser.add_argument("--k1", type=float, default=1.5, help="BM25 term-frequency saturation")
     parser.add_argument("--b", type=float, default=0.75, help="BM25 document-length normalization")
+    parser.add_argument("--embedding-model", default="intfloat/multilingual-e5-small")
+    parser.add_argument("--embedding-batch-size", type=int, default=64)
+    parser.add_argument("--device", help="Sentence Transformers device: cpu, mps or cuda")
+    parser.add_argument("--dense-cache", type=Path, default=Path("artifacts/dense"))
+    parser.add_argument("--ef-search", type=int, default=300)
+    parser.add_argument("--candidate-k", type=int, default=300)
+    parser.add_argument("--rrf-k", type=int, default=60)
+    parser.add_argument("--bm25-weight", type=float, default=1.0)
+    parser.add_argument("--dense-weight", type=float, default=1.0)
+    parser.add_argument("--channel-quota", type=int, default=10)
     parser.add_argument("--max-queries", type=int, default=0,
                         help="Evaluation smoke-test limit; 0 evaluates all queries")
     args = parser.parse_args()
@@ -64,7 +107,6 @@ def main():
             "train_positive_in_corpus_fraction": sum(x["item_id"] in ids for x in train) / len(train),
         })
         return
-    from .baseline import Baseline
     if args.command == "evaluate":
         fit, valid = split_rows(train, mode=args.split, seed=args.seed)
         truth, representatives = defaultdict(set), {}
@@ -78,16 +120,22 @@ def main():
         keys = sorted(truth, key=lambda x: hashlib.sha256(repr(x).encode()).digest())
         if args.max_queries > 0:
             keys = keys[:args.max_queries]
-        model = Baseline(items, k1=args.k1, b=args.b)
+        model = build_retriever(args, items)
         predictions = {key: model.retrieve(representatives[key]) for key in keys}
-        save_json(args.output, {"method": "bm25", "k1": args.k1, "b": args.b,
+        save_json(args.output, {"method": args.method, "k1": args.k1, "b": args.b,
+            "embedding_model": args.embedding_model if args.method != "bm25" else None,
+            "candidate_k": args.candidate_k if args.method == "hybrid" else None,
+            "bm25_weight": args.bm25_weight if args.method == "hybrid" else None,
+            "dense_weight": args.dense_weight if args.method == "hybrid" else None,
+            "rrf_k": args.rrf_k if args.method == "hybrid" else None,
+            "channel_quota": args.channel_quota if args.method == "hybrid" else None,
             "split": args.split, "seed": args.seed,
             "fit_rows": len(fit), "heldout_rows": len(valid), "evaluated_queries": len(keys),
             "heldout_in_corpus_fraction": sum(x["item_id"] in ids for x in valid) / len(valid),
             "recall_at_50": recall_at_k(predictions, {k: truth[k] for k in keys}),
             "max_queries": args.max_queries})
     else:
-        model = Baseline(items, k1=args.k1, b=args.b)
+        model = build_retriever(args, items)
         rows = [{"query_id": q["query_id"], "answer": " ".join(model.retrieve(q))} for q in queries]
         validate_answers(rows, [q["query_id"] for q in queries], ids)
         args.answer.parent.mkdir(parents=True, exist_ok=True)
