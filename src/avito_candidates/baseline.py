@@ -39,8 +39,8 @@ class Baseline:
         self.index = counts.tocsc()
 
     def retrieve(self, query, limit=50):
-        if not 0 <= limit <= 50:
-            raise ValueError("limit must be between 0 and 50")
+        if limit < 0:
+            raise ValueError("limit must be non-negative")
         if limit == 0 or self.index is None:
             return []
         vector = self.vectorizer.transform([normalize(query.get("search_query", ""))])
