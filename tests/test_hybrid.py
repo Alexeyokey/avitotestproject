@@ -70,6 +70,21 @@ class HybridTest(unittest.TestCase):
             {"shared", "title", "params", "description", "dense"},
         )
 
+    def test_diagnostics_keep_union_before_top50_cutoff(self):
+        bm25 = FakeBM25([
+            ("title", ["a", "shared"], 2.0),
+            ("params", ["b", "shared"], 1.0),
+        ])
+        dense = FakeRetriever(["c", "shared"])
+        model = HybridRetriever(bm25, dense, candidate_k=10)
+        prediction, diagnostics = model.retrieve_with_diagnostics({}, limit=2)
+        self.assertEqual(len(prediction), 2)
+        self.assertEqual(set(diagnostics["candidate_pool"]), {"a", "b", "c", "shared"})
+        self.assertEqual(diagnostics["channels"]["title"], ["a", "shared"])
+        self.assertEqual(diagnostics["channels"]["dense"], ["c", "shared"])
+        self.assertEqual(diagnostics["prediction_without_quota"], prediction)
+        self.assertEqual(len(diagnostics["prediction_with_quota_10"]), 2)
+
 
 if __name__ == "__main__":
     unittest.main()
