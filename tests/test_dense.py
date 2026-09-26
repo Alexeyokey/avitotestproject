@@ -1,6 +1,6 @@
 import unittest
 
-from avito_candidates.dense import _fingerprint, item_text, query_text
+from avito_candidates.dense import _fingerprint, item_text
 
 
 class DenseHelpersTest(unittest.TestCase):
@@ -8,26 +8,10 @@ class DenseHelpersTest(unittest.TestCase):
         self.assertEqual(
             item_text({
                 "item_title_raw": "  РЕМОНТ Ёлок ",
-                "item_category_id": "114",
                 "item_infm_params_text": " выезд срочно недорого ",
                 "item_description_raw": " большой опыт работы ",
             }, params_words=2, description_words=2),
-            "заголовок: ремонт елок категория: 114 параметры: выезд срочно "
-            "описание: большой опыт",
-        )
-
-    def test_query_text_uses_filters_and_nonzero_category(self):
-        self.assertEqual(
-            query_text({
-                "search_query": " Монтаж ",
-                "search_infm_params_text": " Вид услуги Домофоны ",
-                "search_category": "114",
-            }),
-            "запрос: монтаж фильтры: вид услуги домофоны категория: 114",
-        )
-        self.assertEqual(
-            query_text({"search_query": "монтаж", "search_category": "0"}),
-            "запрос: монтаж",
+            "заголовок: ремонт елок параметры: выезд срочно описание: большой опыт",
         )
 
     def test_fingerprint_changes_with_corpus_or_model(self):
