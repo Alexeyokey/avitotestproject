@@ -51,6 +51,8 @@ def build_retriever(args, items):
         cache_dir=args.dense_cache,
         batch_size=args.embedding_batch_size,
         max_seq_length=args.embedding_max_length,
+        params_words=args.embedding_params_words,
+        description_words=args.embedding_description_words,
         device=args.device,
         ef_search=args.ef_search,
     )
@@ -95,6 +97,8 @@ def main():
     parser.add_argument("--embedding-model", default="intfloat/multilingual-e5-small")
     parser.add_argument("--embedding-batch-size", type=int, default=64)
     parser.add_argument("--embedding-max-length", type=int, default=128)
+    parser.add_argument("--embedding-params-words", type=int, default=40)
+    parser.add_argument("--embedding-description-words", type=int, default=48)
     parser.add_argument("--device", help="Sentence Transformers device: cpu, mps or cuda")
     parser.add_argument("--dense-cache", type=Path, default=Path("artifacts/dense"))
     parser.add_argument("--ef-search", type=int, default=300)
@@ -167,6 +171,12 @@ def main():
                 "channel_quota": args.bm25_channel_quota,
             } if args.method != "dense" else None,
             "embedding_model": args.embedding_model if args.method != "bm25" else None,
+            "embedding_params_words": (
+                args.embedding_params_words if args.method != "bm25" else None
+            ),
+            "embedding_description_words": (
+                args.embedding_description_words if args.method != "bm25" else None
+            ),
             "candidate_k": args.candidate_k if args.method == "hybrid" else None,
             "bm25_weight": args.bm25_weight if args.method == "hybrid" else None,
             "dense_weight": args.dense_weight if args.method == "hybrid" else None,
