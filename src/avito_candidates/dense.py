@@ -13,23 +13,43 @@ from .core import normalize
 
 
 DEFAULT_EMBEDDING_MODEL = "intfloat/multilingual-e5-small"
-_CACHE_VERSION = 2
+_CACHE_VERSION = 3
 
 
-def item_text(item) -> str:
+def _first_words(text, limit):
+    if limit < 0:
+        raise ValueError("Text field word limits must be non-negative")
+    return " ".join(normalize(text).split()[:limit])
+
+
+def item_text(item, *, params_words=40, description_words=48) -> str:
+    title = normalize(item.get("item_title_raw", ""))
+    params = _first_words(item.get("item_infm_params_text", ""), params_words)
+    description = _first_words(item.get("item_description_raw", ""), description_words)
     return normalize(
-        f"{item.get('item_title_raw', '')} {item.get('item_infm_params_text', '')}"
+        f"заголовок: {title} параметры: {params} описание: {description}"
     )
 
 
-def _fingerprint(items, model_name: str, max_seq_length=128) -> str:
+def _fingerprint(
+    items,
+    model_name: str,
+    max_seq_length=128,
+    params_words=40,
+    description_words=48,
+) -> str:
     digest = hashlib.sha256(
-        f"{_CACHE_VERSION}\0{model_name}\0{max_seq_length}\0".encode()
+        f"{_CACHE_VERSION}\0{model_name}\0{max_seq_length}\0"
+        f"{params_words}\0{description_words}\0".encode()
     )
     for item in items:
         digest.update(str(item["item_id"]).encode())
         digest.update(b"\0")
-        digest.update(item_text(item).encode())
+        digest.update(item_text(
+            item,
+            params_words=params_words,
+            description_words=description_words,
+        ).encode())
         digest.update(b"\0")
     return digest.hexdigest()[:20]
 
@@ -55,6 +75,8 @@ class DenseRetriever:
         batch_size=64,
         encode_chunk_size=4096,
         max_seq_length=128,
+        params_words=40,
+        description_words=48,
         checkpoint_items=32768,
         device=None,
         ef_construction=200,
@@ -74,6 +96,8 @@ class DenseRetriever:
         self.batch_size = batch_size
         self.encode_chunk_size = encode_chunk_size
         self.max_seq_length = max_seq_length
+        self.params_words = params_words
+        self.description_words = description_words
         self.checkpoint_items = checkpoint_items
         self.ef_search = ef_search
         self.index = None
@@ -92,7 +116,13 @@ class DenseRetriever:
 
         cache_dir = Path(cache_dir)
         cache_dir.mkdir(parents=True, exist_ok=True)
-        fingerprint = _fingerprint(items, model_name, max_seq_length)
+        fingerprint = _fingerprint(
+            items,
+            model_name,
+            max_seq_length,
+            params_words,
+            description_words,
+        )
         index_path = cache_dir / f"{fingerprint}.bin"
         metadata_path = cache_dir / f"{fingerprint}.json"
         partial_index_path = cache_dir / f"{fingerprint}.partial.bin"
@@ -126,7 +156,14 @@ class DenseRetriever:
             )
         for start in range(start_item, len(items), encode_chunk_size):
             stop = min(start + encode_chunk_size, len(items))
-            texts = [f"passage: {item_text(item)}" for item in items[start:stop]]
+            texts = [
+                "passage: " + item_text(
+                    item,
+                    params_words=self.params_words,
+                    description_words=self.description_words,
+                )
+                for item in items[start:stop]
+            ]
             vectors = self.model.encode(
                 texts,
                 batch_size=batch_size,
@@ -172,6 +209,8 @@ class DenseRetriever:
             "dimension": self.dimension,
             "items": len(self.ids),
             "max_seq_length": self.max_seq_length,
+            "params_words": self.params_words,
+            "description_words": self.description_words,
         }
 
     def retrieve(self, query, limit=50):
