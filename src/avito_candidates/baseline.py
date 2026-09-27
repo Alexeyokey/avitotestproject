@@ -114,19 +114,26 @@ class Baseline:
             b=description_b,
         )
 
-    def retrieve(self, query, limit=50):
+    def ranked_lists(self, query, limit):
         if limit < 0:
             raise ValueError("limit must be non-negative")
         text = query.get("search_query", "")
-        depth = max(limit, self.candidate_k)
         channels = []
-        for index, weight in (
-            (self.title_index, self.title_weight),
-            (self.params_index, self.params_weight),
-            (self.description_index, self.description_weight),
+        for name, index, weight in (
+            ("title", self.title_index, self.title_weight),
+            ("params", self.params_index, self.params_weight),
+            ("description", self.description_index, self.description_weight),
         ):
             if weight > 0:
-                channels.append((index.retrieve(text, depth), weight))
+                channels.append((name, index.retrieve(text, limit), weight))
+        return channels
+
+    def retrieve(self, query, limit=50):
+        depth = max(limit, self.candidate_k)
+        channels = [
+            (item_ids, weight)
+            for _name, item_ids, weight in self.ranked_lists(query, depth)
+        ]
         return reciprocal_rank_fusion(
             channels,
             limit=limit,
