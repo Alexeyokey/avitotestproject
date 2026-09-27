@@ -246,21 +246,38 @@ class DenseRetriever:
         }
 
     def retrieve(self, query, limit=50):
+        return self.retrieve_batch([query], limit)[0]
+
+    def retrieve_batch(self, queries, limit=50):
+        """Encode and search query batches while preserving input order."""
         if limit < 0:
             raise ValueError("limit must be non-negative")
-        search_query = normalize(query.get("search_query", ""))
-        if not search_query or limit == 0 or not self.ids:
-            return []
-        text = query_text(query)
-        texts, prompt_kwargs = encoding_input([text], self.model_name, "query")
-        vector = self.model.encode(
-            texts,
-            convert_to_numpy=True,
-            normalize_embeddings=True,
-            show_progress_bar=False,
-            **prompt_kwargs,
-        ).astype(np.float32, copy=False)
+        queries = list(queries)
+        results = [[] for _ in queries]
+        if limit == 0 or not self.ids:
+            return results
+        nonempty = [
+            (index, query_text(query)) for index, query in enumerate(queries)
+            if normalize(query.get("search_query", ""))
+        ]
+        if not nonempty:
+            return results
         count = min(limit, len(self.ids))
         self.index.set_ef(max(self.ef_search, count))
-        labels, _distances = self.index.knn_query(vector, k=count)
-        return [self.ids[int(label)] for label in labels[0]]
+        for start in range(0, len(nonempty), self.batch_size):
+            batch = nonempty[start:start + self.batch_size]
+            texts, prompt_kwargs = encoding_input(
+                [text for _index, text in batch], self.model_name, "query"
+            )
+            vectors = self.model.encode(
+                texts,
+                batch_size=self.batch_size,
+                convert_to_numpy=True,
+                normalize_embeddings=True,
+                show_progress_bar=False,
+                **prompt_kwargs,
+            ).astype(np.float32, copy=False)
+            labels, _distances = self.index.knn_query(vectors, k=count)
+            for (index, _text), neighbors in zip(batch, labels):
+                results[index] = [self.ids[int(label)] for label in neighbors]
+        return results
