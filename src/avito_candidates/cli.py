@@ -1,4 +1,4 @@
-"""Local commands: profile, evaluate, predict, validate. Never call external APIs."""
+"""Local retrieval, reranker training, evaluation and submission commands."""
 import argparse
 from collections import defaultdict
 import csv
@@ -122,8 +122,9 @@ def build_retriever(args, items):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("command", choices=["profile", "evaluate", "predict", "validate"])
-    parser.add_argument("--data-dir", type=Path, required=True)
+    parser.add_argument("command", choices=["profile", "evaluate", "predict", "validate",
+                                             "prepare-reranker", "fit-reranker"])
+    parser.add_argument("--data-dir", type=Path)
     parser.add_argument("--output", type=Path, default=Path("artifacts/result.json"))
     parser.add_argument("--answer", type=Path, default=Path("artifacts/answer.csv"))
     parser.add_argument("--split", choices=["pairs", "queries", "all"], default="pairs",
@@ -169,16 +170,43 @@ def main():
                         help="Evaluation smoke-test limit; 0 evaluates all queries")
     parser.add_argument("--train-batch-size", type=int, default=32768,
                         help="Parquet rows read at a time during evaluation")
+    parser.add_argument("--reranker-data", type=Path,
+                        default=Path("artifacts/reranker-train.parquet"),
+                        help="Sampled candidate features for supervised training")
+    parser.add_argument("--reranker-model", type=Path,
+                        help="Trained model to use in evaluate/predict; output path in fit-reranker")
+    parser.add_argument("--reranker-negatives-per-query", type=int, default=64)
+    parser.add_argument("--reranker-max-iter", type=int, default=150)
+    parser.add_argument("--max-train-queries", type=int, default=0,
+                        help="Limit training-query preparation for a smoke test")
     args = parser.parse_args()
+    if args.command == "fit-reranker":
+        from .reranker import fit_model
+        if args.reranker_max_iter <= 0:
+            parser.error("--reranker-max-iter must be positive")
+        result = fit_model(args.reranker_data,
+                           args.reranker_model or Path("artifacts/reranker.joblib"),
+                           max_iter=args.reranker_max_iter)
+        print(json.dumps(result, ensure_ascii=False, indent=2))
+        return
+    if args.data_dir is None:
+        parser.error("--data-dir is required for this command")
+    if args.command == "prepare-reranker" and args.split == "pairs":
+        parser.error("Reranker preparation requires --split queries or --split all")
+    if args.reranker_negatives_per_query <= 0 or args.max_train_queries < 0:
+        parser.error("Reranker negatives must be positive; max train queries nonnegative")
     if args.method == "dense" and args.location_bonus > 0:
         parser.error("--location-bonus is supported by bm25 and hybrid, not dense")
     root = args.data_dir
     queries = (read(root / "benchmark_queries.parquet", ("query_id", *SEARCH_FIELDS))
-               if args.command != "evaluate" else [])
+               if args.command in {"predict", "profile", "validate"} else [])
     item_columns = (
         "item_id", "item_title_raw", "item_infm_params_text", "item_description_raw",
         "item_category_id", "item_location_id",
     )
+    if args.command == "prepare-reranker" or args.reranker_model is not None:
+        item_columns += ("item_price", "item_rating", "item_rating_reviews_count",
+                         "item_is_phone_hidden", "item_is_message_forbidden")
     items = read(root / "benchmark_items.parquet", item_columns)
     ids = {x["item_id"] for x in items}
     if args.command == "validate":
@@ -204,7 +232,32 @@ def main():
             "train_positive_in_corpus_fraction": sum(x["item_id"] in ids for x in train) / len(train),
         })
         return
+    if args.command == "prepare-reranker":
+        from .reranker import (FeatureBuilder, prepare_training_data, read_fit_labels,
+                               retrieval_config)
+        truth, representatives, label_stats = read_fit_labels(
+            root / "train.parquet", ids, split=args.split,
+            fraction=args.validation_fraction, seed=args.seed,
+            batch_size=args.train_batch_size,
+        )
+        if not truth:
+            raise ValueError("No fit positives overlap the benchmark item corpus")
+        model = build_retriever(args, items)
+        metadata = prepare_training_data(
+            args.reranker_data, model, FeatureBuilder(items, retrieval_config(args)),
+            truth, representatives, split=args.split, fraction=args.validation_fraction,
+            seed=args.seed, negatives=args.reranker_negatives_per_query,
+            batch_size=args.embedding_batch_size if args.method != "bm25" else 64,
+            max_queries=args.max_train_queries,
+        )
+        print(json.dumps({"data": str(args.reranker_data), **label_stats, **metadata},
+                         ensure_ascii=False, indent=2))
+        return
     if args.command == "evaluate":
+        from .reranker import Reranker, retrieval_config
+        reranker = (Reranker(args.reranker_model, items, retrieval_config(args),
+                             evaluation_split=(args.split, args.validation_fraction, args.seed))
+                    if args.reranker_model else None)
         truth, representatives, fit_rows, heldout_rows, heldout_in_corpus = read_validation(
             root / "train.parquet", ids, mode=args.split,
             fraction=args.validation_fraction, seed=args.seed,
@@ -217,6 +270,7 @@ def main():
             keys = keys[:args.max_queries]
         model = build_retriever(args, items)
         retrieval_diagnostics = {}
+        baseline_predictions = {} if reranker else None
         if args.method == "hybrid":
             predictions = {}
             candidate_pools = {}
@@ -226,8 +280,13 @@ def main():
             for batch_keys in batches(keys, args.embedding_batch_size):
                 queries_batch = [representatives[key] for key in batch_keys]
                 results = model.retrieve_batch_with_diagnostics(queries_batch)
-                for key, (prediction, details) in zip(batch_keys, results):
-                    predictions[key] = prediction
+                if reranker:
+                    reranked = reranker.rank_batch(queries_batch, results)
+                for index, (key, (prediction, details)) in enumerate(zip(batch_keys, results)):
+                    if reranker:
+                        baseline_predictions[key] = prediction
+                    predictions[key] = (reranked[index] if reranker
+                                        else prediction)
                     candidate_pools[key] = details["candidate_pool"]
                     predictions_without_quota[key] = details["prediction_without_quota"]
                     predictions_with_quota_10[key] = details["prediction_with_quota_10"]
@@ -251,18 +310,32 @@ def main():
             })
         elif args.method == "bm25":
             predictions, candidate_pools = {}, {}
-            for key in keys:
-                prediction, details = model.retrieve_with_diagnostics(representatives[key])
-                predictions[key] = prediction
-                candidate_pools[key] = details["candidate_pool"]
+            for batch_keys in batches(keys, 64):
+                queries_batch = [representatives[key] for key in batch_keys]
+                results = [model.retrieve_with_diagnostics(query) for query in queries_batch]
+                reranked = reranker.rank_batch(queries_batch, results) if reranker else None
+                for index, (key, (prediction, details)) in enumerate(zip(batch_keys, results)):
+                    if reranker:
+                        baseline_predictions[key] = prediction
+                    predictions[key] = reranked[index] if reranker else prediction
+                    candidate_pools[key] = details["candidate_pool"]
         else:
             # Dense retrieval has one channel, so its full ranking is the pool.
             candidate_pools = {}
+            predictions = {}
             for batch_keys in batches(keys, args.embedding_batch_size):
                 queries_batch = [representatives[key] for key in batch_keys]
                 pools = model.retrieve_batch(queries_batch, max(50, args.candidate_k))
                 candidate_pools.update(zip(batch_keys, pools))
-            predictions = {key: pool[:50] for key, pool in candidate_pools.items()}
+                if reranker:
+                    results = [(pool[:50], {"candidate_pool": pool,
+                                             "channels": {"dense": pool}}) for pool in pools]
+                    reranked = reranker.rank_batch(queries_batch, results)
+                    for key, pool, prediction in zip(batch_keys, pools, reranked):
+                        baseline_predictions[key] = pool[:50]
+                        predictions[key] = prediction
+            if not reranker:
+                predictions = {key: pool[:50] for key, pool in candidate_pools.items()}
         relevant = {key: truth[key] for key in keys}
         pool_recall = recall_at_k(candidate_pools, relevant, len(ids))
         top50_recall = recall_at_k(predictions, relevant)
@@ -277,7 +350,11 @@ def main():
             ) / len(keys),
             "recall_lost_when_cutting_pool_to_50": pool_recall - top50_recall,
         })
+        if reranker:
+            retrieval_diagnostics["baseline_recall_at_50"] = recall_at_k(
+                baseline_predictions, relevant)
         save_json(args.output, {"method": args.method,
+            "reranker_model": str(args.reranker_model) if reranker else None,
             "fusion": (
                 "flat_bm25_fields_dense" if args.method == "hybrid"
                 else "bm25_fields" if args.method == "bm25" else None
@@ -323,18 +400,32 @@ def main():
             "recall_at_50": top50_recall,
             "max_queries": args.max_queries})
     else:
+        from .reranker import Reranker, retrieval_config
+        reranker = (Reranker(args.reranker_model, items, retrieval_config(args))
+                    if args.reranker_model else None)
         model = build_retriever(args, items)
         rows = []
         if args.method == "bm25":
-            rows = [{"query_id": q["query_id"], "answer": " ".join(model.retrieve(q))}
-                    for q in queries]
+            for query_batch in batches(queries, 64):
+                results = [model.retrieve_with_diagnostics(query) for query in query_batch]
+                predictions = (reranker.rank_batch(query_batch, results) if reranker else
+                               [prediction for prediction, _details in results])
+                rows.extend({"query_id": q["query_id"], "answer": " ".join(prediction)}
+                            for q, prediction in zip(query_batch, predictions))
         else:
             for query_batch in batches(queries, args.embedding_batch_size):
                 if args.method == "hybrid":
-                    predictions = [prediction for prediction, _details in
-                                   model.retrieve_batch_with_diagnostics(query_batch)]
+                    results = model.retrieve_batch_with_diagnostics(query_batch)
+                    predictions = (reranker.rank_batch(query_batch, results) if reranker else
+                                   [prediction for prediction, _details in results])
                 else:
-                    predictions = model.retrieve_batch(query_batch)
+                    pools = model.retrieve_batch(query_batch, max(50, args.candidate_k))
+                    if reranker:
+                        results = [(pool[:50], {"candidate_pool": pool,
+                                                 "channels": {"dense": pool}}) for pool in pools]
+                        predictions = reranker.rank_batch(query_batch, results)
+                    else:
+                        predictions = [pool[:50] for pool in pools]
                 rows.extend({"query_id": q["query_id"], "answer": " ".join(prediction)}
                             for q, prediction in zip(query_batch, predictions))
         validate_answers(rows, [q["query_id"] for q in queries], ids)
