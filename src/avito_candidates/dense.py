@@ -13,7 +13,7 @@ from .core import normalize
 
 
 DEFAULT_EMBEDDING_MODEL = "intfloat/multilingual-e5-small"
-_CACHE_VERSION = 3
+_CACHE_VERSION = 4
 
 
 def _first_words(text, limit):
@@ -24,11 +24,24 @@ def _first_words(text, limit):
 
 def item_text(item, *, params_words=40, description_words=48) -> str:
     title = normalize(item.get("item_title_raw", ""))
+    category = normalize(item.get("item_category_id", ""))
     params = _first_words(item.get("item_infm_params_text", ""), params_words)
     description = _first_words(item.get("item_description_raw", ""), description_words)
     return normalize(
-        f"заголовок: {title} параметры: {params} описание: {description}"
+        f"заголовок: {title} категория: {category} "
+        f"параметры: {params} описание: {description}"
     )
+
+
+def query_text(query) -> str:
+    parts = [f"запрос: {normalize(query.get('search_query', ''))}"]
+    filters = normalize(query.get("search_infm_params_text", ""))
+    if filters:
+        parts.append(f"фильтры: {filters}")
+    category = normalize(query.get("search_category", ""))
+    if category and category != "0":
+        parts.append(f"категория: {category}")
+    return " ".join(parts)
 
 
 def _fingerprint(
@@ -216,9 +229,10 @@ class DenseRetriever:
     def retrieve(self, query, limit=50):
         if limit < 0:
             raise ValueError("limit must be non-negative")
-        text = normalize(query.get("search_query", ""))
-        if not text or limit == 0 or not self.ids:
+        search_query = normalize(query.get("search_query", ""))
+        if not search_query or limit == 0 or not self.ids:
             return []
+        text = query_text(query)
         vector = self.model.encode(
             [f"query: {text}"],
             convert_to_numpy=True,

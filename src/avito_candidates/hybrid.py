@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import math
+
 
 def reciprocal_rank_fusion(
     ranked_lists,
@@ -51,11 +53,13 @@ class HybridRetriever:
         rank_constant=60,
         bm25_weight=1.0,
         dense_weight=1.0,
-        channel_quota=10,
+        channel_quota=0,
     ):
         if candidate_k <= 0:
             raise ValueError("candidate_k must be positive")
-        if bm25_weight < 0 or dense_weight < 0 or bm25_weight + dense_weight <= 0:
+        weights = (bm25_weight, dense_weight)
+        if (any(not math.isfinite(weight) or weight < 0 for weight in weights)
+                or sum(weights) <= 0):
             raise ValueError("At least one retrieval weight must be positive")
         self.bm25 = bm25
         self.dense = dense
@@ -65,25 +69,58 @@ class HybridRetriever:
         self.dense_weight = dense_weight
         self.channel_quota = channel_quota
 
-    def retrieve_with_candidates(self, query, limit=50):
-        ranked_lists = []
+    def _ranked_channels(self, query):
+        channels = []
         if self.bm25_weight > 0:
-            ranked_lists.append((self.bm25.retrieve(query, self.candidate_k), self.bm25_weight))
+            bm25_lists = self.bm25.ranked_lists(query, self.candidate_k)
+            total_field_weight = sum(weight for _name, _items, weight in bm25_lists)
+            channels.extend(
+                (
+                    name,
+                    item_ids,
+                    self.bm25_weight * field_weight / total_field_weight,
+                )
+                for name, item_ids, field_weight in bm25_lists
+            )
         if self.dense_weight > 0:
-            ranked_lists.append((self.dense.retrieve(query, self.candidate_k), self.dense_weight))
+            channels.append(
+                ("dense", self.dense.retrieve(query, self.candidate_k), self.dense_weight)
+            )
+        return channels
+
+    def retrieve_with_diagnostics(self, query, limit=50):
+        channels = self._ranked_channels(query)
+        ranked_lists = [(item_ids, weight) for _name, item_ids, weight in channels]
         prediction = reciprocal_rank_fusion(
             ranked_lists,
             limit=limit,
             rank_constant=self.rank_constant,
             channel_quota=self.channel_quota,
         )
-        candidate_pool = list(dict.fromkeys(
-            item_id
-            for item_ids, _weight in ranked_lists
-            for item_id in item_ids
-        ))
-        return prediction, candidate_pool
+        candidate_pool = []
+        seen = set()
+        for _name, item_ids, _weight in channels:
+            for item_id in item_ids:
+                if item_id not in seen:
+                    seen.add(item_id)
+                    candidate_pool.append(item_id)
+        return prediction, {
+            "channels": {name: item_ids for name, item_ids, _weight in channels},
+            "candidate_pool": candidate_pool,
+            "prediction_without_quota": reciprocal_rank_fusion(
+                ranked_lists,
+                limit=limit,
+                rank_constant=self.rank_constant,
+                channel_quota=0,
+            ),
+            "prediction_with_quota_10": reciprocal_rank_fusion(
+                ranked_lists,
+                limit=limit,
+                rank_constant=self.rank_constant,
+                channel_quota=10,
+            ),
+        }
 
     def retrieve(self, query, limit=50):
-        prediction, _candidate_pool = self.retrieve_with_candidates(query, limit)
+        prediction, _diagnostics = self.retrieve_with_diagnostics(query, limit)
         return prediction
