@@ -52,6 +52,64 @@ def reciprocal_rank_fusion(
     return sorted(selected, key=lambda item_id: (-scores[item_id], item_id))
 
 
+def rank_location_bonus_grid(
+    channels, weights, item_locations, location, bonuses, *, rank_constant=60, limit=50
+):
+    """Rerank one fixed retrieval pool for many geographic bonuses.
+
+    The bonus is constant for all exact-location matches, so their relative
+    order is unchanged. Sort local/nonlocal items once and merge only the top
+    ``limit`` for each bonus. This is equivalent to quota-free RRF, without
+    rerunning BM25, dense encoding, or HNSW search.
+    """
+    if limit < 0 or rank_constant < 0:
+        raise ValueError("RRF parameters must be non-negative")
+    bonuses = tuple(bonuses)
+    if any(not math.isfinite(bonus) or bonus < 0 for bonus in bonuses):
+        raise ValueError("Location bonuses must be finite and non-negative")
+    scores = {}
+    for name, item_ids in channels.items():
+        weight = weights[name]
+        seen = set()
+        rank = 0
+        for item_id in item_ids:
+            if item_id in seen:
+                continue
+            seen.add(item_id)
+            rank += 1
+            scores[item_id] = scores.get(item_id, 0.0) + weight / (rank_constant + rank)
+
+    local = sorted(
+        (item_id for item_id in scores if location and item_locations.get(item_id) == location),
+        key=lambda item_id: (-scores[item_id], item_id),
+    )
+    other = sorted(
+        (item_id for item_id in scores if not location or item_locations.get(item_id) != location),
+        key=lambda item_id: (-scores[item_id], item_id),
+    )
+    output = {}
+    for bonus in bonuses:
+        selected, local_index, other_index = [], 0, 0
+        while len(selected) < limit and (local_index < len(local) or other_index < len(other)):
+            if local_index == len(local):
+                take_local = False
+            elif other_index == len(other):
+                take_local = True
+            else:
+                local_id, other_id = local[local_index], other[other_index]
+                take_local = (-scores[local_id] - bonus, local_id) <= (
+                    -scores[other_id], other_id
+                )
+            if take_local:
+                selected.append(local[local_index])
+                local_index += 1
+            else:
+                selected.append(other[other_index])
+                other_index += 1
+        output[bonus] = selected
+    return output
+
+
 class HybridRetriever:
     def __init__(
         self,
@@ -123,6 +181,7 @@ class HybridRetriever:
         )
         return prediction, {
             "channels": {name: item_ids for name, item_ids, _weight in channels},
+            "channel_weights": {name: weight for name, _item_ids, weight in channels},
             "candidate_pool": candidate_pool,
             "prediction_without_quota": reciprocal_rank_fusion(
                 ranked_lists,

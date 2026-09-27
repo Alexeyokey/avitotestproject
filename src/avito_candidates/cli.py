@@ -30,6 +30,93 @@ def batches(rows, size):
         yield rows[start:start + size]
 
 
+class LocationBonusSweep:
+    """Measure many hybrid geography bonuses on the same candidate lists."""
+
+    def __init__(self, items, keys, *, rank_constant, bm25_weight, dense_weight,
+                 reference_bonus):
+        from .hybrid import rank_location_bonus_grid
+
+        self.rerank = rank_location_bonus_grid
+        self.item_locations = {item["item_id"]: item["item_location_id"] for item in items}
+        # The hard-priority threshold is at most (BM25 + dense) / (RRF k + 1).
+        # Sweep finely below it, then include the user's current setting.
+        self.hard_priority_threshold = (bm25_weight + dense_weight) / (rank_constant + 1)
+        self.bonuses = sorted(set([*(index / 1000 for index in range(41)),
+                                   0.05, 0.1, reference_bonus]))
+        self.rank_constant = rank_constant
+        self.tune_keys = set(keys[:max(1, len(keys) // 2)])
+        self.tune_count = len(self.tune_keys)
+        self.confirm_count = len(keys) - self.tune_count
+        self.count = len(keys)
+        self.totals = {bonus: {name: 0.0 for name in (
+            "all", "tune", "confirm", "local", "other", "local_share")}
+            for bonus in self.bonuses}
+        self.local_query_count = 0
+        self.other_query_count = 0
+
+    def add(self, key, query, details, relevant):
+        location = query.get("search_location_id", "")
+        local_relevant = ({item_id for item_id in relevant
+                           if self.item_locations.get(item_id) == location}
+                          if location else set())
+        other_relevant = set(relevant) - local_relevant
+        if local_relevant:
+            self.local_query_count += 1
+        if other_relevant and location:
+            self.other_query_count += 1
+        ranked = self.rerank(
+            details["channels"], details["channel_weights"], self.item_locations,
+            location, self.bonuses, rank_constant=self.rank_constant,
+        )
+        for bonus, prediction in ranked.items():
+            selected = set(prediction)
+            totals = self.totals[bonus]
+            score = len(selected & relevant) / len(relevant)
+            totals["all"] += score
+            totals["tune" if key in self.tune_keys else "confirm"] += score
+            if local_relevant:
+                totals["local"] += len(selected & local_relevant) / len(local_relevant)
+            if other_relevant and location:
+                totals["other"] += len(selected & other_relevant) / len(other_relevant)
+            if location:
+                totals["local_share"] += sum(
+                    self.item_locations.get(item_id) == location for item_id in prediction
+                ) / max(1, len(prediction))
+
+    def report(self):
+        rows = []
+        for bonus in self.bonuses:
+            totals = self.totals[bonus]
+            rows.append({
+                "bonus": bonus,
+                "recall_at_50": totals["all"] / self.count,
+                "tuning_recall_at_50": totals["tune"] / self.tune_count,
+                "confirmation_recall_at_50": (
+                    totals["confirm"] / self.confirm_count if self.confirm_count else None
+                ),
+                "local_positive_recall_at_50": (
+                    totals["local"] / self.local_query_count
+                    if self.local_query_count else None
+                ),
+                "nonlocal_positive_recall_at_50": (
+                    totals["other"] / self.other_query_count
+                    if self.other_query_count else None
+                ),
+                "average_local_share_of_top_50": totals["local_share"] / self.count,
+            })
+        best_tune = max(rows, key=lambda row: (row["tuning_recall_at_50"], -row["bonus"]))
+        best_full = max(rows, key=lambda row: (row["recall_at_50"], -row["bonus"]))
+        return {
+            "hard_priority_threshold_upper_bound": self.hard_priority_threshold,
+            "tuning_queries": self.tune_count,
+            "confirmation_queries": self.confirm_count,
+            "best_bonus_on_tuning_half": best_tune["bonus"],
+            "best_bonus_on_full_validation": best_full["bonus"],
+            "results": rows,
+        }
+
+
 def read_validation(path, corpus_ids, *, mode, fraction, seed, batch_size):
     """Stream train rows and retain only positives usable for evaluation."""
     if mode not in {"pairs", "queries", "all"} or (mode != "all" and not 0 < fraction < 1):
@@ -168,6 +255,8 @@ def main():
     parser.add_argument("--channel-quota", type=int, default=0)
     parser.add_argument("--max-queries", type=int, default=0,
                         help="Evaluation smoke-test limit; 0 evaluates all queries")
+    parser.add_argument("--sweep-location-bonus", action="store_true",
+                        help="Evaluate a grid of hybrid location bonuses in one retrieval pass")
     parser.add_argument("--train-batch-size", type=int, default=32768,
                         help="Parquet rows read at a time during evaluation")
     parser.add_argument("--reranker-data", type=Path,
@@ -191,6 +280,10 @@ def main():
         return
     if args.data_dir is None:
         parser.error("--data-dir is required for this command")
+    if args.sweep_location_bonus and (args.command != "evaluate" or args.method != "hybrid"
+                                      or args.channel_quota != 0 or args.reranker_model):
+        parser.error("Location sweep requires evaluate --method hybrid --channel-quota 0 "
+                     "without --reranker-model")
     if args.command == "prepare-reranker" and args.split == "pairs":
         parser.error("Reranker preparation requires --split queries or --split all")
     if args.reranker_negatives_per_query <= 0 or args.max_train_queries < 0:
@@ -270,6 +363,10 @@ def main():
             keys = keys[:args.max_queries]
         model = build_retriever(args, items)
         retrieval_diagnostics = {}
+        location_sweep = (LocationBonusSweep(
+            items, keys, rank_constant=args.rrf_k, bm25_weight=args.bm25_weight,
+            dense_weight=args.dense_weight, reference_bonus=args.location_bonus,
+        ) if args.sweep_location_bonus else None)
         baseline_predictions = {} if reranker else None
         if args.method == "hybrid":
             predictions = {}
@@ -283,6 +380,8 @@ def main():
                 if reranker:
                     reranked = reranker.rank_batch(queries_batch, results)
                 for index, (key, (prediction, details)) in enumerate(zip(batch_keys, results)):
+                    if location_sweep:
+                        location_sweep.add(key, queries_batch[index], details, truth[key])
                     if reranker:
                         baseline_predictions[key] = prediction
                     predictions[key] = (reranked[index] if reranker
@@ -353,6 +452,13 @@ def main():
         if reranker:
             retrieval_diagnostics["baseline_recall_at_50"] = recall_at_k(
                 baseline_predictions, relevant)
+        if location_sweep:
+            sweep_report = location_sweep.report()
+            current = next(row for row in sweep_report["results"]
+                           if row["bonus"] == args.location_bonus)
+            if abs(current["recall_at_50"] - top50_recall) > 1e-10:
+                raise RuntimeError("Location sweep does not reproduce the current hybrid ranking")
+            retrieval_diagnostics["location_bonus_sweep"] = sweep_report
         save_json(args.output, {"method": args.method,
             "reranker_model": str(args.reranker_model) if reranker else None,
             "fusion": (
