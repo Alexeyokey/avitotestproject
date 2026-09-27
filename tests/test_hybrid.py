@@ -1,6 +1,7 @@
 import unittest
 
-from avito_candidates.hybrid import HybridRetriever, reciprocal_rank_fusion
+from avito_candidates.hybrid import (HybridRetriever, rank_location_bonus_grid,
+                                     reciprocal_rank_fusion)
 
 
 class FakeRetriever:
@@ -27,6 +28,23 @@ class FakeBM25:
 
 
 class HybridTest(unittest.TestCase):
+    def test_location_sweep_matches_independent_rrf_for_each_bonus(self):
+        channels = {"title": ["a", "b", "b", "c"],
+                    "params": ["c", "a"], "dense": ["d", "c", "b"]}
+        weights = {"title": 0.6, "params": 0.4, "dense": 1.0}
+        locations = {"a": "1", "b": "2", "c": "1", "d": "2"}
+        bonuses = [0, 0.001, 0.01, 0.033, 0.1]
+        sweep = rank_location_bonus_grid(
+            channels, weights, locations, "1", bonuses, rank_constant=60, limit=3
+        )
+        for bonus in bonuses:
+            expected = reciprocal_rank_fusion(
+                [(ids, weights[name]) for name, ids in channels.items()],
+                limit=3, rank_constant=60, channel_quota=0,
+                score_boosts={item_id: bonus for item_id in ("a", "c")},
+            )
+            self.assertEqual(sweep[bonus], expected)
+
     def test_batched_hybrid_matches_single_query_fusion(self):
         class BatchDense(FakeRetriever):
             def __init__(self, values):
