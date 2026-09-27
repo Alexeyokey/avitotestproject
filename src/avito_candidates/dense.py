@@ -12,8 +12,25 @@ import numpy as np
 from .core import normalize
 
 
-DEFAULT_EMBEDDING_MODEL = "intfloat/multilingual-e5-small"
-_CACHE_VERSION = 4
+DEFAULT_EMBEDDING_MODEL = "Octen/Octen-Embedding-0.6B"
+_CACHE_VERSION = 5
+
+
+def encoding_input(texts, model_name, role):
+    """Apply the model's retrieval prompts without mixing Octen and E5 formats.
+
+    Octen publishes `query` and `document` prompts in its Sentence Transformers
+    configuration. E5 instead expects literal `query:`/`passage:` prefixes.
+    Other models receive plain text unless their encoding is configured here.
+    """
+    if role not in {"query", "document"}:
+        raise ValueError("Embedding role must be query or document")
+    if model_name == DEFAULT_EMBEDDING_MODEL:
+        return list(texts), {"prompt_name": role}
+    if model_name.startswith("intfloat/multilingual-e5"):
+        prefix = "query: " if role == "query" else "passage: "
+        return [prefix + text for text in texts], {}
+    return list(texts), {}
 
 
 def _first_words(text, limit):
@@ -85,7 +102,7 @@ class DenseRetriever:
         *,
         model_name=DEFAULT_EMBEDDING_MODEL,
         cache_dir=Path("artifacts/dense"),
-        batch_size=64,
+        batch_size=16,
         encode_chunk_size=4096,
         max_seq_length=128,
         params_words=40,
@@ -170,19 +187,21 @@ class DenseRetriever:
         for start in range(start_item, len(items), encode_chunk_size):
             stop = min(start + encode_chunk_size, len(items))
             texts = [
-                "passage: " + item_text(
+                item_text(
                     item,
                     params_words=self.params_words,
                     description_words=self.description_words,
                 )
                 for item in items[start:stop]
             ]
+            texts, prompt_kwargs = encoding_input(texts, model_name, "document")
             vectors = self.model.encode(
                 texts,
                 batch_size=batch_size,
                 convert_to_numpy=True,
                 normalize_embeddings=True,
                 show_progress_bar=False,
+                **prompt_kwargs,
             ).astype(np.float32, copy=False)
             self.index.add_items(vectors, np.arange(start, stop))
             print(f"Эмбеддинги объявлений: {stop}/{len(items)}", flush=True)
@@ -233,11 +252,13 @@ class DenseRetriever:
         if not search_query or limit == 0 or not self.ids:
             return []
         text = query_text(query)
+        texts, prompt_kwargs = encoding_input([text], self.model_name, "query")
         vector = self.model.encode(
-            [f"query: {text}"],
+            texts,
             convert_to_numpy=True,
             normalize_embeddings=True,
             show_progress_bar=False,
+            **prompt_kwargs,
         ).astype(np.float32, copy=False)
         count = min(limit, len(self.ids))
         self.index.set_ef(max(self.ef_search, count))
