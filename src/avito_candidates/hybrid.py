@@ -84,7 +84,7 @@ class HybridRetriever:
         self.channel_quota = channel_quota
         self.location_bonus = location_bonus
 
-    def _ranked_channels(self, query):
+    def _ranked_channels(self, query, dense_ids=None):
         channels = []
         if self.bm25_weight > 0:
             bm25_lists = self.bm25.ranked_lists(query, self.candidate_k)
@@ -98,13 +98,12 @@ class HybridRetriever:
                 for name, item_ids, field_weight in bm25_lists
             )
         if self.dense_weight > 0:
-            channels.append(
-                ("dense", self.dense.retrieve(query, self.candidate_k), self.dense_weight)
-            )
+            if dense_ids is None:
+                dense_ids = self.dense.retrieve(query, self.candidate_k)
+            channels.append(("dense", dense_ids, self.dense_weight))
         return channels
 
-    def retrieve_with_diagnostics(self, query, limit=50):
-        channels = self._ranked_channels(query)
+    def _fuse_with_diagnostics(self, query, channels, limit):
         ranked_lists = [(item_ids, weight) for _name, item_ids, weight in channels]
         candidate_pool = []
         seen = set()
@@ -140,6 +139,25 @@ class HybridRetriever:
                 score_boosts=score_boosts,
             ),
         }
+
+    def retrieve_with_diagnostics(self, query, limit=50):
+        return self._fuse_with_diagnostics(
+            query, self._ranked_channels(query), limit
+        )
+
+    def retrieve_batch_with_diagnostics(self, queries, limit=50):
+        """Batch dense retrieval; keep BM25 and RRF behavior per query."""
+        queries = list(queries)
+        dense_results = (
+            self.dense.retrieve_batch(queries, self.candidate_k)
+            if self.dense_weight > 0 else [None] * len(queries)
+        )
+        return [
+            self._fuse_with_diagnostics(
+                query, self._ranked_channels(query, dense_ids), limit
+            )
+            for query, dense_ids in zip(queries, dense_results)
+        ]
 
     def retrieve(self, query, limit=50):
         prediction, _diagnostics = self.retrieve_with_diagnostics(query, limit)

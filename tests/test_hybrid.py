@@ -27,6 +27,28 @@ class FakeBM25:
 
 
 class HybridTest(unittest.TestCase):
+    def test_batched_hybrid_matches_single_query_fusion(self):
+        class BatchDense(FakeRetriever):
+            def __init__(self, values):
+                super().__init__(values)
+                self.batch_calls = []
+
+            def retrieve_batch(self, queries, limit=50):
+                self.batch_calls.append((len(queries), limit))
+                return [self.values[:limit] for _query in queries]
+
+        bm25 = FakeBM25([
+            ("title", ["a", "shared"], 2.0),
+            ("params", ["b", "shared"], 1.0),
+        ])
+        dense = BatchDense(["shared", "c"])
+        model = HybridRetriever(bm25, dense, candidate_k=10, channel_quota=0)
+        queries = [{"search_query": "один"}, {"search_query": "два"}]
+        batched = model.retrieve_batch_with_diagnostics(queries, limit=2)
+        singles = [model.retrieve_with_diagnostics(query, limit=2) for query in queries]
+        self.assertEqual(batched, singles)
+        self.assertEqual(dense.batch_calls, [(2, 10)])
+
     def test_rrf_rewards_results_from_both_channels(self):
         result = reciprocal_rank_fusion([
             (["a", "b", "c"], 1.0),
