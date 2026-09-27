@@ -11,9 +11,11 @@ def reciprocal_rank_fusion(
     limit=50,
     rank_constant=60,
     channel_quota=10,
+    score_boosts=None,
 ):
     if limit < 0 or rank_constant < 0 or channel_quota < 0:
         raise ValueError("RRF parameters must be non-negative")
+    ranked_lists = list(ranked_lists)
     scores = {}
     guaranteed = set()
     for item_ids, weight in ranked_lists:
@@ -26,6 +28,13 @@ def reciprocal_rank_fusion(
         guaranteed.update(unique[:channel_quota])
         for rank, item_id in enumerate(unique, start=1):
             scores[item_id] = scores.get(item_id, 0.0) + weight / (rank_constant + rank)
+
+    # Query-specific boosts alter selection only among retrieved candidates.
+    # Never add IDs that were absent from every retrieval channel.
+    if score_boosts:
+        for item_id, boost in score_boosts.items():
+            if item_id in scores:
+                scores[item_id] += boost
 
     fused = sorted(scores, key=lambda item_id: (-scores[item_id], item_id))
     selected = fused[:limit]
@@ -54,6 +63,7 @@ class HybridRetriever:
         bm25_weight=1.0,
         dense_weight=1.0,
         channel_quota=0,
+        location_bonus=0.0,
     ):
         if candidate_k <= 0:
             raise ValueError("candidate_k must be positive")
@@ -61,6 +71,10 @@ class HybridRetriever:
         if (any(not math.isfinite(weight) or weight < 0 for weight in weights)
                 or sum(weights) <= 0):
             raise ValueError("At least one retrieval weight must be positive")
+        if not math.isfinite(location_bonus) or location_bonus < 0:
+            raise ValueError("Location bonus must be non-negative and finite")
+        if location_bonus > 0 and getattr(bm25, "_item_locations", None) is None:
+            raise ValueError("Location bonus requires BM25 item locations")
         self.bm25 = bm25
         self.dense = dense
         self.candidate_k = candidate_k
@@ -68,6 +82,7 @@ class HybridRetriever:
         self.bm25_weight = bm25_weight
         self.dense_weight = dense_weight
         self.channel_quota = channel_quota
+        self.location_bonus = location_bonus
 
     def _ranked_channels(self, query):
         channels = []
@@ -91,12 +106,6 @@ class HybridRetriever:
     def retrieve_with_diagnostics(self, query, limit=50):
         channels = self._ranked_channels(query)
         ranked_lists = [(item_ids, weight) for _name, item_ids, weight in channels]
-        prediction = reciprocal_rank_fusion(
-            ranked_lists,
-            limit=limit,
-            rank_constant=self.rank_constant,
-            channel_quota=self.channel_quota,
-        )
         candidate_pool = []
         seen = set()
         for _name, item_ids, _weight in channels:
@@ -104,6 +113,15 @@ class HybridRetriever:
                 if item_id not in seen:
                     seen.add(item_id)
                     candidate_pool.append(item_id)
+        score_boosts = (self.bm25.location_score_boosts(query, candidate_pool)
+                        if self.location_bonus > 0 else {})
+        prediction = reciprocal_rank_fusion(
+            ranked_lists,
+            limit=limit,
+            rank_constant=self.rank_constant,
+            channel_quota=self.channel_quota,
+            score_boosts=score_boosts,
+        )
         return prediction, {
             "channels": {name: item_ids for name, item_ids, _weight in channels},
             "candidate_pool": candidate_pool,
@@ -112,12 +130,14 @@ class HybridRetriever:
                 limit=limit,
                 rank_constant=self.rank_constant,
                 channel_quota=0,
+                score_boosts=score_boosts,
             ),
             "prediction_with_quota_10": reciprocal_rank_fusion(
                 ranked_lists,
                 limit=limit,
                 rank_constant=self.rank_constant,
                 channel_quota=10,
+                score_boosts=score_boosts,
             ),
         }
 

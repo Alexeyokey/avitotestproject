@@ -44,6 +44,13 @@ class HybridTest(unittest.TestCase):
         self.assertIn("dense-only", result)
         self.assertIn("shared-0", result)
 
+    def test_score_boost_changes_selection_only_within_retrieved_pool(self):
+        result = reciprocal_rank_fusion(
+            [(["a", "b"], 1.0)], limit=1, channel_quota=0,
+            score_boosts={"b": 0.1, "unseen": 100.0},
+        )
+        self.assertEqual(result, ["b"])
+
     def test_hybrid_requests_extended_candidate_pool(self):
         bm25 = FakeBM25([
             ("title", ["a", "b"], 2.0),
