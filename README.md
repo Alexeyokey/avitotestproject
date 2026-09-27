@@ -54,13 +54,16 @@ avito profile --data-dir dataset --output artifacts/profile.json
 avito evaluate --data-dir dataset --split pairs --output artifacts/bm25-pairs.json
 ```
 
-Проверить качество на текстах запросов, которых модель не видела при обучении:
+Проверить качество на отложенных текстах запросов:
 
 ```shell
 avito evaluate --data-dir dataset --split queries --output artifacts/bm25-queries.json
 ```
 
-По умолчанию в проверку попадает около 20% строк. Долю можно изменить, например:
+По умолчанию в проверку попадает около 20% строк. `evaluate` читает train
+порциями по 32 768 строк и сохраняет в памяти только отложенные ответы,
+которые есть в корпусе. Размер порции меняется через `--train-batch-size`.
+Долю можно изменить, например:
 
 ```shell
 avito evaluate --data-dir dataset --split queries --validation-fraction 0.1 \
@@ -141,7 +144,9 @@ Silicon можно передать `--device mps`; если этот режим
 `document`. Префиксы `query:` и `passage:` используются только при явном выборе
 модели семейства E5 через `--embedding-model`. При смене модели создаётся новый
 индекс. Размер пакета для Octen по умолчанию уменьшен до 16; его можно изменить
-через `--embedding-batch-size`.
+через `--embedding-batch-size`. Этот параметр теперь применяется и к запросам:
+при `evaluate` и `predict` dense-запросы кодируются и ищутся в HNSW пакетами,
+а BM25 и объединение результатов по-прежнему выполняются для каждого запроса.
 
 Dense-тексты ограничены 128 токенами через `--embedding-max-length`. Во время
 первой индексации сохраняются контрольные точки, поэтому прерванный запуск можно
