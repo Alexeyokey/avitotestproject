@@ -19,6 +19,20 @@ class ContractsTest(unittest.TestCase):
         fit, valid = split_rows(rows, mode="queries")
         self.assertFalse({x["search_query"] for x in fit} & {x["search_query"] for x in valid})
 
+    def test_all_uses_every_row_and_custom_fraction_changes_partial_size(self):
+        rows = [{"search_query": str(i), "item_id": str(i)} for i in range(1000)]
+        fit_all, valid_all = split_rows(rows, mode="all")
+        self.assertEqual(fit_all, [])
+        self.assertEqual(valid_all, rows)
+        fit_small, valid_small = split_rows(rows, mode="queries", fraction=0.1)
+        fit_large, valid_large = split_rows(rows, mode="queries", fraction=0.5)
+        self.assertEqual(len(fit_small) + len(valid_small), len(rows))
+        self.assertEqual(len(fit_large) + len(valid_large), len(rows))
+        self.assertLess(len(valid_small), len(valid_large))
+        self.assertTrue({r["search_query"] for r in valid_small}.issubset(
+            {r["search_query"] for r in valid_large}
+        ))
+
     def test_submission_contract(self):
         q, iid = "A" * 16, "0" * 16
         validate_answers([{"query_id": q, "answer": iid}], [q], [iid])
