@@ -24,8 +24,11 @@ def held_out(key, fraction=0.2, seed=42):
 
 
 def split_rows(rows, mode="pairs", fraction=0.2, seed=42):
-    if mode not in {"pairs", "queries"} or not 0 < fraction < 1:
+    if mode not in {"pairs", "queries", "all"} or (mode != "all" and not 0 < fraction < 1):
         raise ValueError("Invalid split mode or fraction")
+    if mode == "all":
+        # Unsupervised retrievers can be evaluated on every known positive pair.
+        return [], list(rows)
     train, valid = [], []
     for row in rows:
         # Duplicate positive pairs always stay together. Query holdout additionally
