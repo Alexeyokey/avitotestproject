@@ -8,7 +8,7 @@ from pathlib import Path
 import pandas as pd
 import pyarrow.parquet as pq
 
-from .core import SEARCH_FIELDS, normalize, query_key, recall_at_k, split_rows, validate_answers
+from .core import SEARCH_FIELDS, held_out, normalize, query_key, recall_at_k, validate_answers
 from .dense import DEFAULT_EMBEDDING_MODEL
 
 
@@ -22,6 +22,49 @@ def save_json(path, value):
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(value, ensure_ascii=False, indent=2), encoding="utf-8")
     print(json.dumps(value, ensure_ascii=False, indent=2))
+
+
+def batches(rows, size):
+    """Bound query memory while allowing dense encoding to use model batches."""
+    for start in range(0, len(rows), size):
+        yield rows[start:start + size]
+
+
+def read_validation(path, corpus_ids, *, mode, fraction, seed, batch_size):
+    """Stream train rows and retain only positives usable for evaluation."""
+    if mode not in {"pairs", "queries", "all"} or (mode != "all" and not 0 < fraction < 1):
+        raise ValueError("Invalid split mode or fraction")
+    if batch_size <= 0:
+        raise ValueError("Train batch size must be positive")
+    truth, representatives = defaultdict(set), {}
+    fit_rows = heldout_rows = heldout_in_corpus = 0
+    query_selection = {}
+    parquet = pq.ParquetFile(path)
+    for batch in parquet.iter_batches(
+        batch_size=batch_size, columns=[*SEARCH_FIELDS, "item_id"]
+    ):
+        # Match read(): missing values become empty strings and IDs remain strings.
+        rows = batch.to_pandas().fillna("").astype(str).to_dict("records")
+        for row in rows:
+            if mode == "all":
+                selected = True
+            elif mode == "queries":
+                text = normalize(row["search_query"])
+                if text not in query_selection:
+                    query_selection[text] = held_out(text, fraction, seed)
+                selected = query_selection[text]
+            else:
+                selected = held_out((query_key(row), row["item_id"]), fraction, seed)
+            if not selected:
+                fit_rows += 1
+                continue
+            heldout_rows += 1
+            if row["item_id"] in corpus_ids:
+                heldout_in_corpus += 1
+                key = query_key(row)
+                truth[key].add(row["item_id"])
+                representatives[key] = row
+    return truth, representatives, fit_rows, heldout_rows, heldout_in_corpus
 
 
 def build_retriever(args, items):
@@ -109,7 +152,8 @@ def main():
     parser.add_argument("--bm25-rrf-k", type=int, default=30)
     parser.add_argument("--bm25-channel-quota", type=int, default=10)
     parser.add_argument("--embedding-model", default=DEFAULT_EMBEDDING_MODEL)
-    parser.add_argument("--embedding-batch-size", type=int, default=16)
+    parser.add_argument("--embedding-batch-size", type=int, default=16,
+                        help="Batch size for item and query embeddings")
     parser.add_argument("--embedding-max-length", type=int, default=128)
     parser.add_argument("--embedding-params-words", type=int, default=40)
     parser.add_argument("--embedding-description-words", type=int, default=48)
@@ -123,11 +167,14 @@ def main():
     parser.add_argument("--channel-quota", type=int, default=0)
     parser.add_argument("--max-queries", type=int, default=0,
                         help="Evaluation smoke-test limit; 0 evaluates all queries")
+    parser.add_argument("--train-batch-size", type=int, default=32768,
+                        help="Parquet rows read at a time during evaluation")
     args = parser.parse_args()
     if args.method == "dense" and args.location_bonus > 0:
         parser.error("--location-bonus is supported by bm25 and hybrid, not dense")
     root = args.data_dir
-    queries = read(root / "benchmark_queries.parquet", ("query_id", *SEARCH_FIELDS))
+    queries = (read(root / "benchmark_queries.parquet", ("query_id", *SEARCH_FIELDS))
+               if args.command != "evaluate" else [])
     item_columns = (
         "item_id", "item_title_raw", "item_infm_params_text", "item_description_raw",
         "item_category_id", "item_location_id",
@@ -139,7 +186,7 @@ def main():
             validate_answers(list(csv.DictReader(stream)), [q["query_id"] for q in queries], ids)
         print("Submission valid")
         return
-    if args.command in {"profile", "evaluate"}:
+    if args.command == "profile":
         train = read(root / "train.parquet", (*SEARCH_FIELDS, "item_id"))
     if args.command == "profile":
         texts = {normalize(x["search_query"]) for x in train}
@@ -158,14 +205,11 @@ def main():
         })
         return
     if args.command == "evaluate":
-        fit, valid = split_rows(train, mode=args.split,
-                                fraction=args.validation_fraction, seed=args.seed)
-        truth, representatives = defaultdict(set), {}
-        for row in valid:
-            if row["item_id"] in ids:
-                key = query_key(row)
-                truth[key].add(row["item_id"])
-                representatives[key] = row
+        truth, representatives, fit_rows, heldout_rows, heldout_in_corpus = read_validation(
+            root / "train.parquet", ids, mode=args.split,
+            fraction=args.validation_fraction, seed=args.seed,
+            batch_size=args.train_batch_size,
+        )
         # Stable hash order avoids evaluating only the first rows of the dataset.
         import hashlib
         keys = sorted(truth, key=lambda x: hashlib.sha256(repr(x).encode()).digest())
@@ -179,14 +223,16 @@ def main():
             predictions_without_quota = {}
             predictions_with_quota_10 = {}
             channel_results = defaultdict(dict)
-            for key in keys:
-                prediction, details = model.retrieve_with_diagnostics(representatives[key])
-                predictions[key] = prediction
-                candidate_pools[key] = details["candidate_pool"]
-                predictions_without_quota[key] = details["prediction_without_quota"]
-                predictions_with_quota_10[key] = details["prediction_with_quota_10"]
-                for channel, item_ids in details["channels"].items():
-                    channel_results[channel][key] = item_ids
+            for batch_keys in batches(keys, args.embedding_batch_size):
+                queries_batch = [representatives[key] for key in batch_keys]
+                results = model.retrieve_batch_with_diagnostics(queries_batch)
+                for key, (prediction, details) in zip(batch_keys, results):
+                    predictions[key] = prediction
+                    candidate_pools[key] = details["candidate_pool"]
+                    predictions_without_quota[key] = details["prediction_without_quota"]
+                    predictions_with_quota_10[key] = details["prediction_with_quota_10"]
+                    for channel, item_ids in details["channels"].items():
+                        channel_results[channel][key] = item_ids
             relevant = {key: truth[key] for key in keys}
             recall_without_quota = recall_at_k(predictions_without_quota, relevant)
             recall_with_quota_10 = recall_at_k(predictions_with_quota_10, relevant)
@@ -211,10 +257,11 @@ def main():
                 candidate_pools[key] = details["candidate_pool"]
         else:
             # Dense retrieval has one channel, so its full ranking is the pool.
-            candidate_pools = {
-                key: model.retrieve(representatives[key], max(50, args.candidate_k))
-                for key in keys
-            }
+            candidate_pools = {}
+            for batch_keys in batches(keys, args.embedding_batch_size):
+                queries_batch = [representatives[key] for key in batch_keys]
+                pools = model.retrieve_batch(queries_batch, max(50, args.candidate_k))
+                candidate_pools.update(zip(batch_keys, pools))
             predictions = {key: pool[:50] for key, pool in candidate_pools.items()}
         relevant = {key: truth[key] for key in keys}
         pool_recall = recall_at_k(candidate_pools, relevant, len(ids))
@@ -271,13 +318,25 @@ def main():
             "retrieval_diagnostics": retrieval_diagnostics,
             "split": args.split, "seed": args.seed,
             "validation_fraction": 1.0 if args.split == "all" else args.validation_fraction,
-            "fit_rows": len(fit), "heldout_rows": len(valid), "evaluated_queries": len(keys),
-            "heldout_in_corpus_fraction": sum(x["item_id"] in ids for x in valid) / len(valid),
+            "fit_rows": fit_rows, "heldout_rows": heldout_rows, "evaluated_queries": len(keys),
+            "heldout_in_corpus_fraction": heldout_in_corpus / heldout_rows,
             "recall_at_50": top50_recall,
             "max_queries": args.max_queries})
     else:
         model = build_retriever(args, items)
-        rows = [{"query_id": q["query_id"], "answer": " ".join(model.retrieve(q))} for q in queries]
+        rows = []
+        if args.method == "bm25":
+            rows = [{"query_id": q["query_id"], "answer": " ".join(model.retrieve(q))}
+                    for q in queries]
+        else:
+            for query_batch in batches(queries, args.embedding_batch_size):
+                if args.method == "hybrid":
+                    predictions = [prediction for prediction, _details in
+                                   model.retrieve_batch_with_diagnostics(query_batch)]
+                else:
+                    predictions = model.retrieve_batch(query_batch)
+                rows.extend({"query_id": q["query_id"], "answer": " ".join(prediction)}
+                            for q, prediction in zip(query_batch, predictions))
         validate_answers(rows, [q["query_id"] for q in queries], ids)
         args.answer.parent.mkdir(parents=True, exist_ok=True)
         with args.answer.open("w", encoding="utf-8", newline="") as stream:
