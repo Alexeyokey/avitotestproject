@@ -9,6 +9,7 @@ import pandas as pd
 import pyarrow.parquet as pq
 
 from .core import SEARCH_FIELDS, normalize, query_key, recall_at_k, split_rows, validate_answers
+from .dense import DEFAULT_EMBEDDING_MODEL
 
 
 def read(path, columns):
@@ -36,6 +37,9 @@ def build_retriever(args, items):
         "title_weight": args.title_weight,
         "params_weight": args.params_weight,
         "description_weight": args.description_weight,
+        "stem_title_weight": args.stem_title_weight,
+        "stem_params_weight": args.stem_params_weight,
+        "location_bonus": args.location_bonus,
         "candidate_k": args.candidate_k,
         "rank_constant": args.bm25_rrf_k,
         "channel_quota": args.bm25_channel_quota,
@@ -69,6 +73,7 @@ def build_retriever(args, items):
         bm25_weight=args.bm25_weight,
         dense_weight=args.dense_weight,
         channel_quota=args.channel_quota,
+        location_bonus=args.location_bonus,
     )
 
 
@@ -78,7 +83,10 @@ def main():
     parser.add_argument("--data-dir", type=Path, required=True)
     parser.add_argument("--output", type=Path, default=Path("artifacts/result.json"))
     parser.add_argument("--answer", type=Path, default=Path("artifacts/answer.csv"))
-    parser.add_argument("--split", choices=["pairs", "queries"], default="pairs")
+    parser.add_argument("--split", choices=["pairs", "queries", "all"], default="pairs",
+                        help="Validation selection: held-out pairs, held-out query texts, or all train rows")
+    parser.add_argument("--validation-fraction", type=float, default=0.2,
+                        help="Fraction held out by pairs/queries; ignored for --split all")
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--method", choices=["bm25", "dense", "hybrid"], default="bm25")
     parser.add_argument("--k1", type=float, help="Override k1 for all BM25 fields")
@@ -92,10 +100,16 @@ def main():
     parser.add_argument("--title-weight", type=float, default=2.0)
     parser.add_argument("--params-weight", type=float, default=1.0)
     parser.add_argument("--description-weight", type=float, default=0.5)
+    parser.add_argument("--stem-title-weight", type=float, default=0.0,
+                        help="Weight of a separate Russian-stemmed title channel; 0 disables it")
+    parser.add_argument("--stem-params-weight", type=float, default=0.0,
+                        help="Weight of a separate Russian-stemmed item-parameters channel; 0 disables it")
+    parser.add_argument("--location-bonus", type=float, default=0.0,
+                        help="Additive RRF bonus for exact query/item location match; 0 disables it")
     parser.add_argument("--bm25-rrf-k", type=int, default=30)
     parser.add_argument("--bm25-channel-quota", type=int, default=10)
-    parser.add_argument("--embedding-model", default="intfloat/multilingual-e5-small")
-    parser.add_argument("--embedding-batch-size", type=int, default=64)
+    parser.add_argument("--embedding-model", default=DEFAULT_EMBEDDING_MODEL)
+    parser.add_argument("--embedding-batch-size", type=int, default=16)
     parser.add_argument("--embedding-max-length", type=int, default=128)
     parser.add_argument("--embedding-params-words", type=int, default=40)
     parser.add_argument("--embedding-description-words", type=int, default=48)
@@ -110,11 +124,13 @@ def main():
     parser.add_argument("--max-queries", type=int, default=0,
                         help="Evaluation smoke-test limit; 0 evaluates all queries")
     args = parser.parse_args()
+    if args.method == "dense" and args.location_bonus > 0:
+        parser.error("--location-bonus is supported by bm25 and hybrid, not dense")
     root = args.data_dir
     queries = read(root / "benchmark_queries.parquet", ("query_id", *SEARCH_FIELDS))
     item_columns = (
         "item_id", "item_title_raw", "item_infm_params_text", "item_description_raw",
-        "item_category_id",
+        "item_category_id", "item_location_id",
     )
     items = read(root / "benchmark_items.parquet", item_columns)
     ids = {x["item_id"] for x in items}
@@ -142,7 +158,8 @@ def main():
         })
         return
     if args.command == "evaluate":
-        fit, valid = split_rows(train, mode=args.split, seed=args.seed)
+        fit, valid = split_rows(train, mode=args.split,
+                                fraction=args.validation_fraction, seed=args.seed)
         truth, representatives = defaultdict(set), {}
         for row in valid:
             if row["item_id"] in ids:
@@ -155,7 +172,7 @@ def main():
         if args.max_queries > 0:
             keys = keys[:args.max_queries]
         model = build_retriever(args, items)
-        retrieval_diagnostics = None
+        retrieval_diagnostics = {}
         if args.method == "hybrid":
             predictions = {}
             candidate_pools = {}
@@ -171,20 +188,9 @@ def main():
                 for channel, item_ids in details["channels"].items():
                     channel_results[channel][key] = item_ids
             relevant = {key: truth[key] for key in keys}
-            pool_recall = recall_at_k(candidate_pools, relevant, args.candidate_k * 4)
-            top50_recall = recall_at_k(predictions, relevant)
             recall_without_quota = recall_at_k(predictions_without_quota, relevant)
             recall_with_quota_10 = recall_at_k(predictions_with_quota_10, relevant)
-            retrieval_diagnostics = {
-                "candidate_pool_recall": pool_recall,
-                "candidate_pool_complete_query_fraction": sum(
-                    set(relevant[key]).issubset(candidate_pools[key]) for key in keys
-                ) / len(keys),
-                "candidate_pool_average_size": sum(map(len, candidate_pools.values())) / len(keys),
-                "complete_query_fraction_at_50": sum(
-                    set(relevant[key]).issubset(predictions[key]) for key in keys
-                ) / len(keys),
-                "recall_lost_when_cutting_pool_to_50": pool_recall - top50_recall,
+            retrieval_diagnostics.update({
                 "quota_comparison": {
                     "recall_at_50_without_quota": recall_without_quota,
                     "recall_at_50_with_quota_10": recall_with_quota_10,
@@ -196,9 +202,34 @@ def main():
                     channel: recall_at_k(results, relevant, args.candidate_k)
                     for channel, results in channel_results.items()
                 },
-            }
+            })
+        elif args.method == "bm25":
+            predictions, candidate_pools = {}, {}
+            for key in keys:
+                prediction, details = model.retrieve_with_diagnostics(representatives[key])
+                predictions[key] = prediction
+                candidate_pools[key] = details["candidate_pool"]
         else:
-            predictions = {key: model.retrieve(representatives[key]) for key in keys}
+            # Dense retrieval has one channel, so its full ranking is the pool.
+            candidate_pools = {
+                key: model.retrieve(representatives[key], max(50, args.candidate_k))
+                for key in keys
+            }
+            predictions = {key: pool[:50] for key, pool in candidate_pools.items()}
+        relevant = {key: truth[key] for key in keys}
+        pool_recall = recall_at_k(candidate_pools, relevant, len(ids))
+        top50_recall = recall_at_k(predictions, relevant)
+        retrieval_diagnostics.update({
+            "candidate_pool_recall": pool_recall,
+            "candidate_pool_complete_query_fraction": sum(
+                relevant[key].issubset(candidate_pools[key]) for key in keys
+            ) / len(keys),
+            "candidate_pool_average_size": sum(map(len, candidate_pools.values())) / len(keys),
+            "complete_query_fraction_at_50": sum(
+                relevant[key].issubset(predictions[key]) for key in keys
+            ) / len(keys),
+            "recall_lost_when_cutting_pool_to_50": pool_recall - top50_recall,
+        })
         save_json(args.output, {"method": args.method,
             "fusion": (
                 "flat_bm25_fields_dense" if args.method == "hybrid"
@@ -215,6 +246,9 @@ def main():
                     "k1": args.k1 if args.k1 is not None else args.description_k1,
                     "b": args.b if args.b is not None else args.description_b,
                     "weight": args.description_weight},
+                "title_stem": {"weight": args.stem_title_weight},
+                "params_stem": {"weight": args.stem_params_weight},
+                "location_bonus": args.location_bonus,
                 "rrf_k": args.bm25_rrf_k,
                 "channel_quota": args.bm25_channel_quota,
             } if args.method != "dense" else None,
@@ -229,16 +263,17 @@ def main():
                 ["search_query", "search_infm_params_text", "search_category"]
                 if args.method != "bm25" else None
             ),
-            "candidate_k": args.candidate_k if args.method == "hybrid" else None,
+            "candidate_k": args.candidate_k,
             "bm25_weight": args.bm25_weight if args.method == "hybrid" else None,
             "dense_weight": args.dense_weight if args.method == "hybrid" else None,
             "rrf_k": args.rrf_k if args.method == "hybrid" else None,
             "channel_quota": args.channel_quota if args.method == "hybrid" else None,
             "retrieval_diagnostics": retrieval_diagnostics,
             "split": args.split, "seed": args.seed,
+            "validation_fraction": 1.0 if args.split == "all" else args.validation_fraction,
             "fit_rows": len(fit), "heldout_rows": len(valid), "evaluated_queries": len(keys),
             "heldout_in_corpus_fraction": sum(x["item_id"] in ids for x in valid) / len(valid),
-            "recall_at_50": recall_at_k(predictions, {k: truth[k] for k in keys}),
+            "recall_at_50": top50_recall,
             "max_queries": args.max_queries})
     else:
         model = build_retriever(args, items)
