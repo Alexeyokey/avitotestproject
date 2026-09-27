@@ -12,6 +12,49 @@ from avito_candidates.dense import (
 
 
 class DenseHelpersTest(unittest.TestCase):
+    def test_query_batches_encode_once_per_batch_and_keep_order(self):
+        calls = []
+
+        class FakeModel:
+            def encode(self, texts, **kwargs):
+                calls.append((list(texts), kwargs))
+                return np.array([
+                    [1.0, 0.0] if "первый" in text else [0.0, 1.0]
+                    for text in texts
+                ], dtype=np.float32)
+
+        class FakeIndex:
+            def set_ef(self, _value):
+                pass
+
+            def knn_query(self, vectors, k):
+                labels = np.array([
+                    [0, 1] if vector[0] else [1, 0]
+                    for vector in vectors
+                ], dtype=int)
+                return labels[:, :k], np.zeros((len(vectors), k))
+
+        retriever = object.__new__(DenseRetriever)
+        retriever.ids = ["a", "b"]
+        retriever.batch_size = 2
+        retriever.model_name = DEFAULT_EMBEDDING_MODEL
+        retriever.model = FakeModel()
+        retriever.index = FakeIndex()
+        retriever.ef_search = 10
+        queries = [
+            {"search_query": "первый"},
+            {"search_query": ""},
+            {"search_query": "второй"},
+            {"search_query": "первый снова"},
+        ]
+        self.assertEqual(
+            retriever.retrieve_batch(queries, 2),
+            [["a", "b"], [], ["b", "a"], ["a", "b"]],
+        )
+        self.assertEqual([len(texts) for texts, _kwargs in calls], [2, 1])
+        self.assertTrue(all(kwargs["batch_size"] == 2 for _texts, kwargs in calls))
+        self.assertTrue(all(kwargs["prompt_name"] == "query" for _texts, kwargs in calls))
+
     def test_octen_uses_its_model_prompts_without_e5_prefixes(self):
         self.assertEqual(DEFAULT_EMBEDDING_MODEL, "Octen/Octen-Embedding-0.6B")
         self.assertEqual(
