@@ -14,10 +14,10 @@ def reciprocal_rank_fusion(
     score_boosts=None,
     return_scores=False,
 ):
-    """Fuse ranked lists; optionally return the exact scores used for selection.
+    """Объединяем ранжированные списки и при необходимости возвращаем баллы.
 
-    Scores include any query-specific boosts. Channel quotas can affect which
-    candidates survive the cutoff, but never change their RRF scores.
+    Баллы учитывают добавки запроса. Квота канала может изменить состав
+    итогового списка, но не баллы RRF отдельных объявлений.
     """
     if limit < 0 or rank_constant < 0 or channel_quota < 0:
         raise ValueError("RRF parameters must be non-negative")
@@ -35,8 +35,8 @@ def reciprocal_rank_fusion(
         for rank, item_id in enumerate(unique, start=1):
             scores[item_id] = scores.get(item_id, 0.0) + weight / (rank_constant + rank)
 
-    # Query-specific boosts alter selection only among retrieved candidates.
-    # Never add IDs that were absent from every retrieval channel.
+    # Добавки запроса меняют порядок только среди найденных кандидатов.
+    # Объявления вне всех поисковых каналов сюда не добавляются.
     if score_boosts:
         for item_id, boost in score_boosts.items():
             if item_id in scores:
@@ -62,12 +62,12 @@ def reciprocal_rank_fusion(
 def rank_location_bonus_grid(
     channels, weights, item_locations, location, bonuses, *, rank_constant=60, limit=50
 ):
-    """Rerank one fixed retrieval pool for many geographic bonuses.
+    """Пересортировываем один пул для нескольких географических добавок.
 
-    The bonus is constant for all exact-location matches, so their relative
-    order is unchanged. Sort local/nonlocal items once and merge only the top
-    ``limit`` for each bonus. This is equivalent to quota-free RRF, without
-    rerunning BM25, dense encoding, or HNSW search.
+    Добавка одинакова для всех совпадений точной локации, поэтому их взаимный
+    порядок не меняется. Один раз сортируем местные и остальные объявления,
+    затем объединяем верхние ``limit`` для каждой добавки. Результат совпадает
+    с RRF без квот и не требует повторного поиска BM25, dense или HNSW.
     """
     if limit < 0 or rank_constant < 0:
         raise ValueError("RRF parameters must be non-negative")
@@ -149,10 +149,16 @@ class HybridRetriever:
         self.channel_quota = channel_quota
         self.location_bonus = location_bonus
 
-    def _ranked_channels(self, query, dense_ids=None):
+    def _ranked_channels(self, query, dense_result=None):
         channels = []
+        channel_scores = {}
         if self.bm25_weight > 0:
-            bm25_lists = self.bm25.ranked_lists(query, self.candidate_k)
+            if hasattr(self.bm25, "ranked_lists_with_scores"):
+                bm25_lists, bm25_scores = self.bm25.ranked_lists_with_scores(
+                    query, self.candidate_k)
+                channel_scores.update(bm25_scores)
+            else:
+                bm25_lists = self.bm25.ranked_lists(query, self.candidate_k)
             total_field_weight = sum(weight for _name, _items, weight in bm25_lists)
             channels.extend(
                 (
@@ -163,12 +169,18 @@ class HybridRetriever:
                 for name, item_ids, field_weight in bm25_lists
             )
         if self.dense_weight > 0:
-            if dense_ids is None:
-                dense_ids = self.dense.retrieve(query, self.candidate_k)
+            if dense_result is None:
+                if hasattr(self.dense, "retrieve_with_scores"):
+                    dense_result = self.dense.retrieve_with_scores(query, self.candidate_k)
+                else:
+                    dense_result = (self.dense.retrieve(query, self.candidate_k), {})
+            dense_ids, dense_scores = dense_result
             channels.append(("dense", dense_ids, self.dense_weight))
-        return channels
+            channel_scores["dense"] = dense_scores
+        return channels, channel_scores
 
-    def _fuse_with_diagnostics(self, query, channels, limit):
+    def _fuse_with_diagnostics(self, query, ranked, limit):
+        channels, channel_scores = ranked
         ranked_lists = [(item_ids, weight) for _name, item_ids, weight in channels]
         candidate_pool = []
         seen = set()
@@ -189,7 +201,11 @@ class HybridRetriever:
         )
         return prediction, {
             "channels": {name: item_ids for name, item_ids, _weight in channels},
+            "channel_scores": channel_scores,
             "channel_weights": {name: weight for name, _item_ids, weight in channels},
+            "geo_locations": (self.bm25.geo_locations(query)
+                              if self.bm25_weight > 0 and hasattr(self.bm25, "geo_locations")
+                              and self.bm25.geo_candidate_k else ()),
             "candidate_pool": candidate_pool,
             "rrf_scores": rrf_scores,
             "prediction_without_quota": reciprocal_rank_fusion(
@@ -214,12 +230,17 @@ class HybridRetriever:
         )
 
     def retrieve_batch_with_diagnostics(self, queries, limit=50):
-        """Batch dense retrieval; keep BM25 and RRF behavior per query."""
+        """Ищем dense-кандидатов пачкой, сохраняя BM25 и RRF для каждого запроса."""
         queries = list(queries)
-        dense_results = (
-            self.dense.retrieve_batch(queries, self.candidate_k)
-            if self.dense_weight > 0 else [None] * len(queries)
-        )
+        if self.dense_weight > 0:
+            if hasattr(self.dense, "retrieve_batch_with_scores"):
+                dense_results = self.dense.retrieve_batch_with_scores(
+                    queries, self.candidate_k)
+            else:
+                dense_results = [(ids, {}) for ids in
+                                 self.dense.retrieve_batch(queries, self.candidate_k)]
+        else:
+            dense_results = [None] * len(queries)
         return [
             self._fuse_with_diagnostics(
                 query, self._ranked_channels(query, dense_ids), limit

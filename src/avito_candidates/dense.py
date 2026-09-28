@@ -16,20 +16,25 @@ DEFAULT_EMBEDDING_MODEL = "Octen/Octen-Embedding-0.6B"
 _CACHE_VERSION = 5
 
 
-def encoding_input(texts, model_name, role):
-    """Apply the model's retrieval prompts without mixing Octen and E5 formats.
+def encoding_input(texts, model_name, role, model=None):
+    """Применяем поисковые промпты модели, не смешивая форматы Octen и E5.
 
-    Octen publishes `query` and `document` prompts in its Sentence Transformers
-    configuration. E5 instead expects literal `query:`/`passage:` prefixes.
-    Other models receive plain text unless their encoding is configured here.
+    Octen задаёт промпты `query` и `document` в настройках Sentence Transformers.
+    E5 ожидает буквальные префиксы `query:` и `passage:`. Для остальных моделей
+    передаём обычный текст, пока их формат не описан здесь.
     """
     if role not in {"query", "document"}:
         raise ValueError("Embedding role must be query or document")
-    if model_name == DEFAULT_EMBEDDING_MODEL:
-        return list(texts), {"prompt_name": role}
     if model_name.startswith("intfloat/multilingual-e5"):
         prefix = "query: " if role == "query" else "passage: "
         return [prefix + text for text in texts], {}
+    # Локально сохранённая дообученная Octen сохраняет промпты в конфигурации
+    # Sentence Transformers, хотя её путь уже не равен имени исходной модели.
+    prompts = getattr(model, "prompts", None)
+    if model_name == DEFAULT_EMBEDDING_MODEL or (
+        isinstance(prompts, dict) and role in prompts
+    ):
+        return list(texts), {"prompt_name": role}
     return list(texts), {}
 
 
@@ -67,11 +72,14 @@ def _fingerprint(
     max_seq_length=128,
     params_words=40,
     description_words=48,
+    model_signature="",
 ) -> str:
     digest = hashlib.sha256(
         f"{_CACHE_VERSION}\0{model_name}\0{max_seq_length}\0"
         f"{params_words}\0{description_words}\0".encode()
     )
+    if model_signature:
+        digest.update(f"{model_signature}\0".encode())
     for item in items:
         digest.update(str(item["item_id"]).encode())
         digest.update(b"\0")
@@ -82,6 +90,24 @@ def _fingerprint(
         ).encode())
         digest.update(b"\0")
     return digest.hexdigest()[:20]
+
+
+def _local_model_signature(model_name, model):
+    """Учитываем сохранённые промпты и состояние локального чекпойнта в кеше."""
+    path = Path(model_name)
+    if not path.is_dir():
+        return ""
+    digest = hashlib.sha256()
+    prompts = getattr(model, "prompts", None)
+    digest.update(json.dumps(prompts, sort_keys=True, ensure_ascii=False,
+                             default=str).encode("utf-8"))
+    for file in sorted(path.rglob("*")):
+        if not file.is_file():
+            continue
+        stat = file.stat()
+        digest.update(str(file.relative_to(path)).encode("utf-8"))
+        digest.update(f"\0{stat.st_size}\0{stat.st_mtime_ns}\0".encode())
+    return digest.hexdigest()
 
 
 def _load_dependencies():
@@ -136,6 +162,7 @@ class DenseRetriever:
         model_kwargs = {"device": device} if device else {}
         self.model = sentence_transformer(model_name, **model_kwargs)
         self.model.max_seq_length = max_seq_length
+        self.model_signature = _local_model_signature(model_name, self.model)
         get_dimension = getattr(self.model, "get_embedding_dimension", None)
         if get_dimension is None:
             get_dimension = self.model.get_sentence_embedding_dimension
@@ -152,6 +179,7 @@ class DenseRetriever:
             max_seq_length,
             params_words,
             description_words,
+            self.model_signature,
         )
         index_path = cache_dir / f"{fingerprint}.bin"
         metadata_path = cache_dir / f"{fingerprint}.json"
@@ -194,7 +222,9 @@ class DenseRetriever:
                 )
                 for item in items[start:stop]
             ]
-            texts, prompt_kwargs = encoding_input(texts, model_name, "document")
+            texts, prompt_kwargs = encoding_input(
+                texts, model_name, "document", self.model
+            )
             vectors = self.model.encode(
                 texts,
                 batch_size=batch_size,
@@ -235,7 +265,7 @@ class DenseRetriever:
         os.replace(temporary, path)
 
     def _metadata(self):
-        return {
+        metadata = {
             "version": _CACHE_VERSION,
             "model": self.model_name,
             "dimension": self.dimension,
@@ -244,16 +274,26 @@ class DenseRetriever:
             "params_words": self.params_words,
             "description_words": self.description_words,
         }
+        if self.model_signature:
+            metadata["model_signature"] = self.model_signature
+        return metadata
 
     def retrieve(self, query, limit=50):
         return self.retrieve_batch([query], limit)[0]
 
     def retrieve_batch(self, queries, limit=50):
-        """Encode and search query batches while preserving input order."""
+        """Возвращаем ID по близости соседей, сохраняя прежний интерфейс."""
+        return [ids for ids, _scores in self.retrieve_batch_with_scores(queries, limit)]
+
+    def retrieve_with_scores(self, query, limit=50):
+        return self.retrieve_batch_with_scores([query], limit)[0]
+
+    def retrieve_batch_with_scores(self, queries, limit=50):
+        """Возвращаем ID и косинусную близость из одного поиска HNSW."""
         if limit < 0:
             raise ValueError("limit must be non-negative")
         queries = list(queries)
-        results = [[] for _ in queries]
+        results = [([], {}) for _ in queries]
         if limit == 0 or not self.ids:
             return results
         nonempty = [
@@ -267,7 +307,8 @@ class DenseRetriever:
         for start in range(0, len(nonempty), self.batch_size):
             batch = nonempty[start:start + self.batch_size]
             texts, prompt_kwargs = encoding_input(
-                [text for _index, text in batch], self.model_name, "query"
+                [text for _index, text in batch], self.model_name, "query",
+                self.model,
             )
             vectors = self.model.encode(
                 texts,
@@ -277,7 +318,11 @@ class DenseRetriever:
                 show_progress_bar=False,
                 **prompt_kwargs,
             ).astype(np.float32, copy=False)
-            labels, _distances = self.index.knn_query(vectors, k=count)
-            for (index, _text), neighbors in zip(batch, labels):
-                results[index] = [self.ids[int(label)] for label in neighbors]
+            labels, distances = self.index.knn_query(vectors, k=count)
+            for (index, _text), neighbors, neighbor_distances in zip(
+                    batch, labels, distances):
+                ids = [self.ids[int(label)] for label in neighbors]
+                results[index] = (
+                    ids, {item_id: float(1 - distance) for item_id, distance
+                          in zip(ids, neighbor_distances)})
         return results

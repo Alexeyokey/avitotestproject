@@ -28,6 +28,34 @@ class FakeBM25:
 
 
 class HybridTest(unittest.TestCase):
+    def test_real_bm25_geo_channel_enters_hybrid_pool(self):
+        from avito_candidates.baseline import Baseline
+
+        items = [{"item_id": f"{index:016x}", "item_title_raw": "ремонт",
+                  "item_location_id": "local" if index == 4 else "other"}
+                 for index in range(5)]
+        bm25 = Baseline(items, title_weight=1, params_weight=0,
+                        description_weight=0, candidate_k=1,
+                        geo_candidate_k=1, channel_quota=0)
+        model = HybridRetriever(bm25, FakeRetriever([]), candidate_k=1,
+                                channel_quota=0, location_bonus=0)
+        _top, details = model.retrieve_with_diagnostics(
+            {"search_query": "ремонт", "search_location_id": "local"}, limit=1)
+        self.assertEqual(set(details["candidate_pool"]),
+                         {items[0]["item_id"], items[4]["item_id"]})
+        self.assertEqual(details["geo_locations"], ("local",))
+        self.assertIn(items[4]["item_id"], details["channel_scores"]["title_geo"])
+
+    def test_dense_similarity_reaches_hybrid_diagnostics(self):
+        class ScoredDense(FakeRetriever):
+            def retrieve_batch_with_scores(self, queries, limit=50):
+                return [(self.values[:limit], {"b": 0.83}) for _query in queries]
+
+        model = HybridRetriever(FakeBM25([]), ScoredDense(["b"]),
+                                candidate_k=1, bm25_weight=0, dense_weight=1)
+        _top, details = model.retrieve_batch_with_diagnostics([{"search_query": "тест"}])[0]
+        self.assertEqual(details["channel_scores"]["dense"]["b"], 0.83)
+
     def test_location_sweep_matches_independent_rrf_for_each_bonus(self):
         channels = {"title": ["a", "b", "b", "c"],
                     "params": ["c", "a"], "dense": ["d", "c", "b"]}
