@@ -1,4 +1,4 @@
-"""Reranker contracts: disjoint query split, model fit and candidate-only output."""
+"""Проверки разбиения запросов, обучения и выбора только из пула кандидатов."""
 
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -9,7 +9,7 @@ import pandas as pd
 from avito_candidates.core import held_out, normalize, query_key
 from avito_candidates.reranker import (
     FEATURES, FeatureBuilder, Reranker, fit_model, prepare_training_data,
-    read_fit_labels,
+    read_fit_labels, sample_training_ids,
 )
 
 
@@ -18,12 +18,23 @@ class FakeRetriever:
         self.ids = [item["item_id"] for item in items]
 
     def retrieve_with_diagnostics(self, query):
-        # A deliberately weak retriever: all items are available, fixed order.
+        # Заведомо слабый поиск: доступны все объявления в неизменном порядке.
         return self.ids[:50], {"candidate_pool": self.ids,
                                "channels": {"title": self.ids}}
 
 
 class RerankerTest(unittest.TestCase):
+    def test_hard_negatives_include_multiple_channels(self):
+        baseline = ["positive", *[f"local-{index}" for index in range(50)]]
+        channels = {"title": baseline,
+                    "title_geo": [f"geo-{index}" for index in range(20)],
+                    "dense": [f"dense-{index}" for index in range(20)]}
+        pool = list(dict.fromkeys([*baseline, *channels["title_geo"], *channels["dense"]]))
+        chosen = sample_training_ids(pool, baseline, channels, {"positive"}, 64, 42)
+        self.assertEqual(chosen[0], "positive")
+        self.assertTrue(any(item_id.startswith("geo-") for item_id in chosen[:33]))
+        self.assertTrue(any(item_id.startswith("dense-") for item_id in chosen[:33]))
+
     def test_hybrid_features_use_bm25_and_dense_lists(self):
         items = [{"item_id": "a", "item_title_raw": "ремонт", "item_location_id": "1"},
                  {"item_id": "b", "item_title_raw": "монтаж", "item_location_id": "2"}]
@@ -42,12 +53,59 @@ class RerankerTest(unittest.TestCase):
         self.assertGreater(matrix[1, FEATURES.index("rank_dense")],
                            matrix[0, FEATURES.index("rank_dense")])
 
-    def test_dominant_location_priority_survives_model_scores(self):
+    def test_geographic_channel_uses_actual_fused_score(self):
+        items = [{"item_id": "a", "item_location_id": "1"}]
+        config = {"method": "bm25", "candidate_k": 1, "title_weight": 1.0,
+                  "params_weight": 0.0, "description_weight": 0.0,
+                  "stem_title_weight": 0.0, "stem_params_weight": 0.0,
+                  "location_bonus": 0.0, "bm25_rrf_k": 30}
+        details = {"candidate_pool": ["a"],
+                   "channels": {"title": ["a"], "title_geo": ["a"]},
+                   "rrf_scores": {"a": 1.25 / 31}}
+        matrix = FeatureBuilder(items, config).transform(
+            {"search_query": "ремонт", "search_location_id": "1"}, details, ["a"])
+        self.assertAlmostEqual(matrix[0, FEATURES.index("rrf_score")], 1.25 / 31)
+        self.assertEqual(matrix[0, FEATURES.index("channel_count")], 2)
+        self.assertGreater(matrix[0, FEATURES.index("rank_title_geo")], 0)
+        self.assertEqual(matrix[0, FEATURES.index("geo_channel_count")], 1)
+
+    def test_raw_scores_geography_and_filter_compatibility(self):
+        items = [
+            {"item_id": "a", "item_location_id": "city", "item_rating": "4.8",
+             "item_infm_params_text": "Тип услуги Маникюр, педикюр Вид услуги Красота, здоровье"},
+            {"item_id": "b", "item_location_id": "other", "item_rating": "3.5",
+             "item_infm_params_text": "Тип услуги Ремонт обуви Вид услуги Бытовые услуги"},
+        ]
+        config = {"method": "hybrid", "candidate_k": 2, "bm25_weight": 1.0,
+                  "dense_weight": 1.0, "title_weight": 1.0, "params_weight": 1.0,
+                  "description_weight": 0.0, "stem_title_weight": 0.0,
+                  "stem_params_weight": 0.0, "rrf_k": 60, "location_bonus": 0.0}
+        details = {"candidate_pool": ["a", "b"],
+                   "channels": {"params_geo": ["a"], "dense": ["b", "a"]},
+                   "channel_scores": {"params_geo": {"a": 7.25},
+                                      "dense": {"b": 0.91, "a": 0.73}},
+                   "geo_locations": ("city",)}
+        query = {"search_query": "маникюр", "search_location_id": "city",
+                 "search_infm_params_text": "Тип услуги Маникюр, педикюр "
+                                            "Рейтинг пользователя 4 звезды и выше"}
+        matrix = FeatureBuilder(items, config).transform(query, details, ["b"])
+        feature = lambda name: matrix[:, FEATURES.index(name)]
+        self.assertEqual(feature("score_params_geo").tolist(), [7.25, 0.0])
+        self.assertAlmostEqual(feature("score_dense")[0], 0.73, places=5)
+        self.assertEqual(feature("geo_destination_match").tolist(), [1.0, 0.0])
+        self.assertGreater(feature("filter_params_bigram_coverage")[0],
+                           feature("filter_params_bigram_coverage")[1])
+        self.assertEqual(feature("rating_filter_match").tolist(), [1.0, 0.0])
+
+    def test_model_can_promote_nonlocal_candidate_from_same_pool(self):
         items = [
             {"item_id": "remote", "item_location_id": "2"},
             {"item_id": "local", "item_location_id": "1"},
         ]
-        config = {"method": "dense", "candidate_k": 2}
+        config = {"method": "hybrid", "candidate_k": 2, "bm25_weight": 1.0,
+                  "dense_weight": 1.0, "title_weight": 1.0, "params_weight": 0.0,
+                  "description_weight": 0.0, "stem_title_weight": 0.0,
+                  "stem_params_weight": 0.0, "rrf_k": 60, "location_bonus": 0.1}
         query = {"search_query": "ремонт", "search_location_id": "1"}
         result = (["remote", "local"], {"candidate_pool": ["remote", "local"],
                                           "channels": {"dense": ["remote", "local"]}})
@@ -60,8 +118,7 @@ class RerankerTest(unittest.TestCase):
         ranker = object.__new__(Reranker)
         ranker.builder = FeatureBuilder(items, config)
         ranker.model = FixedModel()
-        ranker.location_first = True
-        self.assertEqual(ranker.rank_batch([query], [result], limit=1), [["local"]])
+        self.assertEqual(ranker.rank_batch([query], [result], limit=1), [["remote"]])
 
     def test_fit_split_excludes_all_variants_of_heldout_text(self):
         rows = []
