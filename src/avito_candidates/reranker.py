@@ -5,7 +5,7 @@
 положительных и неразмеченных примерах, а не на полной разметке релевантности.
 """
 
-from collections import defaultdict
+from collections import Counter, defaultdict
 from functools import lru_cache
 import hashlib
 import json
@@ -24,8 +24,8 @@ from .core import SEARCH_FIELDS, held_out, normalize, query_key
 BM25_CHANNELS = ("title", "params", "description", "title_stem", "params_stem")
 GEO_CHANNELS = tuple(f"{name}_geo" for name in BM25_CHANNELS)
 CHANNELS = (*BM25_CHANNELS, *GEO_CHANNELS, "dense")
-FEATURE_VERSION = 3
-FEATURES = (
+FEATURE_VERSION = 5
+LEGACY_FEATURES = (
     "rrf_score", "pool_rank", "baseline_top50", "channel_count",
     *(f"rank_{name}" for name in CHANNELS),
     *(f"present_{name}" for name in CHANNELS),
@@ -43,6 +43,12 @@ FEATURES = (
     "log_price", "rating", "log_reviews", "phone_hidden", "message_forbidden",
     "has_query_filters", "delivery_search",
 )
+V4_FEATURES = (*LEGACY_FEATURES,
+    "microcat_token_probability", "microcat_token_rank",
+    "geo_click_probability",
+    "geo_click_lift", "geo_click_rank",
+)
+FEATURES = (*V4_FEATURES, "microcat_top50_share")
 _WORDS = re.compile(r"(?u)\b\w+\b")
 _RATING_FLOOR = re.compile(r"рейтинг пользователя\s*(\d+(?:[.,]\d+)?)")
 
@@ -64,14 +70,17 @@ def _number(value):
         return 0.0
 
 
-def corpus_fingerprint(items):
-    """Проверяем, что модель обучалась на том же корпусе и его признаках."""
+def corpus_fingerprint(items, *, feature_version=FEATURE_VERSION):
+    """Bind rerankers to the same corpus without invalidating v3 models."""
+    fields = ("item_id", "item_title_raw", "item_infm_params_text",
+              "item_description_raw", "item_category_id", "item_location_id",
+              "item_price", "item_rating", "item_rating_reviews_count",
+              "item_is_phone_hidden", "item_is_message_forbidden")
+    if feature_version >= 4:
+        fields += ("item_microcat_id",)
     digest = hashlib.sha256()
     for item in sorted(items, key=lambda row: row["item_id"]):
-        for field in ("item_id", "item_title_raw", "item_infm_params_text",
-                      "item_description_raw", "item_category_id", "item_location_id",
-                      "item_price", "item_rating", "item_rating_reviews_count",
-                      "item_is_phone_hidden", "item_is_message_forbidden"):
+        for field in fields:
             digest.update(str(item.get(field, "")).encode("utf-8"))
             digest.update(b"\0")
         digest.update(b"\n")
@@ -93,6 +102,8 @@ def retrieval_config(args):
             for name in ("geo_candidate_k", "geo_top_locations", "geo_min_history",
                          "geo_weight"):
                 config[name] = getattr(args, name)
+            if args.geo_include_related:
+                config["geo_include_related"] = True
     if args.method in {"dense", "hybrid"}:
         for name in ("embedding_model", "embedding_max_length", "embedding_params_words",
                      "embedding_description_words", "ef_search"):
@@ -106,9 +117,20 @@ def retrieval_config(args):
 class FeatureBuilder:
     """Числовые признаки пары; ID объявления не подаётся модели."""
 
-    def __init__(self, items, config):
+    def __init__(self, items, config, *, microcategory_prior=None,
+                 geo_associations=None, feature_names=None,
+                 leave_query_out=False):
         self.items = {item["item_id"]: item for item in items}
         self.config = config
+        self.microcategory_prior = microcategory_prior
+        self.geo_associations = geo_associations
+        self.leave_query_out = leave_query_out
+        self.feature_names = tuple(feature_names or FEATURES)
+        if self.feature_names not in (LEGACY_FEATURES, V4_FEATURES, FEATURES):
+            raise ValueError("Unsupported reranker feature schema")
+        from collections import Counter
+        self.location_counts = Counter(str(item.get("item_location_id", ""))
+                                       for item in items)
 
     @lru_cache(maxsize=50_000)
     def _item_text(self, item_id):
@@ -130,6 +152,11 @@ class FeatureBuilder:
                  for name, ids in channels.items()}
         pool_ranks = {item_id: rank for rank, item_id in enumerate(pool, 1)}
         baseline_set = set(baseline)
+        # Share of the original search top 50 in the candidate's microcategory.
+        # This uses only retrieved items, never their held-out labels.
+        top50_microcats = Counter(str(self.items[item_id].get("item_microcat_id", ""))
+                                  for item_id in baseline)
+        top50_microcats.pop("", None)
         query_text = normalize(query.get("search_query", ""))
         query_tokens = _tokens(query_text)
         filter_text = normalize(query.get("search_infm_params_text", ""))
@@ -163,7 +190,16 @@ class FeatureBuilder:
         else:
             weights = {name: (1 if name == "dense" else 0) for name in CHANNELS}
             rank_constant = 60
-        output = np.empty((len(candidate_ids), len(FEATURES)), dtype=np.float32)
+        output = np.empty((len(candidate_ids), len(self.feature_names)), dtype=np.float32)
+        associations = self.geo_associations
+        click_total = associations.totals[location] if associations else 0
+        click_counts = (associations.counts[location]
+                        if associations and click_total >= 20 else {})
+        click_total = click_total if click_total >= 20 else 0
+        geo_ranks = {destination: 1 / rank for rank, (_count, destination)
+                     in enumerate(sorted(((count, destination)
+                                          for destination, count in click_counts.items()),
+                                         key=lambda pair: (-pair[0], pair[1])), start=1)}
         for row_number, item_id in enumerate(candidate_ids):
             item = self.items[item_id]
             title, params, title_tokens, params_tokens, desc_tokens, params_bigrams = (
@@ -182,7 +218,7 @@ class FeatureBuilder:
                                 if rank and name in weights)
                 rrf_score += config.get("location_bonus", 0) * bool(
                     location and location == item_location)
-            output[row_number] = (
+            values = (
                 rrf_score, 1 / (1 + pool_ranks[item_id]), float(item_id in baseline_set),
                 sum(item_id in channel_ranks for channel_ranks in ranks.values()),
                 *(1 / (rank_constant + rank) if rank else 0 for rank in item_ranks),
@@ -217,6 +253,25 @@ class FeatureBuilder:
                 float(bool(query.get("search_infm_params_text", ""))),
                 _number(query.get("search_is_delivery_search")),
             )
+            if self.feature_names == LEGACY_FEATURES:
+                output[row_number] = values
+                continue
+            microcat = str(item.get("item_microcat_id", ""))
+            mc = (self.microcategory_prior.features(
+                      query_text, microcat, exclude_self=self.leave_query_out)[1:]
+                  if self.microcategory_prior else (0.0, 0.0))
+            click_count = click_counts.get(item_location, 0)
+            click_probability = click_count / click_total if click_total else 0.0
+            corpus_probability = self.location_counts[item_location] / max(1, len(self.items))
+            click_lift = (np.log1p(click_probability / corpus_probability)
+                          if corpus_probability else 0.0)
+            v4_values = (*values, *mc, click_probability,
+                         click_lift, geo_ranks.get(item_location, 0.0))
+            if self.feature_names == V4_FEATURES:
+                output[row_number] = v4_values
+            else:
+                share = top50_microcats[microcat] / max(1, len(baseline)) if microcat else 0.0
+                output[row_number] = (*v4_values, share)
         return output
 
 
@@ -304,7 +359,7 @@ def prepare_training_data(path, retriever, builder, truth, representatives, *,
         keys = keys[:max_queries]
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
-    schema = pa.schema([*(pa.field(name, pa.float32()) for name in FEATURES),
+    schema = pa.schema([*(pa.field(name, pa.float32()) for name in builder.feature_names),
                         pa.field("label", pa.int8()), pa.field("weight", pa.float32())])
     writer = pq.ParquetWriter(path, schema, compression="zstd")
     stats = {"sampled_queries": 0, "queries_with_positive_in_pool": 0,
@@ -316,7 +371,7 @@ def prepare_training_data(path, retriever, builder, truth, representatives, *,
             queries = [representatives[key] for key in batch_keys]
             results = retrieve_details(retriever, queries, builder.config["method"],
                                        builder.config["candidate_k"])
-            columns = [[] for _ in FEATURES]
+            columns = [[] for _ in builder.feature_names]
             labels, weights = [], []
             for key, query, (baseline, details) in zip(batch_keys, queries, results):
                 positives = truth[key]
@@ -351,35 +406,59 @@ def prepare_training_data(path, retriever, builder, truth, representatives, *,
     if not stats["positive_rows"]:
         path.unlink(missing_ok=True)
         raise ValueError("No retrieved training positives; check corpus and retrieval settings")
-    metadata = {"feature_version": FEATURE_VERSION, "feature_names": list(FEATURES),
+    metadata = {"feature_version": FEATURE_VERSION,
+                "feature_names": list(builder.feature_names),
                 "retrieval_config": builder.config,
-                "corpus_fingerprint": corpus_fingerprint(builder.items.values()),
+                "corpus_fingerprint": corpus_fingerprint(
+                    builder.items.values(), feature_version=FEATURE_VERSION),
                 "split": split, "validation_fraction": fraction if split == "queries" else 1.0,
                 "seed": seed, "stats": stats}
+    joblib.dump({"microcategory_prior": builder.microcategory_prior,
+                 "geo_associations": builder.geo_associations},
+                path.with_suffix(path.suffix + ".priors.joblib"))
     path.with_suffix(path.suffix + ".json").write_text(
         json.dumps(metadata, ensure_ascii=False, indent=2), encoding="utf-8")
     return metadata
 
 
-def fit_model(data_path, model_path, *, max_iter=150):
+def fit_model(data_path, model_path, *, max_iter=150, estimator="histgb"):
     """Обучаем локальную модель после освобождения памяти поискового индекса."""
     data_path, model_path = Path(data_path), Path(model_path)
     metadata = json.loads(data_path.with_suffix(data_path.suffix + ".json").read_text(encoding="utf-8"))
-    if metadata.get("feature_version") != FEATURE_VERSION or metadata["feature_names"] != list(FEATURES):
+    version = metadata.get("feature_version")
+    expected = {3: LEGACY_FEATURES, 4: V4_FEATURES, 5: FEATURES}.get(version, ())
+    if tuple(metadata["feature_names"]) != expected:
         raise ValueError("Training feature schema does not match code")
+    if estimator not in {"histgb", "lightgbm"}:
+        raise ValueError(f"Unknown reranker estimator: {estimator}")
+    if estimator == "lightgbm":
+        try:
+            from lightgbm import LGBMClassifier
+        except ImportError as exc:
+            raise ImportError("Install the optional LightGBM dependency: pip install -e .[lightgbm]") from exc
     table = pq.read_table(data_path)
-    matrix = np.column_stack([table[name].to_numpy() for name in FEATURES]).astype(np.float32)
+    matrix = np.column_stack([table[name].to_numpy() for name in expected]).astype(np.float32)
     labels = table["label"].to_numpy()
     weights = table["weight"].to_numpy()
     if len(np.unique(labels)) != 2:
         raise ValueError("Training requires both clicked and unobserved examples")
-    model = HistGradientBoostingClassifier(max_iter=max_iter, max_leaf_nodes=31,
-                                           l2_regularization=1.0, early_stopping=False,
-                                           random_state=metadata["seed"])
+    if estimator == "lightgbm":
+        model = LGBMClassifier(
+            n_estimators=max_iter, learning_rate=0.05, num_leaves=31,
+            min_child_samples=50, reg_lambda=1.0,
+            random_state=metadata["seed"], n_jobs=4, verbosity=-1)
+    else:
+        model = HistGradientBoostingClassifier(
+            max_iter=max_iter, max_leaf_nodes=31, l2_regularization=1.0,
+            early_stopping=False, random_state=metadata["seed"])
     model.fit(matrix, labels, sample_weight=weights)
     model_path.parent.mkdir(parents=True, exist_ok=True)
-    joblib.dump({"model": model, "metadata": metadata}, model_path)
-    return {"model": str(model_path), "training_rows": len(labels),
+    prior_path = data_path.with_suffix(data_path.suffix + ".priors.joblib")
+    priors = joblib.load(prior_path) if prior_path.exists() and version >= 4 else {}
+    joblib.dump({"model": model, "metadata": metadata, "priors": priors,
+                 "estimator": estimator}, model_path)
+    return {"model": str(model_path), "estimator": estimator,
+            "training_rows": len(labels),
             "positive_rows": int(labels.sum()), "iterations": max_iter,
             "training_stats": metadata["stats"]}
 
@@ -389,12 +468,14 @@ class Reranker:
         artifact = joblib.load(path)
         self.model = artifact["model"]
         self.metadata = artifact["metadata"]
-        if (self.metadata.get("feature_version") != FEATURE_VERSION
-                or self.metadata["feature_names"] != list(FEATURES)):
+        version = self.metadata.get("feature_version")
+        expected = {3: LEGACY_FEATURES, 4: V4_FEATURES, 5: FEATURES}.get(version, ())
+        if tuple(self.metadata["feature_names"]) != expected:
             raise ValueError("Reranker feature schema differs from code")
         if self.metadata["retrieval_config"] != config:
             raise ValueError("Reranker retrieval settings differ from training")
-        if self.metadata["corpus_fingerprint"] != corpus_fingerprint(items):
+        if self.metadata["corpus_fingerprint"] != corpus_fingerprint(
+                items, feature_version=version):
             raise ValueError("Reranker was trained for a different item corpus")
         if evaluation_split is not None:
             mode, fraction, seed = evaluation_split
@@ -402,7 +483,11 @@ class Reranker:
                     or self.metadata["validation_fraction"] != fraction
                     or self.metadata["seed"] != seed):
                 raise ValueError("Evaluate reranker only on its held-out query-text split")
-        self.builder = FeatureBuilder(items, config)
+        priors = artifact.get("priors", {})
+        self.builder = FeatureBuilder(
+            items, config, microcategory_prior=priors.get("microcategory_prior"),
+            geo_associations=priors.get("geo_associations"),
+            feature_names=expected)
 
     def rank_batch(self, queries, results, limit=50):
         """Считаем оценки пачкой и сортируем каждый пул отдельно."""
