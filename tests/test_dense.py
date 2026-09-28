@@ -6,7 +6,8 @@ from unittest.mock import patch
 import numpy as np
 
 from avito_candidates.dense import (
-    DEFAULT_EMBEDDING_MODEL, DenseRetriever, _fingerprint, encoding_input,
+    DEFAULT_EMBEDDING_MODEL, DenseRetriever, _fingerprint,
+    _local_model_signature, encoding_input,
     item_text, query_text,
 )
 
@@ -32,7 +33,8 @@ class DenseHelpersTest(unittest.TestCase):
                     [0, 1] if vector[0] else [1, 0]
                     for vector in vectors
                 ], dtype=int)
-                return labels[:, :k], np.zeros((len(vectors), k))
+                distances = np.tile([0.1, 0.4], (len(vectors), 1))
+                return labels[:, :k], distances[:, :k]
 
         retriever = object.__new__(DenseRetriever)
         retriever.ids = ["a", "b"]
@@ -51,7 +53,12 @@ class DenseHelpersTest(unittest.TestCase):
             retriever.retrieve_batch(queries, 2),
             [["a", "b"], [], ["b", "a"], ["a", "b"]],
         )
-        self.assertEqual([len(texts) for texts, _kwargs in calls], [2, 1])
+        scored = retriever.retrieve_batch_with_scores(queries, 2)
+        self.assertEqual(scored[0][0], ["a", "b"])
+        self.assertAlmostEqual(scored[0][1]["a"], 0.9)
+        self.assertAlmostEqual(scored[0][1]["b"], 0.6)
+        self.assertEqual(scored[1], ([], {}))
+        self.assertEqual([len(texts) for texts, _kwargs in calls], [2, 1, 2, 1])
         self.assertTrue(all(kwargs["batch_size"] == 2 for _texts, kwargs in calls))
         self.assertTrue(all(kwargs["prompt_name"] == "query" for _texts, kwargs in calls))
 
@@ -74,6 +81,21 @@ class DenseHelpersTest(unittest.TestCase):
         self.assertEqual(
             encoding_input(["услуги мастера"], "intfloat/multilingual-e5-small", "document"),
             (["passage: услуги мастера"], {}),
+        )
+
+    def test_local_finetuned_model_keeps_saved_query_and_document_prompts(self):
+        class SavedOcten:
+            prompts = {"query": "поиск: ", "document": "объявление: "}
+
+        for role in ("query", "document"):
+            self.assertEqual(
+                encoding_input(["ремонт"], "/models/octen-finetuned", role, SavedOcten()),
+                (["ремонт"], {"prompt_name": role}),
+            )
+        self.assertEqual(
+            encoding_input(["ремонт"], "/models/model-without-prompts", "query",
+                           object()),
+            (["ремонт"], {}),
         )
 
     def test_octen_prompts_are_used_for_indexing_and_search(self):
@@ -163,6 +185,24 @@ class DenseHelpersTest(unittest.TestCase):
         self.assertNotEqual(original, _fingerprint(items, "model-a", 256))
         self.assertNotEqual(original, _fingerprint(items, "model-a", 128, 20, 48))
         self.assertNotEqual(original, _fingerprint(items, "model-a", 128, 40, 20))
+
+    def test_local_checkpoint_change_invalidates_dense_index(self):
+        class SavedModel:
+            prompts = {"query": "поиск: ", "document": "объявление: "}
+
+        items = [{"item_id": "a", "item_title_raw": "ремонт"}]
+        with TemporaryDirectory() as directory:
+            checkpoint = Path(directory)
+            weights = checkpoint / "model.safetensors"
+            weights.write_bytes(b"first")
+            first = _local_model_signature(str(checkpoint), SavedModel())
+            weights.write_bytes(b"second-version")
+            second = _local_model_signature(str(checkpoint), SavedModel())
+            self.assertNotEqual(first, second)
+            self.assertNotEqual(
+                _fingerprint(items, str(checkpoint), model_signature=first),
+                _fingerprint(items, str(checkpoint), model_signature=second),
+            )
 
 
 if __name__ == "__main__":
