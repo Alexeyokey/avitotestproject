@@ -91,6 +91,17 @@ class HybridTest(unittest.TestCase):
         )
         self.assertEqual(result, ["b"])
 
+    def test_returned_rrf_scores_match_deduplicated_ranks_and_boosts(self):
+        result, scores = reciprocal_rank_fusion(
+            [(["a", "a", "b"], 2.0), (["b", "a"], 1.0)],
+            limit=1, rank_constant=10, channel_quota=0,
+            score_boosts={"b": 0.02, "absent": 99.0}, return_scores=True,
+        )
+        self.assertEqual(result, ["b"])
+        self.assertAlmostEqual(scores["a"], 2 / 11 + 1 / 12)
+        self.assertAlmostEqual(scores["b"], 2 / 12 + 1 / 11 + 0.02)
+        self.assertNotIn("absent", scores)
+
     def test_hybrid_requests_extended_candidate_pool(self):
         bm25 = FakeBM25([
             ("title", ["a", "b"], 2.0),
@@ -131,6 +142,7 @@ class HybridTest(unittest.TestCase):
         self.assertEqual(diagnostics["channels"]["dense"], ["c", "shared"])
         self.assertEqual(diagnostics["prediction_without_quota"], prediction)
         self.assertEqual(len(diagnostics["prediction_with_quota_10"]), 2)
+        self.assertEqual(set(diagnostics["rrf_scores"]), set(diagnostics["candidate_pool"]))
 
 
 if __name__ == "__main__":
