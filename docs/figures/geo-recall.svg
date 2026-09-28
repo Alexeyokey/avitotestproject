@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="405" viewBox="0 0 960 405" role="img" aria-labelledby="title desc">
+<title id="title">Вклад географических каналов BM25</title>
+<desc id="desc">Локальная проверка на 5157 группах. Recall пула вырос с 84,22% до 94,72%, Recall@50 — с 70,59% до 76,99%.</desc>
+<rect x="0.0" y="0.0" width="960.0" height="405.0" rx="0" fill="#FFFFFF"/>
+<text x="36.0" y="47.0" text-anchor="start" font-family="Arial, Helvetica, sans-serif" font-size="26" font-weight="700" fill="#17253A">Вклад географических каналов BM25</text>
+<text x="36.0" y="76.0" text-anchor="start" font-family="Arial, Helvetica, sans-serif" font-size="14" font-weight="400" fill="#54657A">split=queries · seed=42 · k=500 · бонус локации 0,1</text>
+<line x1="225.0" y1="122.0" x2="225.0" y2="354.0" stroke="#DDE4EC" stroke-width="1"/>
+<text x="225.0" y="384.0" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="12" font-weight="400" fill="#54657A">0%</text>
+<line x1="358.0" y1="122.0" x2="358.0" y2="354.0" stroke="#DDE4EC" stroke-width="1"/>
+<text x="358.0" y="384.0" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="12" font-weight="400" fill="#54657A">20%</text>
+<line x1="491.0" y1="122.0" x2="491.0" y2="354.0" stroke="#DDE4EC" stroke-width="1"/>
+<text x="491.0" y="384.0" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="12" font-weight="400" fill="#54657A">40%</text>
+<line x1="624.0" y1="122.0" x2="624.0" y2="354.0" stroke="#DDE4EC" stroke-width="1"/>
+<text x="624.0" y="384.0" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="12" font-weight="400" fill="#54657A">60%</text>
+<line x1="757.0" y1="122.0" x2="757.0" y2="354.0" stroke="#DDE4EC" stroke-width="1"/>
+<text x="757.0" y="384.0" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="12" font-weight="400" fill="#54657A">80%</text>
+<line x1="890.0" y1="122.0" x2="890.0" y2="354.0" stroke="#DDE4EC" stroke-width="1"/>
+<text x="890.0" y="384.0" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="12" font-weight="400" fill="#54657A">100%</text>
+<rect x="225.0" y="95.0" width="17.0" height="17.0" rx="2" fill="#4567A7"/>
+<text x="250.0" y="109.0" text-anchor="start" font-family="Arial, Helvetica, sans-serif" font-size="14" font-weight="400" fill="#17253A">Глобальный поиск</text>
+<rect x="429.0" y="95.0" width="17.0" height="17.0" rx="2" fill="#087F78"/>
+<text x="454.0" y="109.0" text-anchor="start" font-family="Arial, Helvetica, sans-serif" font-size="14" font-weight="400" fill="#17253A">С географическими каналами</text>
+<text x="36.0" y="189.0" text-anchor="start" font-family="Arial, Helvetica, sans-serif" font-size="19" font-weight="600" fill="#17253A">Recall пула</text>
+<rect x="225.0" y="153.0" width="560.1" height="25.0" rx="4" fill="#4567A7"/>
+<text x="792.1" y="172.0" text-anchor="start" font-family="Arial, Helvetica, sans-serif" font-size="14" font-weight="600" fill="#17253A">84,22%</text>
+<rect x="225.0" y="189.0" width="629.9" height="25.0" rx="4" fill="#087F78"/>
+<text x="861.9" y="208.0" text-anchor="start" font-family="Arial, Helvetica, sans-serif" font-size="14" font-weight="600" fill="#17253A">94,72%</text>
+<text x="36.0" y="307.0" text-anchor="start" font-family="Arial, Helvetica, sans-serif" font-size="19" font-weight="600" fill="#17253A">Recall@50</text>
+<rect x="225.0" y="271.0" width="469.4" height="25.0" rx="4" fill="#4567A7"/>
+<text x="701.4" y="290.0" text-anchor="start" font-family="Arial, Helvetica, sans-serif" font-size="14" font-weight="600" fill="#17253A">70,59%</text>
+<rect x="225.0" y="307.0" width="512.0" height="25.0" rx="4" fill="#087F78"/>
+<text x="744.0" y="326.0" text-anchor="start" font-family="Arial, Helvetica, sans-serif" font-size="14" font-weight="600" fill="#17253A">76,99%</text>
+</svg>

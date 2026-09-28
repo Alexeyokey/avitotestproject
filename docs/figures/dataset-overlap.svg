@@ -1,0 +1,224 @@
+<?xml version="1.0" encoding="utf-8" standalone="no"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN"
+  "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<svg xmlns:xlink="http://www.w3.org/1999/xlink" width="777.6pt" height="374.4pt" viewBox="0 0 777.6 374.4" xmlns="http://www.w3.org/2000/svg" version="1.1">
+ <metadata>
+  <rdf:RDF xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:cc="http://creativecommons.org/ns#" xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">
+   <cc:Work>
+    <dc:type rdf:resource="http://purl.org/dc/dcmitype/StillImage"/>
+    <dc:format>image/svg+xml</dc:format>
+    <dc:creator>
+     <cc:Agent>
+      <dc:title>Matplotlib v3.10.8, https://matplotlib.org/</dc:title>
+     </cc:Agent>
+    </dc:creator>
+   </cc:Work>
+  </rdf:RDF>
+ </metadata>
+ <defs>
+  <style type="text/css">*{stroke-linejoin: round; stroke-linecap: butt}</style>
+ </defs>
+ <g id="figure_1">
+  <g id="patch_1">
+   <path d="M 0 374.4
+L 777.6 374.4
+L 777.6 0
+L 0 0
+z
+" style="fill: #ffffff"/>
+  </g>
+  <g id="axes_1">
+   <g id="patch_2">
+    <path d="M 334.368 321.984
+L 746.496 321.984
+L 746.496 56.16
+L 334.368 56.16
+z
+" style="fill: #ffffff"/>
+   </g>
+   <g id="matplotlib.axis_1">
+    <g id="xtick_1">
+     <g id="line2d_1">
+      <path d="M 334.368 321.984
+L 334.368 56.16
+" clip-path="url(#p60e0e28895)" style="fill: none; stroke: #e3e9f0; stroke-width: 0.8; stroke-linecap: square"/>
+     </g>
+     <g id="line2d_2">
+      <defs>
+       <path id="mc222bfb3e4" d="M 0 0
+L 0 3.5
+" style="stroke: #54657a; stroke-width: 0.8"/>
+      </defs>
+      <g>
+       <use xlink:href="#mc222bfb3e4" x="334.368" y="321.984" style="fill: #54657a; stroke: #54657a; stroke-width: 0.8"/>
+      </g>
+     </g>
+     <g id="text_1">
+      <text style="font-size: 11px; font-family: 'DejaVu Sans'; text-anchor: middle; fill: #54657a" x="334.368" y="337.342281" transform="rotate(-0 334.368 337.342281)">0%</text>
+     </g>
+    </g>
+    <g id="xtick_2">
+     <g id="line2d_3">
+      <path d="M 416.7936 321.984
+L 416.7936 56.16
+" clip-path="url(#p60e0e28895)" style="fill: none; stroke: #e3e9f0; stroke-width: 0.8; stroke-linecap: square"/>
+     </g>
+     <g id="line2d_4">
+      <g>
+       <use xlink:href="#mc222bfb3e4" x="416.7936" y="321.984" style="fill: #54657a; stroke: #54657a; stroke-width: 0.8"/>
+      </g>
+     </g>
+     <g id="text_2">
+      <text style="font-size: 11px; font-family: 'DejaVu Sans'; text-anchor: middle; fill: #54657a" x="416.7936" y="337.342281" transform="rotate(-0 416.7936 337.342281)">10%</text>
+     </g>
+    </g>
+    <g id="xtick_3">
+     <g id="line2d_5">
+      <path d="M 499.2192 321.984
+L 499.2192 56.16
+" clip-path="url(#p60e0e28895)" style="fill: none; stroke: #e3e9f0; stroke-width: 0.8; stroke-linecap: square"/>
+     </g>
+     <g id="line2d_6">
+      <g>
+       <use xlink:href="#mc222bfb3e4" x="499.2192" y="321.984" style="fill: #54657a; stroke: #54657a; stroke-width: 0.8"/>
+      </g>
+     </g>
+     <g id="text_3">
+      <text style="font-size: 11px; font-family: 'DejaVu Sans'; text-anchor: middle; fill: #54657a" x="499.2192" y="337.342281" transform="rotate(-0 499.2192 337.342281)">20%</text>
+     </g>
+    </g>
+    <g id="xtick_4">
+     <g id="line2d_7">
+      <path d="M 581.6448 321.984
+L 581.6448 56.16
+" clip-path="url(#p60e0e28895)" style="fill: none; stroke: #e3e9f0; stroke-width: 0.8; stroke-linecap: square"/>
+     </g>
+     <g id="line2d_8">
+      <g>
+       <use xlink:href="#mc222bfb3e4" x="581.6448" y="321.984" style="fill: #54657a; stroke: #54657a; stroke-width: 0.8"/>
+      </g>
+     </g>
+     <g id="text_4">
+      <text style="font-size: 11px; font-family: 'DejaVu Sans'; text-anchor: middle; fill: #54657a" x="581.6448" y="337.342281" transform="rotate(-0 581.6448 337.342281)">30%</text>
+     </g>
+    </g>
+    <g id="xtick_5">
+     <g id="line2d_9">
+      <path d="M 664.0704 321.984
+L 664.0704 56.16
+" clip-path="url(#p60e0e28895)" style="fill: none; stroke: #e3e9f0; stroke-width: 0.8; stroke-linecap: square"/>
+     </g>
+     <g id="line2d_10">
+      <g>
+       <use xlink:href="#mc222bfb3e4" x="664.0704" y="321.984" style="fill: #54657a; stroke: #54657a; stroke-width: 0.8"/>
+      </g>
+     </g>
+     <g id="text_5">
+      <text style="font-size: 11px; font-family: 'DejaVu Sans'; text-anchor: middle; fill: #54657a" x="664.0704" y="337.342281" transform="rotate(-0 664.0704 337.342281)">40%</text>
+     </g>
+    </g>
+    <g id="xtick_6">
+     <g id="line2d_11">
+      <path d="M 746.496 321.984
+L 746.496 56.16
+" clip-path="url(#p60e0e28895)" style="fill: none; stroke: #e3e9f0; stroke-width: 0.8; stroke-linecap: square"/>
+     </g>
+     <g id="line2d_12">
+      <g>
+       <use xlink:href="#mc222bfb3e4" x="746.496" y="321.984" style="fill: #54657a; stroke: #54657a; stroke-width: 0.8"/>
+      </g>
+     </g>
+     <g id="text_6">
+      <text style="font-size: 11px; font-family: 'DejaVu Sans'; text-anchor: middle; fill: #54657a" x="746.496" y="337.342281" transform="rotate(-0 746.496 337.342281)">50%</text>
+     </g>
+    </g>
+   </g>
+   <g id="matplotlib.axis_2">
+    <g id="ytick_1">
+     <g id="line2d_13"/>
+     <g id="text_7">
+      <text style="font-size: 11px; font-family: 'DejaVu Sans'; text-anchor: end" x="322.368" y="90.563528" transform="rotate(-0 322.368 90.563528)">Текст тестового запроса есть в train</text>
+     </g>
+    </g>
+    <g id="ytick_2">
+     <g id="line2d_14"/>
+     <g id="text_8">
+      <text style="font-size: 11px; font-family: 'DejaVu Sans'; text-anchor: end" x="322.368" y="159.021936" transform="rotate(-0 322.368 159.021936)">Полный тестовый запрос есть в train</text>
+     </g>
+    </g>
+    <g id="ytick_3">
+     <g id="line2d_15"/>
+     <g id="text_9">
+      <text style="font-size: 11px; font-family: 'DejaVu Sans'; text-anchor: end" x="322.368" y="227.574017" transform="rotate(-0 322.368 227.574017)">Объявление корпуса есть в train</text>
+     </g>
+    </g>
+    <g id="ytick_4">
+     <g id="line2d_16"/>
+     <g id="text_10">
+      <text style="font-size: 11px; font-family: 'DejaVu Sans'; text-anchor: end" x="322.368" y="296.032425" transform="rotate(-0 322.368 296.032425)">Строка train с объявлением из корпуса</text>
+     </g>
+    </g>
+   </g>
+   <g id="patch_3">
+    <path d="M 334.368 68.242909
+L 642.287452 68.242909
+L 642.287452 104.525866
+L 334.368 104.525866
+z
+" clip-path="url(#p60e0e28895)" style="fill: #b85e18"/>
+   </g>
+   <g id="patch_4">
+    <path d="M 334.368 136.701318
+L 370.672914 136.701318
+L 370.672914 172.984274
+L 334.368 172.984274
+z
+" clip-path="url(#p60e0e28895)" style="fill: #b85e18"/>
+   </g>
+   <g id="patch_5">
+    <path d="M 334.368 205.159726
+L 413.399205 205.159726
+L 413.399205 241.442682
+L 334.368 241.442682
+z
+" clip-path="url(#p60e0e28895)" style="fill: #4567a7"/>
+   </g>
+   <g id="patch_6">
+    <path d="M 334.368 273.618134
+L 389.039824 273.618134
+L 389.039824 309.901091
+L 334.368 309.901091
+z
+" clip-path="url(#p60e0e28895)" style="fill: #4567a7"/>
+   </g>
+   <g id="patch_7">
+    <path d="M 334.368 321.984
+L 746.496 321.984
+" style="fill: none; stroke: #cbd5e1; stroke-width: 0.8; stroke-linejoin: miter; stroke-linecap: square"/>
+   </g>
+   <g id="text_11">
+    <text style="font-weight: 600; font-size: 11px; font-family: 'DejaVu Sans'; text-anchor: start; fill: #17253a" x="650.530012" y="89.4197" transform="rotate(-0 650.530012 89.4197)">37,4%</text>
+   </g>
+   <g id="text_12">
+    <text style="font-weight: 600; font-size: 11px; font-family: 'DejaVu Sans'; text-anchor: start; fill: #17253a" x="378.915474" y="157.878108" transform="rotate(-0 378.915474 157.878108)">4,4%</text>
+   </g>
+   <g id="text_13">
+    <text style="font-weight: 600; font-size: 11px; font-family: 'DejaVu Sans'; text-anchor: start; fill: #17253a" x="421.641765" y="226.336517" transform="rotate(-0 421.641765 226.336517)">9,6%</text>
+   </g>
+   <g id="text_14">
+    <text style="font-weight: 600; font-size: 11px; font-family: 'DejaVu Sans'; text-anchor: start; fill: #17253a" x="397.282384" y="294.794925" transform="rotate(-0 397.282384 294.794925)">6,6%</text>
+   </g>
+   <g id="text_15">
+    <text style="font-weight: 700; font-size: 17px; font-family: 'DejaVu Sans'; text-anchor: start; fill: #17253a" x="334.368" y="36.16" transform="rotate(-0 334.368 36.16)">Пересечение train с тестовыми данными</text>
+   </g>
+  </g>
+  <g id="text_16">
+   <text style="font-size: 9px; font-family: 'DejaVu Sans'; text-anchor: start; fill: #54657a" x="15.552" y="365.04" transform="rotate(-0 15.552 365.04)">Доли считаются от разных наборов: 2 452 запроса, 189 212 объявлений корпуса и 497 673 строк train.</text>
+  </g>
+ </g>
+ <defs>
+  <clipPath id="p60e0e28895">
+   <rect x="334.368" y="56.16" width="412.128" height="265.824"/>
+  </clipPath>
+ </defs>
+</svg>
