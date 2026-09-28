@@ -30,6 +30,46 @@ def batches(rows, size):
         yield rows[start:start + size]
 
 
+class RrfScoreReport:
+    """Stream final top-50 retrieval scores without retaining all query pools."""
+
+    def __init__(self, report_path, location_bonus):
+        self.path = report_path.with_suffix(".rrf.csv")
+        self.path.parent.mkdir(parents=True, exist_ok=True)
+        self.stream = self.path.open("w", encoding="utf-8", newline="")
+        self.writer = csv.writer(self.stream)
+        self.writer.writerow([*SEARCH_FIELDS, "rank", "item_id", "rrf_score"])
+        self.count = 0
+        self.total = 0.0
+        self.minimum = None
+        self.maximum = None
+        self.location_bonus = location_bonus
+
+    def add(self, query, prediction, details):
+        # RRF is the retrieval score, even if a trained reranker later changes
+        # the order. It already includes the exact-location bonus when enabled.
+        scores = details["rrf_scores"]
+        key = query_key(query)
+        for rank, item_id in enumerate(prediction, start=1):
+            score = scores[item_id]
+            self.writer.writerow([*key, rank, item_id, repr(score)])
+            self.count += 1
+            self.total += score
+            self.minimum = score if self.minimum is None else min(self.minimum, score)
+            self.maximum = score if self.maximum is None else max(self.maximum, score)
+
+    def finish(self):
+        self.stream.close()
+        return {
+            "file": str(self.path),
+            "rows": self.count,
+            "mean": self.total / self.count if self.count else None,
+            "min": self.minimum,
+            "max": self.maximum,
+            "location_bonus": self.location_bonus,
+        }
+
+
 class LocationBonusSweep:
     """Measure many hybrid geography bonuses on the same candidate lists."""
 
@@ -363,6 +403,8 @@ def main():
             keys = keys[:args.max_queries]
         model = build_retriever(args, items)
         retrieval_diagnostics = {}
+        rrf_report = (RrfScoreReport(args.output, args.location_bonus)
+                      if args.method in {"bm25", "hybrid"} else None)
         location_sweep = (LocationBonusSweep(
             items, keys, rank_constant=args.rrf_k, bm25_weight=args.bm25_weight,
             dense_weight=args.dense_weight, reference_bonus=args.location_bonus,
@@ -386,6 +428,7 @@ def main():
                         baseline_predictions[key] = prediction
                     predictions[key] = (reranked[index] if reranker
                                         else prediction)
+                    rrf_report.add(queries_batch[index], predictions[key], details)
                     candidate_pools[key] = details["candidate_pool"]
                     predictions_without_quota[key] = details["prediction_without_quota"]
                     predictions_with_quota_10[key] = details["prediction_with_quota_10"]
@@ -417,6 +460,7 @@ def main():
                     if reranker:
                         baseline_predictions[key] = prediction
                     predictions[key] = reranked[index] if reranker else prediction
+                    rrf_report.add(queries_batch[index], predictions[key], details)
                     candidate_pools[key] = details["candidate_pool"]
         else:
             # Dense retrieval has one channel, so its full ranking is the pool.
@@ -449,6 +493,9 @@ def main():
             ) / len(keys),
             "recall_lost_when_cutting_pool_to_50": pool_recall - top50_recall,
         })
+        retrieval_diagnostics["rrf_scores"] = (
+            rrf_report.finish() if rrf_report else None
+        )
         if reranker:
             retrieval_diagnostics["baseline_recall_at_50"] = recall_at_k(
                 baseline_predictions, relevant)

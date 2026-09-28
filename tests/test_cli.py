@@ -1,6 +1,7 @@
 """CLI-level checks for batched evaluation without loading an embedding model."""
 
 import unittest
+import csv
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest.mock import patch
@@ -37,11 +38,13 @@ class EvaluationBatchTest(unittest.TestCase):
                     location = query["search_location_id"]
                     boosts = {item_id: 0.1 for item_id in ids
                               if items[ids.index(item_id)]["item_location_id"] == location}
-                    prediction = reciprocal_rank_fusion(
-                        ranked, rank_constant=60, channel_quota=0, score_boosts=boosts)
+                    prediction, scores = reciprocal_rank_fusion(
+                        ranked, rank_constant=60, channel_quota=0,
+                        score_boosts=boosts, return_scores=True)
                     details = {
                         "candidate_pool": ids, "channels": channels,
                         "channel_weights": {"title": 1.0, "dense": 1.0},
+                        "rrf_scores": scores,
                         "prediction_without_quota": prediction,
                         "prediction_with_quota_10": reciprocal_rank_fusion(
                             ranked, rank_constant=60, channel_quota=10,
@@ -51,10 +54,13 @@ class EvaluationBatchTest(unittest.TestCase):
                 return results
 
         model = FakeHybrid()
+        directory = TemporaryDirectory()
+        self.addCleanup(directory.cleanup)
+        output_path = Path(directory.name) / "hybrid.json"
         args = ["avito", "evaluate", "--data-dir", "unused", "--split", "all",
                 "--method", "hybrid", "--candidate-k", "60",
                 "--embedding-batch-size", "2", "--location-bonus", "0.1",
-                "--sweep-location-bonus"]
+                "--sweep-location-bonus", "--output", str(output_path)]
         with (
             patch("sys.argv", args),
             patch.object(cli, "read", return_value=items),
@@ -71,6 +77,14 @@ class EvaluationBatchTest(unittest.TestCase):
         self.assertEqual(rows[0]["recall_at_50"], 0.5)
         self.assertEqual(rows[0.1]["recall_at_50"], report["recall_at_50"])
         self.assertEqual(report["recall_at_50"], 1.0)
+        scores_report = report["retrieval_diagnostics"]["rrf_scores"]
+        self.assertEqual(scores_report["rows"], 100)
+        with Path(scores_report["file"]).open(encoding="utf-8", newline="") as stream:
+            saved = list(csv.DictReader(stream))
+        first_query_top = next(row for row in saved
+                               if row["search_query"] == "первый" and row["rank"] == "1")
+        self.assertEqual(first_query_top["item_id"], ids[59])
+        self.assertAlmostEqual(float(first_query_top["rrf_score"]), 2 / 120 + 0.1)
 
     def test_dense_evaluation_batches_queries_without_changing_recall(self):
         train = [
@@ -107,6 +121,7 @@ class EvaluationBatchTest(unittest.TestCase):
         report = save_json.call_args.args[1]
         self.assertEqual(report["evaluated_queries"], 3)
         self.assertEqual(report["recall_at_50"], 1.0)
+        self.assertIsNone(report["retrieval_diagnostics"]["rrf_scores"])
 
     def test_streamed_validation_matches_existing_split(self):
         rows = [
