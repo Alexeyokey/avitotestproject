@@ -1,8 +1,8 @@
-"""Supervised selection of 50 items from an existing retrieval pool.
+"""Обучаемый отбор 50 объявлений из готового пула кандидатов.
 
-Only clicked pairs from the fit side of a query-text split become positives.
-Other retrieved items are *unobserved* negatives, so this is a pragmatic
-positive/unlabelled ranking model, not a relevance ground-truth classifier.
+Положительные пары берутся только из обучающей части разбиения по тексту.
+Остальные найденные объявления остаются неразмеченными: модель учится на
+положительных и неразмеченных примерах, а не на полной разметке релевантности.
 """
 
 from collections import defaultdict
@@ -21,25 +21,39 @@ from sklearn.ensemble import HistGradientBoostingClassifier
 from .core import SEARCH_FIELDS, held_out, normalize, query_key
 
 
-CHANNELS = ("title", "params", "description", "title_stem", "params_stem", "dense")
-FEATURE_VERSION = 2
+BM25_CHANNELS = ("title", "params", "description", "title_stem", "params_stem")
+GEO_CHANNELS = tuple(f"{name}_geo" for name in BM25_CHANNELS)
+CHANNELS = (*BM25_CHANNELS, *GEO_CHANNELS, "dense")
+FEATURE_VERSION = 3
 FEATURES = (
     "rrf_score", "pool_rank", "baseline_top50", "channel_count",
     *(f"rank_{name}" for name in CHANNELS),
     *(f"present_{name}" for name in CHANNELS),
-    "location_match", "location_known", "category_match", "category_known",
+    *(f"score_{name}" for name in CHANNELS),
+    "location_match", "location_known", "geo_destination_match",
+    "geo_destination_known", "geo_destination_is_fallback", "geo_channel_count",
+    "category_match", "category_known",
     "title_overlap", "params_overlap", "description_overlap",
     "title_query_coverage", "params_query_coverage", "description_query_coverage",
     "title_exact_phrase", "params_exact_phrase", "title_length", "description_length",
     "filter_title_overlap", "filter_params_overlap",
+    "filter_title_coverage", "filter_params_coverage",
+    "filter_params_bigram_coverage", "filter_params_exact_phrase",
+    "rating_filter_known", "rating_filter_match",
     "log_price", "rating", "log_reviews", "phone_hidden", "message_forbidden",
     "has_query_filters", "delivery_search",
 )
 _WORDS = re.compile(r"(?u)\b\w+\b")
+_RATING_FLOOR = re.compile(r"рейтинг пользователя\s*(\d+(?:[.,]\d+)?)")
 
 
 def _tokens(value):
     return set(_WORDS.findall(normalize(value)))
+
+
+def _bigrams(value):
+    words = _WORDS.findall(normalize(value))
+    return set(zip(words, words[1:]))
 
 
 def _number(value):
@@ -51,7 +65,7 @@ def _number(value):
 
 
 def corpus_fingerprint(items):
-    """Reject a model trained on different item IDs or model-visible features."""
+    """Проверяем, что модель обучалась на том же корпусе и его признаках."""
     digest = hashlib.sha256()
     for item in sorted(items, key=lambda row: row["item_id"]):
         for field in ("item_id", "item_title_raw", "item_infm_params_text",
@@ -65,7 +79,7 @@ def corpus_fingerprint(items):
 
 
 def retrieval_config(args):
-    """Settings that determine candidate lists and their rank features."""
+    """Настройки, определяющие список кандидатов и ранговые признаки."""
     config = {"method": args.method, "candidate_k": args.candidate_k}
     if args.method in {"bm25", "hybrid"}:
         for field in ("title", "params", "description"):
@@ -75,6 +89,10 @@ def retrieval_config(args):
         for name in ("stem_title_weight", "stem_params_weight", "location_bonus",
                      "bm25_rrf_k", "bm25_channel_quota"):
             config[name] = getattr(args, name)
+        if args.geo_candidate_k > 0:
+            for name in ("geo_candidate_k", "geo_top_locations", "geo_min_history",
+                         "geo_weight"):
+                config[name] = getattr(args, name)
     if args.method in {"dense", "hybrid"}:
         for name in ("embedding_model", "embedding_max_length", "embedding_params_words",
                      "embedding_description_words", "ef_search"):
@@ -86,7 +104,7 @@ def retrieval_config(args):
 
 
 class FeatureBuilder:
-    """Numeric, query-relative features; item IDs are never model inputs."""
+    """Числовые признаки пары; ID объявления не подаётся модели."""
 
     def __init__(self, items, config):
         self.items = {item["item_id"]: item for item in items}
@@ -97,12 +115,12 @@ class FeatureBuilder:
         item = self.items[item_id]
         title = normalize(item.get("item_title_raw", ""))
         params = normalize(item.get("item_infm_params_text", ""))
-        # Only the prefix contributes to overlap; retaining entire descriptions
-        # in the cache would duplicate much of the already loaded corpus.
+        # Для пересечений достаточно начала описания; хранение полного текста
+        # в кеше дублировало бы большую часть уже загруженного корпуса.
         description_prefix = str(item.get("item_description_raw", ""))[:1500]
-        # Text overlap is a cheap complement to retrieval ranks.
+        # Пересечение слов дополняет ранги поисковых каналов.
         return (title, params, _tokens(title), _tokens(params),
-                _tokens(description_prefix))
+                _tokens(description_prefix), _bigrams(params))
 
     def transform(self, query, details, baseline, candidate_ids=None):
         pool = details["candidate_pool"]
@@ -114,9 +132,19 @@ class FeatureBuilder:
         baseline_set = set(baseline)
         query_text = normalize(query.get("search_query", ""))
         query_tokens = _tokens(query_text)
-        filter_tokens = _tokens(query.get("search_infm_params_text", ""))
+        filter_text = normalize(query.get("search_infm_params_text", ""))
+        filter_tokens = _tokens(filter_text)
+        filter_bigrams = _bigrams(filter_text)
+        rating_match = _RATING_FLOOR.search(filter_text)
+        rating_floor = (float(rating_match.group(1).replace(",", "."))
+                        if rating_match else None)
         location = str(query.get("search_location_id", ""))
         category = str(query.get("search_category", ""))
+        geo_locations = set(details.get("geo_locations", ()))
+        channel_scores = details.get("channel_scores", {})
+        channel_rank_maps = [ranks.get(name, {}) for name in CHANNELS]
+        channel_score_maps = [channel_scores.get(name, {}) for name in CHANNELS]
+        geo_rank_maps = [ranks.get(name, {}) for name in GEO_CHANNELS]
         config = self.config
         if config["method"] == "hybrid":
             weights = {name: config["bm25_weight"] * config[f"{name}_weight"]
@@ -138,21 +166,34 @@ class FeatureBuilder:
         output = np.empty((len(candidate_ids), len(FEATURES)), dtype=np.float32)
         for row_number, item_id in enumerate(candidate_ids):
             item = self.items[item_id]
-            title, params, title_tokens, params_tokens, desc_tokens = self._item_text(item_id)
-            item_ranks = [ranks.get(name, {}).get(item_id, 0) for name in CHANNELS]
+            title, params, title_tokens, params_tokens, desc_tokens, params_bigrams = (
+                self._item_text(item_id))
+            item_ranks = [rank_map.get(item_id, 0) for rank_map in channel_rank_maps]
             item_location = str(item.get("item_location_id", ""))
             item_category = str(item.get("item_category_id", ""))
             overlap = [len(query_tokens & tokens) for tokens in (title_tokens, params_tokens, desc_tokens)]
-            rrf_score = sum(weights[name] / (rank_constant + rank)
-                            for name, rank in zip(CHANNELS, item_ranks) if rank)
-            rrf_score += config.get("location_bonus", 0) * bool(location and location == item_location)
+            # Геоканалы участвуют в объединении; берём готовый итоговый балл,
+            # чтобы не восстанавливать его по неполному набору рангов.
+            if "rrf_scores" in details:
+                rrf_score = details["rrf_scores"][item_id]
+            else:
+                rrf_score = sum(weights[name] / (rank_constant + rank)
+                                for name, rank in zip(CHANNELS, item_ranks)
+                                if rank and name in weights)
+                rrf_score += config.get("location_bonus", 0) * bool(
+                    location and location == item_location)
             output[row_number] = (
                 rrf_score, 1 / (1 + pool_ranks[item_id]), float(item_id in baseline_set),
-                sum(bool(rank) for rank in item_ranks),
+                sum(item_id in channel_ranks for channel_ranks in ranks.values()),
                 *(1 / (rank_constant + rank) if rank else 0 for rank in item_ranks),
                 *(float(bool(rank)) for rank in item_ranks),
+                *(score_map.get(item_id, 0.0) for score_map in channel_score_maps),
                 float(bool(location and location == item_location)),
                 float(bool(location and item_location)),
+                float(bool(item_location and item_location in geo_locations)),
+                float(bool(geo_locations)),
+                float(bool(geo_locations and location not in geo_locations)),
+                sum(bool(rank_map.get(item_id)) for rank_map in geo_rank_maps),
                 float(bool(category and category == item_category)),
                 float(bool(category and item_category)),
                 *overlap,
@@ -161,6 +202,13 @@ class FeatureBuilder:
                 float(bool(query_text and query_text in params)),
                 np.log1p(len(title_tokens)), np.log1p(len(desc_tokens)),
                 len(filter_tokens & title_tokens), len(filter_tokens & params_tokens),
+                len(filter_tokens & title_tokens) / max(1, len(filter_tokens)),
+                len(filter_tokens & params_tokens) / max(1, len(filter_tokens)),
+                len(filter_bigrams & params_bigrams) / max(1, len(filter_bigrams)),
+                float(bool(filter_text and filter_text in params)),
+                float(bool(rating_floor is not None and item.get("item_rating", "") != "")),
+                float(bool(rating_floor is not None and
+                           _number(item.get("item_rating")) >= rating_floor)),
                 np.log1p(max(0, _number(item.get("item_price")))),
                 _number(item.get("item_rating")),
                 np.log1p(max(0, _number(item.get("item_rating_reviews_count")))),
@@ -173,7 +221,7 @@ class FeatureBuilder:
 
 
 def read_fit_labels(path, corpus_ids, *, split, fraction, seed, batch_size):
-    """Use fit rows only; all variants of a held-out query text stay excluded."""
+    """Берём обучающие строки и исключаем все варианты отложенного текста."""
     if split not in {"queries", "all"}:
         raise ValueError("Reranker training requires --split queries or --split all")
     if split == "queries" and not 0 < fraction < 1:
@@ -197,25 +245,46 @@ def read_fit_labels(path, corpus_ids, *, split, fraction, seed, batch_size):
 
 
 def retrieve_details(retriever, queries, method, candidate_k):
-    """One interface for the three existing retrieval methods."""
+    """Единый интерфейс для трёх методов поиска."""
     if method == "hybrid":
         return retriever.retrieve_batch_with_diagnostics(queries)
     if method == "bm25":
         return [retriever.retrieve_with_diagnostics(query) for query in queries]
-    pools = retriever.retrieve_batch(queries, max(50, candidate_k))
-    return [(pool[:50], {"candidate_pool": pool, "channels": {"dense": pool}})
-            for pool in pools]
+    pools = retriever.retrieve_batch_with_scores(queries, max(50, candidate_k))
+    return [(pool[:50], {"candidate_pool": pool, "channels": {"dense": pool},
+                         "channel_scores": {"dense": scores}})
+            for pool, scores in pools]
 
 
 def sample_training_ids(pool, baseline, channels, positives, limit, seed):
-    """Keep found positives plus hard and random unclicked items."""
+    """Сохраняем положительные, сложные и случайные неразмеченные примеры."""
     found = [item_id for item_id in pool if item_id in positives]
     if not found:
         return []
-    hard = list(dict.fromkeys([*baseline, *(item_id for ids in channels.values()
-                                             for item_id in ids[:20])]))
-    hard = [item_id for item_id in hard if item_id not in positives]
-    chosen = hard[:limit // 2]
+    hard_budget = limit // 2
+    baseline_budget = hard_budget // 2
+    chosen = [item_id for item_id in baseline
+              if item_id not in positives][:baseline_budget]
+    chosen_set = set(chosen) | positives
+    # Чередование каналов не даёт первому списку занять все места для сложных
+    # примеров до того, как дойдём до dense и географического поиска.
+    channel_heads = [ids[:20] for ids in channels.values()]
+    for rank in range(20):
+        for ids in channel_heads:
+            if len(chosen) >= hard_budget:
+                break
+            if rank < len(ids) and ids[rank] not in chosen_set:
+                chosen.append(ids[rank])
+                chosen_set.add(ids[rank])
+        if len(chosen) >= hard_budget:
+            break
+    if len(chosen) < hard_budget:
+        for item_id in baseline:
+            if item_id not in chosen_set:
+                chosen.append(item_id)
+                chosen_set.add(item_id)
+                if len(chosen) >= hard_budget:
+                    break
     chosen_set = set(chosen) | positives
     rest = [item_id for item_id in pool if item_id not in chosen_set]
     rng = np.random.default_rng(seed)
@@ -227,7 +296,7 @@ def sample_training_ids(pool, baseline, channels, positives, limit, seed):
 
 def prepare_training_data(path, retriever, builder, truth, representatives, *,
                           split, fraction, seed, negatives, batch_size, max_queries=0):
-    """Stream sampled candidate features to Parquet; keep model out of this process."""
+    """Потоково сохраняем признаки кандидатов в Parquet без обучения модели."""
     import hashlib as _hashlib
 
     keys = sorted(truth, key=lambda x: _hashlib.sha256(repr(x).encode()).digest())
@@ -293,7 +362,7 @@ def prepare_training_data(path, retriever, builder, truth, representatives, *,
 
 
 def fit_model(data_path, model_path, *, max_iter=150):
-    """Train a lightweight local model after Octen/retrieval exits."""
+    """Обучаем локальную модель после освобождения памяти поискового индекса."""
     data_path, model_path = Path(data_path), Path(model_path)
     metadata = json.loads(data_path.with_suffix(data_path.suffix + ".json").read_text(encoding="utf-8"))
     if metadata.get("feature_version") != FEATURE_VERSION or metadata["feature_names"] != list(FEATURES):
@@ -334,21 +403,9 @@ class Reranker:
                     or self.metadata["seed"] != seed):
                 raise ValueError("Evaluate reranker only on its held-out query-text split")
         self.builder = FeatureBuilder(items, config)
-        # The original fusion gives an unconditional location priority when its
-        # bonus exceeds the largest possible RRF score. Preserve that contract
-        # while learning how to order items *within* each location group.
-        if config["method"] == "bm25":
-            total_weight = sum(config[f"{name}_weight"] for name in ("title", "params", "description"))
-            total_weight += config["stem_title_weight"] + config["stem_params_weight"]
-            max_rrf = total_weight / (config["bm25_rrf_k"] + 1)
-        elif config["method"] == "hybrid":
-            max_rrf = (config["bm25_weight"] + config["dense_weight"]) / (config["rrf_k"] + 1)
-        else:
-            max_rrf = float("inf")
-        self.location_first = config.get("location_bonus", 0) > max_rrf
 
     def rank_batch(self, queries, results, limit=50):
-        """Predict in one batch, then sort separately within each query pool."""
+        """Считаем оценки пачкой и сортируем каждый пул отдельно."""
         matrices = [self.builder.transform(query, details, baseline)
                     for query, (baseline, details) in zip(queries, results)]
         nonempty = [matrix for matrix in matrices if len(matrix)]
@@ -359,14 +416,10 @@ class Reranker:
         for matrix, (_baseline, details) in zip(matrices, results):
             count = len(matrix)
             if count:
-                # Retrieval score breaks ties reproducibly; IDs stay untouched.
-                if self.location_first:
-                    order = np.lexsort((np.arange(count), -matrix[:, 0],
-                                        -probabilities[start:start + count],
-                                        -matrix[:, FEATURES.index("location_match")]))[:limit]
-                else:
-                    order = np.lexsort((np.arange(count), -matrix[:, 0],
-                                        -probabilities[start:start + count]))[:limit]
+                # География служит признаком, а не жёстким разделением пула.
+                # При равенстве оценок модели используем исходный балл поиска.
+                order = np.lexsort((np.arange(count), -matrix[:, 0],
+                                    -probabilities[start:start + count]))[:limit]
                 predictions.append([details["candidate_pool"][int(index)] for index in order])
                 start += count
             else:
