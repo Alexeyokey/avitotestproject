@@ -1,4 +1,4 @@
-"""Data contracts and reproducible splits; no model or network dependencies."""
+"""Структура данных и воспроизводимые разбиения без модели и сети."""
 import hashlib
 import json
 import re
@@ -12,12 +12,12 @@ def normalize(text):
 
 
 def query_key(row):
-    # IDs remain categorical strings. Numeric proximity of location IDs has no meaning.
+    # Идентификаторы остаются строками: близость их числовых значений не имеет смысла.
     return tuple(normalize(row.get(field, "")) for field in SEARCH_FIELDS)
 
 
 def held_out(key, fraction=0.2, seed=42):
-    """Stable across processes and Python versions; unlike Python's built-in hash."""
+    """Сохраняем одинаковое разбиение между процессами и версиями Python."""
     value = json.dumps([seed, key], ensure_ascii=False, separators=(",", ":"))
     digest = hashlib.sha256(value.encode("utf-8")).digest()
     return int.from_bytes(digest[:8], "big") / 2**64 < fraction
@@ -27,12 +27,12 @@ def split_rows(rows, mode="pairs", fraction=0.2, seed=42):
     if mode not in {"pairs", "queries", "all"} or (mode != "all" and not 0 < fraction < 1):
         raise ValueError("Invalid split mode or fraction")
     if mode == "all":
-        # Unsupervised retrievers can be evaluated on every known positive pair.
+        # Поиск без обучения можно проверить на каждой известной положительной паре.
         return [], list(rows)
     train, valid = [], []
     for row in rows:
-        # Duplicate positive pairs always stay together. Query holdout additionally
-        # hides all locations/filters for the same normalized query text.
+        # Повторные положительные пары остаются вместе. Разбиение по тексту
+        # также скрывает все локации и фильтры одного нормализованного запроса.
         key = (query_key(row), row["item_id"]) if mode == "pairs" else normalize(row["search_query"])
         (valid if held_out(key, fraction, seed) else train).append(row)
     return train, valid

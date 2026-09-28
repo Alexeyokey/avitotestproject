@@ -1,4 +1,4 @@
-"""Local retrieval, reranker training, evaluation and submission commands."""
+"""Команды локального поиска, обучения реранкера, оценки и отправки ответа."""
 import argparse
 from collections import defaultdict
 import csv
@@ -13,7 +13,7 @@ from .dense import DEFAULT_EMBEDDING_MODEL
 
 
 def read(path, columns):
-    # String conversion avoids accidental numeric feature interpretation.
+    # Строковое представление сохраняет ID и не превращает признаки в числа.
     frame = pd.read_parquet(path, columns=list(columns))
     return frame.fillna("").astype(str).to_dict("records")
 
@@ -25,13 +25,13 @@ def save_json(path, value):
 
 
 def batches(rows, size):
-    """Bound query memory while allowing dense encoding to use model batches."""
+    """Ограничиваем память запросов, сохраняя пакетное кодирование dense."""
     for start in range(0, len(rows), size):
         yield rows[start:start + size]
 
 
 class RrfScoreReport:
-    """Stream final top-50 retrieval scores without retaining all query pools."""
+    """Потоково сохраняем баллы итоговых 50 без хранения всех пулов."""
 
     def __init__(self, report_path, location_bonus):
         self.path = report_path.with_suffix(".rrf.csv")
@@ -46,8 +46,8 @@ class RrfScoreReport:
         self.location_bonus = location_bonus
 
     def add(self, query, prediction, details):
-        # RRF is the retrieval score, even if a trained reranker later changes
-        # the order. It already includes the exact-location bonus when enabled.
+        # RRF остаётся баллом поиска, даже если реранкер меняет порядок.
+        # При включённой добавке он уже учитывает совпадение точной локации.
         scores = details["rrf_scores"]
         key = query_key(query)
         for rank, item_id in enumerate(prediction, start=1):
@@ -71,7 +71,7 @@ class RrfScoreReport:
 
 
 class LocationBonusSweep:
-    """Measure many hybrid geography bonuses on the same candidate lists."""
+    """Проверяем географические добавки на одних и тех же кандидатах."""
 
     def __init__(self, items, keys, *, rank_constant, bm25_weight, dense_weight,
                  reference_bonus):
@@ -79,8 +79,8 @@ class LocationBonusSweep:
 
         self.rerank = rank_location_bonus_grid
         self.item_locations = {item["item_id"]: item["item_location_id"] for item in items}
-        # The hard-priority threshold is at most (BM25 + dense) / (RRF k + 1).
-        # Sweep finely below it, then include the user's current setting.
+        # Порог жёсткого приоритета не выше (BM25 + dense) / (RRF k + 1).
+        # Проверяем мелкий шаг ниже порога и добавляем текущую настройку.
         self.hard_priority_threshold = (bm25_weight + dense_weight) / (rank_constant + 1)
         self.bonuses = sorted(set([*(index / 1000 for index in range(41)),
                                    0.05, 0.1, reference_bonus]))
@@ -157,8 +157,42 @@ class LocationBonusSweep:
         }
 
 
+def geography_recall_slices(keys, truth, representatives, predictions, pools, items):
+    """Показываем, где геопоиск находит или теряет известные ответы."""
+    item_locations = {item["item_id"]: item.get("item_location_id", "") for item in items}
+    corpus_locations = set(item_locations.values())
+    slices = {name: {"queries": 0, "pool_recall_sum": 0.0, "top50_recall_sum": 0.0}
+              for name in ("exact_location_available", "no_exact_location_available",
+                           "local_positive", "nonlocal_positive")}
+    for key in keys:
+        query_location = representatives[key].get("search_location_id", "")
+        relevant = truth[key]
+        pool, top50 = set(pools[key]), set(predictions[key][:50])
+        name = ("exact_location_available" if query_location in corpus_locations
+                else "no_exact_location_available")
+        groups = [(name, relevant)]
+        local = {item_id for item_id in relevant
+                 if query_location and item_locations[item_id] == query_location}
+        if local:
+            groups.append(("local_positive", local))
+        nonlocal_items = relevant - local
+        if nonlocal_items:
+            groups.append(("nonlocal_positive", nonlocal_items))
+        for name, positives in groups:
+            summary = slices[name]
+            summary["queries"] += 1
+            summary["pool_recall_sum"] += len(pool & positives) / len(positives)
+            summary["top50_recall_sum"] += len(top50 & positives) / len(positives)
+    return {name: {
+        "queries": value["queries"],
+        "pool_recall": value["pool_recall_sum"] / value["queries"] if value["queries"] else None,
+        "recall_at_50": value["top50_recall_sum"] / value["queries"]
+        if value["queries"] else None,
+    } for name, value in slices.items()}
+
+
 def read_validation(path, corpus_ids, *, mode, fraction, seed, batch_size):
-    """Stream train rows and retain only positives usable for evaluation."""
+    """Читаем train потоково и оставляем подходящие для оценки ответы."""
     if mode not in {"pairs", "queries", "all"} or (mode != "all" and not 0 < fraction < 1):
         raise ValueError("Invalid split mode or fraction")
     if batch_size <= 0:
@@ -170,7 +204,7 @@ def read_validation(path, corpus_ids, *, mode, fraction, seed, batch_size):
     for batch in parquet.iter_batches(
         batch_size=batch_size, columns=[*SEARCH_FIELDS, "item_id"]
     ):
-        # Match read(): missing values become empty strings and IDs remain strings.
+        # Как и в read(), пропуски становятся пустыми строками, а ID остаются строками.
         rows = batch.to_pandas().fillna("").astype(str).to_dict("records")
         for row in rows:
             if mode == "all":
@@ -197,6 +231,23 @@ def read_validation(path, corpus_ids, *, mode, fraction, seed, batch_size):
 def build_retriever(args, items):
     from .baseline import Baseline
 
+    associations = None
+    if args.geo_candidate_k > 0:
+        from .geography import LocationAssociations, fit_location_associations
+
+        corpus_locations = {item["item_location_id"] for item in items
+                            if item.get("item_location_id")}
+        # При --split all нет независимой обучающей части для оценки.
+        if args.command == "evaluate" and args.split == "all":
+            associations = LocationAssociations(corpus_locations)
+        else:
+            fit_split = "all" if args.command == "predict" else args.split
+            associations = fit_location_associations(
+                args.data_dir / "train.parquet", corpus_locations,
+                split=fit_split, fraction=args.validation_fraction,
+                seed=args.seed, batch_size=args.train_batch_size,
+            )
+
     bm25_kwargs = {
         "title_k1": args.k1 if args.k1 is not None else args.title_k1,
         "title_b": args.b if args.b is not None else args.title_b,
@@ -213,6 +264,11 @@ def build_retriever(args, items):
         "candidate_k": args.candidate_k,
         "rank_constant": args.bm25_rrf_k,
         "channel_quota": args.bm25_channel_quota,
+        "geo_candidate_k": args.geo_candidate_k,
+        "geo_top_locations": args.geo_top_locations,
+        "geo_min_history": args.geo_min_history,
+        "geo_weight": args.geo_weight,
+        "geo_associations": associations,
     }
     if args.method == "bm25":
         return Baseline(items, **bm25_kwargs)
@@ -277,6 +333,14 @@ def main():
                         help="Weight of a separate Russian-stemmed item-parameters channel; 0 disables it")
     parser.add_argument("--location-bonus", type=float, default=0.0,
                         help="Additive RRF bonus for exact query/item location match; 0 disables it")
+    parser.add_argument("--geo-candidate-k", type=int, default=0,
+                        help="Extra BM25 candidates per field from query-related item locations; 0 disables")
+    parser.add_argument("--geo-top-locations", type=int, default=3,
+                        help="Historical item locations used when exact location has no corpus items")
+    parser.add_argument("--geo-min-history", type=int, default=20,
+                        help="Minimum fit clicks before using historical location associations")
+    parser.add_argument("--geo-weight", type=float, default=0.25,
+                        help="Relative RRF weight of each geography-aware BM25 field")
     parser.add_argument("--bm25-rrf-k", type=int, default=30)
     parser.add_argument("--bm25-channel-quota", type=int, default=10)
     parser.add_argument("--embedding-model", default=DEFAULT_EMBEDDING_MODEL)
@@ -330,6 +394,11 @@ def main():
         parser.error("Reranker negatives must be positive; max train queries nonnegative")
     if args.method == "dense" and args.location_bonus > 0:
         parser.error("--location-bonus is supported by bm25 and hybrid, not dense")
+    if args.method == "dense" and args.geo_candidate_k > 0:
+        parser.error("--geo-candidate-k is supported by bm25 and hybrid, not dense")
+    if (args.geo_candidate_k < 0 or args.geo_top_locations <= 0
+            or args.geo_min_history <= 0 or args.geo_weight <= 0):
+        parser.error("Geography retrieval parameters must be positive (K may be zero)")
     root = args.data_dir
     queries = (read(root / "benchmark_queries.parquet", ("query_id", *SEARCH_FIELDS))
                if args.command in {"predict", "profile", "validate"} else [])
@@ -396,13 +465,28 @@ def main():
             fraction=args.validation_fraction, seed=args.seed,
             batch_size=args.train_batch_size,
         )
-        # Stable hash order avoids evaluating only the first rows of the dataset.
+        # Порядок по хешу не ограничивает оценку первыми строками датасета.
         import hashlib
         keys = sorted(truth, key=lambda x: hashlib.sha256(repr(x).encode()).digest())
         if args.max_queries > 0:
             keys = keys[:args.max_queries]
         model = build_retriever(args, items)
         retrieval_diagnostics = {}
+        geo_extra_count = geo_extra_recall = geo_new_positive_queries = 0
+
+        def record_geo_contribution(details, relevant):
+            nonlocal geo_extra_count, geo_extra_recall, geo_new_positive_queries
+            if args.geo_candidate_k <= 0:
+                return
+            global_ids = {item_id for name, ids in details["channels"].items()
+                          if not name.endswith("_geo") for item_id in ids}
+            geo_ids = {item_id for name, ids in details["channels"].items()
+                       if name.endswith("_geo") for item_id in ids}
+            extra = geo_ids - global_ids
+            found = len(extra & relevant)
+            geo_extra_count += len(extra)
+            geo_extra_recall += found / len(relevant)
+            geo_new_positive_queries += bool(found)
         rrf_report = (RrfScoreReport(args.output, args.location_bonus)
                       if args.method in {"bm25", "hybrid"} else None)
         location_sweep = (LocationBonusSweep(
@@ -422,6 +506,7 @@ def main():
                 if reranker:
                     reranked = reranker.rank_batch(queries_batch, results)
                 for index, (key, (prediction, details)) in enumerate(zip(batch_keys, results)):
+                    record_geo_contribution(details, truth[key])
                     if location_sweep:
                         location_sweep.add(key, queries_batch[index], details, truth[key])
                     if reranker:
@@ -457,22 +542,29 @@ def main():
                 results = [model.retrieve_with_diagnostics(query) for query in queries_batch]
                 reranked = reranker.rank_batch(queries_batch, results) if reranker else None
                 for index, (key, (prediction, details)) in enumerate(zip(batch_keys, results)):
+                    record_geo_contribution(details, truth[key])
                     if reranker:
                         baseline_predictions[key] = prediction
                     predictions[key] = reranked[index] if reranker else prediction
                     rrf_report.add(queries_batch[index], predictions[key], details)
                     candidate_pools[key] = details["candidate_pool"]
         else:
-            # Dense retrieval has one channel, so its full ranking is the pool.
+            # У dense один канал, поэтому весь его список образует пул.
             candidate_pools = {}
             predictions = {}
             for batch_keys in batches(keys, args.embedding_batch_size):
                 queries_batch = [representatives[key] for key in batch_keys]
-                pools = model.retrieve_batch(queries_batch, max(50, args.candidate_k))
+                dense_results = (model.retrieve_batch_with_scores(
+                    queries_batch, max(50, args.candidate_k)) if reranker else
+                    [(pool, {}) for pool in model.retrieve_batch(
+                        queries_batch, max(50, args.candidate_k))])
+                pools = [pool for pool, _scores in dense_results]
                 candidate_pools.update(zip(batch_keys, pools))
                 if reranker:
                     results = [(pool[:50], {"candidate_pool": pool,
-                                             "channels": {"dense": pool}}) for pool in pools]
+                                             "channels": {"dense": pool},
+                                             "channel_scores": {"dense": scores}})
+                               for pool, scores in dense_results]
                     reranked = reranker.rank_batch(queries_batch, results)
                     for key, pool, prediction in zip(batch_keys, pools, reranked):
                         baseline_predictions[key] = pool[:50]
@@ -492,13 +584,24 @@ def main():
                 relevant[key].issubset(predictions[key]) for key in keys
             ) / len(keys),
             "recall_lost_when_cutting_pool_to_50": pool_recall - top50_recall,
+            "geography_slices": geography_recall_slices(
+                keys, relevant, representatives, predictions, candidate_pools, items),
         })
+        if args.geo_candidate_k > 0:
+            retrieval_diagnostics["geo_channel_contribution"] = {
+                "average_unique_extra_candidates": geo_extra_count / len(keys),
+                "incremental_pool_recall": geo_extra_recall / len(keys),
+                "queries_with_new_positive": geo_new_positive_queries,
+            }
         retrieval_diagnostics["rrf_scores"] = (
             rrf_report.finish() if rrf_report else None
         )
         if reranker:
-            retrieval_diagnostics["baseline_recall_at_50"] = recall_at_k(
-                baseline_predictions, relevant)
+            baseline_recall = recall_at_k(baseline_predictions, relevant)
+            retrieval_diagnostics["baseline_recall_at_50"] = baseline_recall
+            retrieval_diagnostics["reranker_delta_at_50"] = top50_recall - baseline_recall
+            retrieval_diagnostics["baseline_geography_slices"] = geography_recall_slices(
+                keys, relevant, representatives, baseline_predictions, candidate_pools, items)
         if location_sweep:
             sweep_report = location_sweep.report()
             current = next(row for row in sweep_report["results"]
@@ -528,6 +631,10 @@ def main():
                 "location_bonus": args.location_bonus,
                 "rrf_k": args.bm25_rrf_k,
                 "channel_quota": args.bm25_channel_quota,
+                "geo_candidate_k": args.geo_candidate_k,
+                "geo_top_locations": args.geo_top_locations,
+                "geo_min_history": args.geo_min_history,
+                "geo_weight": args.geo_weight,
             } if args.method != "dense" else None,
             "embedding_model": args.embedding_model if args.method != "bm25" else None,
             "embedding_params_words": (
@@ -572,12 +679,16 @@ def main():
                     predictions = (reranker.rank_batch(query_batch, results) if reranker else
                                    [prediction for prediction, _details in results])
                 else:
-                    pools = model.retrieve_batch(query_batch, max(50, args.candidate_k))
                     if reranker:
+                        dense_results = model.retrieve_batch_with_scores(
+                            query_batch, max(50, args.candidate_k))
                         results = [(pool[:50], {"candidate_pool": pool,
-                                                 "channels": {"dense": pool}}) for pool in pools]
+                                                 "channels": {"dense": pool},
+                                                 "channel_scores": {"dense": scores}})
+                                   for pool, scores in dense_results]
                         predictions = reranker.rank_batch(query_batch, results)
                     else:
+                        pools = model.retrieve_batch(query_batch, max(50, args.candidate_k))
                         predictions = [pool[:50] for pool in pools]
                 rows.extend({"query_id": q["query_id"], "answer": " ".join(prediction)}
                             for q, prediction in zip(query_batch, predictions))
