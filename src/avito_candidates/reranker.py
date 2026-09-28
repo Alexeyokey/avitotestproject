@@ -125,6 +125,9 @@ class FeatureBuilder:
     def transform(self, query, details, baseline, candidate_ids=None):
         pool = details["candidate_pool"]
         candidate_ids = pool if candidate_ids is None else candidate_ids
+        # Ранги и оценки берём из полного пула поиска даже тогда, когда для
+        # обучения отобрана лишь часть кандидатов. Иначе признаки зависели бы
+        # от случайной выборки неразмеченных объявлений.
         channels = details["channels"]
         ranks = {name: {item_id: rank for rank, item_id in enumerate(ids, 1)}
                  for name, ids in channels.items()}
@@ -261,6 +264,8 @@ def sample_training_ids(pool, baseline, channels, positives, limit, seed):
     found = [item_id for item_id in pool if item_id in positives]
     if not found:
         return []
+    # Остальные объявления в пуле не имеют метки выбора. Берём среди них и
+    # высоко стоящие сложные примеры, и случайные для разнообразия обучения.
     hard_budget = limit // 2
     baseline_budget = hard_budget // 2
     chosen = [item_id for item_id in baseline
@@ -335,6 +340,8 @@ def prepare_training_data(path, retriever, builder, truth, representatives, *,
                 stats["queries_with_positive_in_pool"] += 1
                 stats["positive_rows"] += n_positive
                 stats["unobserved_rows"] += n_negative
+                # Каждый запрос получает суммарный вес 1 для выбранных и 1
+                # для неразмеченных объявлений независимо от размера пула.
                 for index, item_id in enumerate(chosen):
                     positive = item_id in positives
                     labels.append(int(positive))

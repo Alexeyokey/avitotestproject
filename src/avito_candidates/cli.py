@@ -79,8 +79,9 @@ class LocationBonusSweep:
 
         self.rerank = rank_location_bonus_grid
         self.item_locations = {item["item_id"]: item["item_location_id"] for item in items}
-        # Порог жёсткого приоритета не выше (BM25 + dense) / (RRF k + 1).
-        # Проверяем мелкий шаг ниже порога и добавляем текущую настройку.
+        # Разница баллов поиска ограничена сверху суммой весов каналов,
+        # делённой на k + 1. Выше этого порога бонус делает точную локацию
+        # безусловно важнее исходного ранга среди найденных объявлений.
         self.hard_priority_threshold = (bm25_weight + dense_weight) / (rank_constant + 1)
         self.bonuses = sorted(set([*(index / 1000 for index in range(41)),
                                    0.05, 0.1, reference_bonus]))
@@ -470,6 +471,9 @@ def main():
         keys = sorted(truth, key=lambda x: hashlib.sha256(repr(x).encode()).digest())
         if args.max_queries > 0:
             keys = keys[:args.max_queries]
+        # Знаменатель Recall формируется только из известных выбранных
+        # объявлений, которые есть в benchmark_items. Это полезно для
+        # сравнения настроек, но не измеряет качество по всему train.
         model = build_retriever(args, items)
         retrieval_diagnostics = {}
         geo_extra_count = geo_extra_recall = geo_new_positive_queries = 0

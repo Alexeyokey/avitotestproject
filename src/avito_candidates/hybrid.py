@@ -49,6 +49,8 @@ def reciprocal_rank_fusion(
     if not missing:
         return (selected, scores) if return_scores else selected
 
+    # Квота подменяет часть итоговых мест объявлениями из начал каналов.
+    # Их баллы RRF не пересчитываются, поэтому порядок после замены сортируем.
     droppable = [
         index for index in range(len(selected) - 1, -1, -1)
         if selected[index] not in guaranteed
@@ -160,6 +162,9 @@ class HybridRetriever:
             else:
                 bm25_lists = self.bm25.ranked_lists(query, self.candidate_k)
             total_field_weight = sum(weight for _name, _items, weight in bm25_lists)
+            # Все полевые и географические BM25-каналы вместе получают вес
+            # bm25_weight. Без нормировки добавление поля усилило бы BM25
+            # относительно dense даже при неизменных настройках верхнего уровня.
             channels.extend(
                 (
                     name,
@@ -184,6 +189,8 @@ class HybridRetriever:
         ranked_lists = [(item_ids, weight) for _name, item_ids, weight in channels]
         candidate_pool = []
         seen = set()
+        # Пул — объединение списков до итогового отсечения по RRF. Ни бонус
+        # локации, ни реранкер не смогут вернуть объявление вне этого пула.
         for _name, item_ids, _weight in channels:
             for item_id in item_ids:
                 if item_id not in seen:
