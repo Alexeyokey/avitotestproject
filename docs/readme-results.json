@@ -1,0 +1,51 @@
+{
+  "bm25_geo": {
+    "source_reports": [
+      "artifacts/bm25-geo-control-queries-s42.json",
+      "artifacts/bm25-geo-k100-queries-s42.json"
+    ],
+    "split": "queries",
+    "seed": 42,
+    "evaluated_queries": 5157,
+    "candidate_k": 500,
+    "location_bonus": 0.1,
+    "control": {
+      "candidate_pool_recall": 0.8422047702152414,
+      "recall_at_50": 0.7058605039844132
+    },
+    "geographic": {
+      "geo_candidate_k": 100,
+      "candidate_pool_recall": 0.9472480770473789,
+      "recall_at_50": 0.7699255288696825
+    }
+  },
+  "octen": {
+    "source": "Отчёты полной оценки на ПК; значения приведены в README",
+    "split": "queries",
+    "seed": 42,
+    "evaluated_queries": 5157,
+    "candidate_k": 499,
+    "ef_search": 1000,
+    "location_bonus": 0.02,
+    "experiments": [
+      {
+        "name": "Исходная",
+        "dense_recall": 0.6203516717914623,
+        "candidate_pool_recall": 0.79491883431674,
+        "recall_at_50": 0.6942175221843634
+      },
+      {
+        "name": "Пилот 10 тыс.",
+        "dense_recall": 0.7039712549747453,
+        "candidate_pool_recall": 0.8373743039973406,
+        "recall_at_50": 0.7345868306601291
+      },
+      {
+        "name": "Полная LoRA",
+        "dense_recall": 0.7343,
+        "candidate_pool_recall": 0.8464,
+        "recall_at_50": 0.7441
+      }
+    ]
+  }
+}

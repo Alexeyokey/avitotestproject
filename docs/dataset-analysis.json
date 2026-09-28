@@ -1,0 +1,58 @@
+{
+  "source": "train.parquet, benchmark_queries.parquet, benchmark_items.parquet",
+  "validation": {
+    "split": "queries",
+    "seed": 42,
+    "fraction": 0.2,
+    "heldout_rows": 93616,
+    "heldout_rows_in_corpus": 6837
+  },
+  "populations": {
+    "train_events": {
+      "count": 497673,
+      "with_filter_count": 333674,
+      "with_filter_fraction": 0.6704683597462591,
+      "no_exact_location_count": 54355,
+      "no_exact_location_fraction": 0.10921830197740283,
+      "unique_normalized_texts": 73873
+    },
+    "local_validation_groups": {
+      "count": 5157,
+      "with_filter_count": 3274,
+      "with_filter_fraction": 0.6348652317238704,
+      "no_exact_location_count": 667,
+      "no_exact_location_fraction": 0.12933876284661625,
+      "unique_normalized_texts": 2431
+    },
+    "benchmark_queries": {
+      "count": 2452,
+      "with_filter_count": 906,
+      "with_filter_fraction": 0.3694942903752039,
+      "no_exact_location_count": 427,
+      "no_exact_location_fraction": 0.17414355628058728,
+      "unique_normalized_texts": 2451
+    }
+  },
+  "overlap": {
+    "train_rows_with_item_in_corpus": {
+      "count": 33010,
+      "total": 497673,
+      "fraction": 0.06632869374066908
+    },
+    "corpus_items_seen_in_train": {
+      "count": 18142,
+      "total": 189212,
+      "fraction": 0.09588186795763483
+    },
+    "benchmark_texts_seen_in_train": {
+      "count": 916,
+      "total": 2452,
+      "fraction": 0.3735725938009788
+    },
+    "benchmark_full_queries_seen_in_train": {
+      "count": 108,
+      "total": 2452,
+      "fraction": 0.04404567699836868
+    }
+  }
+}
