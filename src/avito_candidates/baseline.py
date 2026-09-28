@@ -192,16 +192,18 @@ class Baseline:
             item_id for _name, item_ids, _weight in channels for item_id in item_ids
         ))
         score_boosts = self.location_score_boosts(query, candidate_pool)
-        prediction = reciprocal_rank_fusion(
+        prediction, rrf_scores = reciprocal_rank_fusion(
             [(item_ids, weight) for _name, item_ids, weight in channels],
             limit=limit,
             rank_constant=self.rank_constant,
             channel_quota=self.channel_quota,
             score_boosts=score_boosts,
+            return_scores=True,
         )
         # The pool includes results from all enabled fields before RRF keeps 50.
         return prediction, {
             "candidate_pool": candidate_pool,
+            "rrf_scores": rrf_scores,
             "channels": {name: item_ids for name, item_ids, _weight in channels},
         }
 
