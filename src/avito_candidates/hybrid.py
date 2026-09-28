@@ -12,7 +12,13 @@ def reciprocal_rank_fusion(
     rank_constant=60,
     channel_quota=10,
     score_boosts=None,
+    return_scores=False,
 ):
+    """Fuse ranked lists; optionally return the exact scores used for selection.
+
+    Scores include any query-specific boosts. Channel quotas can affect which
+    candidates survive the cutoff, but never change their RRF scores.
+    """
     if limit < 0 or rank_constant < 0 or channel_quota < 0:
         raise ValueError("RRF parameters must be non-negative")
     ranked_lists = list(ranked_lists)
@@ -41,7 +47,7 @@ def reciprocal_rank_fusion(
     selected_set = set(selected)
     missing = [item_id for item_id in fused if item_id in guaranteed and item_id not in selected_set]
     if not missing:
-        return selected
+        return (selected, scores) if return_scores else selected
 
     droppable = [
         index for index in range(len(selected) - 1, -1, -1)
@@ -49,7 +55,8 @@ def reciprocal_rank_fusion(
     ]
     for item_id in missing[:len(droppable)]:
         selected[droppable.pop(0)] = item_id
-    return sorted(selected, key=lambda item_id: (-scores[item_id], item_id))
+    selected = sorted(selected, key=lambda item_id: (-scores[item_id], item_id))
+    return (selected, scores) if return_scores else selected
 
 
 def rank_location_bonus_grid(
@@ -172,17 +179,19 @@ class HybridRetriever:
                     candidate_pool.append(item_id)
         score_boosts = (self.bm25.location_score_boosts(query, candidate_pool)
                         if self.location_bonus > 0 else {})
-        prediction = reciprocal_rank_fusion(
+        prediction, rrf_scores = reciprocal_rank_fusion(
             ranked_lists,
             limit=limit,
             rank_constant=self.rank_constant,
             channel_quota=self.channel_quota,
             score_boosts=score_boosts,
+            return_scores=True,
         )
         return prediction, {
             "channels": {name: item_ids for name, item_ids, _weight in channels},
             "channel_weights": {name: weight for name, _item_ids, weight in channels},
             "candidate_pool": candidate_pool,
+            "rrf_scores": rrf_scores,
             "prediction_without_quota": reciprocal_rank_fusion(
                 ranked_lists,
                 limit=limit,
