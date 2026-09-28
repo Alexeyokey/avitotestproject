@@ -1,1 +1,1 @@
-"""Offline retrieval for Avito service advertisements."""
+"""Локальный поиск объявлений об услугах Авито."""

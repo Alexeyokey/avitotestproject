@@ -1,4 +1,4 @@
-"""CLI-level checks for batched evaluation without loading an embedding model."""
+"""Проверки пакетной оценки без загрузки модели эмбеддингов."""
 
 import unittest
 import csv
