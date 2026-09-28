@@ -52,6 +52,7 @@ class BaselineTest(unittest.TestCase):
             set(diagnostics["candidate_pool"]), {item["item_id"] for item in items}
         )
         self.assertEqual(model.retrieve({"search_query": "автоподбор"}, 1), prediction)
+        self.assertEqual(set(diagnostics["rrf_scores"]), set(diagnostics["candidate_pool"]))
 
     def test_no_matches(self):
         model = Baseline([{"item_id": "0" * 16, "item_title_raw": "ремонт телевизоров"}])
@@ -95,6 +96,9 @@ class BaselineTest(unittest.TestCase):
                          description_weight=0, candidate_k=2,
                          channel_quota=0, location_bonus=0.1)
         self.assertEqual(model.retrieve(query, 1), ["1" * 16])
+        _prediction, diagnostics = model.retrieve_with_diagnostics(query, 2)
+        self.assertAlmostEqual(diagnostics["rrf_scores"]["0" * 16], 1 / 31)
+        self.assertAlmostEqual(diagnostics["rrf_scores"]["1" * 16], 1 / 32 + 0.1)
         self.assertEqual(model.retrieve({"search_query": "ремонт"}, 1), ["0" * 16])
         self.assertEqual(set(model.retrieve(query, 2)), {"0" * 16, "1" * 16})
 
