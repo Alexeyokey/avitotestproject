@@ -49,6 +49,9 @@ class BM25Index:
         counts = self.vectorizer.fit_transform(normalized).tocsr()
         lengths = np.asarray(counts.sum(axis=1)).ravel()
         average_length = lengths.mean()
+        # В разреженной матрице каждое ненулевое значение соответствует одному
+        # документу с данным словом. Частоту по корпусу считаем до замены
+        # обычных счётчиков слов на слагаемые формулы BM25.
         document_frequency = np.bincount(counts.indices, minlength=counts.shape[1])
         idf = np.log1p(
             (len(normalized) - document_frequency + 0.5) / (document_frequency + 0.5)
@@ -79,7 +82,8 @@ class BM25Index:
     def _top(self, scores, candidates, limit, allowed=None, return_scores=False):
         if scores is None or limit == 0:
             return ([], {}) if return_scores else []
-        # Ограничиваем до top-K, чтобы местное объявление не терялось на общем срезе.
+        # Маску географии применяем до выбора K лучших: местное объявление может
+        # отсутствовать в глобальном списке, но попасть в отдельный геоканал.
         if allowed is not None:
             if len(allowed) != len(self.ids):
                 raise ValueError("Allowed-item mask must match the index size")

@@ -22,6 +22,8 @@ class LocationAssociations:
             return ()
         if location in self.corpus_locations:
             return (location,)
+        # Связи из train используем только там, где в корпусе нет точного ID.
+        # Минимальная история защищает от случайного выбора по единичному клику.
         if self.totals[location] < min_history:
             return ()
         candidates = (
@@ -52,6 +54,8 @@ def fit_location_associations(path, corpus_locations, *, split="all", fraction=0
         columns.append("item_id")
     for batch in pq.ParquetFile(path).iter_batches(batch_size=batch_size, columns=columns):
         for row in batch.to_pandas().fillna("").astype(str).to_dict("records"):
+            # При локальной оценке отложенные клики не участвуют даже в
+            # построении географических связей: иначе подсмотрели бы ответ.
             if split == "queries" and held_out(normalize(row["search_query"]), fraction, seed):
                 continue
             if split == "pairs" and held_out((query_key(row), row["item_id"]), fraction, seed):

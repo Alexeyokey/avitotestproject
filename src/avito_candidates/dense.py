@@ -187,6 +187,8 @@ class DenseRetriever:
         partial_metadata_path = cache_dir / f"{fingerprint}.partial.json"
 
         self.index = hnswlib.Index(space="cosine", dim=self.dimension)
+        # Отпечаток включает корпус и настройки кодирования; для локальной
+        # модели он также учитывает состояние чекпойнта и его промпты.
         if index_path.exists() and metadata_path.exists():
             metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
             if metadata == self._metadata():
@@ -195,6 +197,8 @@ class DenseRetriever:
                 return
 
         start_item = 0
+        # Промежуточный индекс содержит только первые indexed_items объявлений.
+        # Если число узлов не совпало с метаданными, начинаем построение заново.
         if partial_index_path.exists() and partial_metadata_path.exists():
             partial_metadata = json.loads(partial_metadata_path.read_text(encoding="utf-8"))
             start_item = int(partial_metadata.pop("indexed_items", 0))
@@ -235,6 +239,8 @@ class DenseRetriever:
             ).astype(np.float32, copy=False)
             self.index.add_items(vectors, np.arange(start, stop))
             print(f"Эмбеддинги объявлений: {stop}/{len(items)}", flush=True)
+            # Сохраняем и индекс, и число уже добавленных объявлений: прерванный
+            # долгий прогон продолжится с ближайшей контрольной точки.
             if stop < len(items) and (
                 stop % checkpoint_items < encode_chunk_size
             ):
@@ -322,6 +328,8 @@ class DenseRetriever:
             for (index, _text), neighbors, neighbor_distances in zip(
                     batch, labels, distances):
                 ids = [self.ids[int(label)] for label in neighbors]
+                # Для косинусного пространства hnswlib возвращает расстояние
+                # 1 - близость. В признаках реранкера нужна сама близость.
                 results[index] = (
                     ids, {item_id: float(1 - distance) for item_id, distance
                           in zip(ids, neighbor_distances)})
