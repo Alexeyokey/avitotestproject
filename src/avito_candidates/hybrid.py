@@ -177,6 +177,28 @@ class HybridRetriever:
             dense_ids, dense_scores = dense_result
             channels.append(("dense", dense_ids, self.dense_weight))
             channel_scores["dense"] = dense_scores
+        # Preserve every exact-city, global BM25 and dense candidate. Related
+        # cities only fill unused places under the challenge's 998-item cap.
+        if (self.bm25_weight > 0 and getattr(self.bm25, "geo_include_related", False)
+                and hasattr(self.bm25, "related_geo_lists_with_scores")):
+            seen = {item_id for _name, item_ids, _weight in channels
+                    for item_id in item_ids}
+            free_slots = max(0, 998 - len(seen))
+            if free_slots:
+                related, related_scores = self.bm25.related_geo_lists_with_scores(
+                    query, min(free_slots, self.bm25.geo_candidate_k))
+                for name, item_ids, _weight in related:
+                    added = [item_id for item_id in item_ids if item_id not in seen][
+                        :free_slots]
+                    if not added:
+                        continue
+                    channels.append((name, added, 0.0))
+                    channel_scores[name] = {item_id: related_scores[name][item_id]
+                                            for item_id in added}
+                    seen.update(added)
+                    free_slots -= len(added)
+                    if not free_slots:
+                        break
         return channels, channel_scores
 
     def _fuse_with_diagnostics(self, query, ranked, limit):

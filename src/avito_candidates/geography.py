@@ -15,22 +15,30 @@ class LocationAssociations:
         self.counts = counts if counts is not None else defaultdict(Counter)
         self.totals = totals if totals is not None else Counter()
 
-    def destinations(self, search_location, *, max_locations=3, min_history=20):
-        """Берём точный ID или частые локации выбранных объявлений в корпусе."""
+    def destinations(self, search_location, *, max_locations=3, min_history=20,
+                     include_related=False):
+        """Keep the exact city, optionally adding historically related cities.
+
+        The extra cities only widen the geographic retrieval channel; they
+        never remove global candidates or impose a hard location filter.
+        """
         location = str(search_location or "")
         if not location:
             return ()
-        if location in self.corpus_locations:
-            return (location,)
+        exact = (location,) if location in self.corpus_locations else ()
+        if exact and not include_related:
+            return exact
         if self.totals[location] < min_history:
-            return ()
+            return exact
         candidates = (
             (count, item_location)
             for item_location, count in self.counts[location].items()
-            if item_location in self.corpus_locations
+            if item_location in self.corpus_locations and item_location != location
         )
-        return tuple(item_location for _count, item_location in
-                     sorted(candidates, key=lambda pair: (-pair[0], pair[1]))[:max_locations])
+        related = tuple(item_location for _count, item_location in
+                        sorted(candidates, key=lambda pair: (-pair[0], pair[1]))
+                        [:max(0, max_locations - len(exact))])
+        return exact + related
 
 
 def fit_location_associations(path, corpus_locations, *, split="all", fraction=0.2,

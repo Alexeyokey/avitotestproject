@@ -266,6 +266,7 @@ def build_retriever(args, items):
         "channel_quota": args.bm25_channel_quota,
         "geo_candidate_k": args.geo_candidate_k,
         "geo_top_locations": args.geo_top_locations,
+        "geo_include_related": args.geo_include_related,
         "geo_min_history": args.geo_min_history,
         "geo_weight": args.geo_weight,
         "geo_associations": associations,
@@ -336,7 +337,9 @@ def main():
     parser.add_argument("--geo-candidate-k", type=int, default=0,
                         help="Extra BM25 candidates per field from query-related item locations; 0 disables")
     parser.add_argument("--geo-top-locations", type=int, default=3,
-                        help="Historical item locations used when exact location has no corpus items")
+                        help="Maximum locations in the geography-aware BM25 channel")
+    parser.add_argument("--geo-include-related", action="store_true",
+                        help="Also use related cities when the exact city exists in the corpus")
     parser.add_argument("--geo-min-history", type=int, default=20,
                         help="Minimum fit clicks before using historical location associations")
     parser.add_argument("--geo-weight", type=float, default=0.25,
@@ -370,6 +373,9 @@ def main():
                         help="Trained model to use in evaluate/predict; output path in fit-reranker")
     parser.add_argument("--reranker-negatives-per-query", type=int, default=64)
     parser.add_argument("--reranker-max-iter", type=int, default=150)
+    parser.add_argument("--reranker-estimator", choices=["histgb", "lightgbm"],
+                        default="histgb",
+                        help="Classifier for fit-reranker (LightGBM requires optional dependency)")
     parser.add_argument("--max-train-queries", type=int, default=0,
                         help="Limit training-query preparation for a smoke test")
     args = parser.parse_args()
@@ -379,7 +385,8 @@ def main():
             parser.error("--reranker-max-iter must be positive")
         result = fit_model(args.reranker_data,
                            args.reranker_model or Path("artifacts/reranker.joblib"),
-                           max_iter=args.reranker_max_iter)
+                           max_iter=args.reranker_max_iter,
+                           estimator=args.reranker_estimator)
         print(json.dumps(result, ensure_ascii=False, indent=2))
         return
     if args.data_dir is None:
@@ -407,7 +414,8 @@ def main():
         "item_category_id", "item_location_id",
     )
     if args.command == "prepare-reranker" or args.reranker_model is not None:
-        item_columns += ("item_price", "item_rating", "item_rating_reviews_count",
+        item_columns += ("item_microcat_id", "item_price", "item_rating",
+                         "item_rating_reviews_count",
                          "item_is_phone_hidden", "item_is_message_forbidden")
     items = read(root / "benchmark_items.parquet", item_columns)
     ids = {x["item_id"] for x in items}
@@ -445,8 +453,18 @@ def main():
         if not truth:
             raise ValueError("No fit positives overlap the benchmark item corpus")
         model = build_retriever(args, items)
+        from .microcategory import fit_microcategory_prior
+        microcategory_prior = fit_microcategory_prior(
+            root / "train.parquet", split=args.split,
+            fraction=args.validation_fraction, seed=args.seed,
+            batch_size=args.train_batch_size)
+        bm25 = getattr(model, "bm25", model)
+        builder = FeatureBuilder(
+            items, retrieval_config(args), microcategory_prior=microcategory_prior,
+            geo_associations=getattr(bm25, "geo_associations", None),
+            leave_query_out=True)
         metadata = prepare_training_data(
-            args.reranker_data, model, FeatureBuilder(items, retrieval_config(args)),
+            args.reranker_data, model, builder,
             truth, representatives, split=args.split, fraction=args.validation_fraction,
             seed=args.seed, negatives=args.reranker_negatives_per_query,
             batch_size=args.embedding_batch_size if args.method != "bm25" else 64,
@@ -531,7 +549,8 @@ def main():
                     ),
                 },
                 "channel_recall_at_candidate_k": {
-                    channel: recall_at_k(results, relevant, args.candidate_k)
+                    channel: recall_at_k(
+                        {key: results.get(key, []) for key in keys}, relevant, args.candidate_k)
                     for channel, results in channel_results.items()
                 },
             })
@@ -633,6 +652,7 @@ def main():
                 "channel_quota": args.bm25_channel_quota,
                 "geo_candidate_k": args.geo_candidate_k,
                 "geo_top_locations": args.geo_top_locations,
+                "geo_include_related": args.geo_include_related,
                 "geo_min_history": args.geo_min_history,
                 "geo_weight": args.geo_weight,
             } if args.method != "dense" else None,

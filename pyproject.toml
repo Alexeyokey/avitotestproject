@@ -11,6 +11,7 @@ dependencies = ["pandas>=2.2,<4", "pyarrow>=18,<26", "numpy>=1.26,<3", "scikit-l
 
 [project.optional-dependencies]
 dense = ["sentence-transformers>=3.2,<6", "hnswlib>=0.8,<1"]
+lightgbm = ["lightgbm>=4.0"]
 
 [project.scripts]
 avito = "avito_candidates.cli:main"

@@ -35,6 +35,30 @@ class RerankerTest(unittest.TestCase):
         self.assertTrue(any(item_id.startswith("geo-") for item_id in chosen[:33]))
         self.assertTrue(any(item_id.startswith("dense-") for item_id in chosen[:33]))
 
+    def test_top50_microcategory_share_and_v4_schema(self):
+        from avito_candidates.reranker import V4_FEATURES
+
+        items = [{"item_id": item_id, "item_microcat_id": microcat}
+                 for item_id, microcat in (("a", "x"), ("b", "x"),
+                                           ("c", "y"), ("d", "x"))]
+        config = {"method": "bm25", "candidate_k": 4,
+                  "title_weight": 1.0, "params_weight": 0.0,
+                  "description_weight": 0.0, "stem_title_weight": 0.0,
+                  "stem_params_weight": 0.0, "location_bonus": 0.0,
+                  "bm25_rrf_k": 30}
+        details = {"candidate_pool": ["a", "b", "c", "d"],
+                   "channels": {"title": ["a", "b", "c", "d"]}}
+        baseline = ["a", "b", "c"]
+        matrix = FeatureBuilder(items, config).transform(
+            {}, details, baseline, ["a", "c", "d"])
+        for actual, expected in zip(
+                matrix[:, FEATURES.index("microcat_top50_share")],
+                [2 / 3, 1 / 3, 2 / 3]):
+            self.assertAlmostEqual(actual, expected)
+        old_matrix = FeatureBuilder(items, config, feature_names=V4_FEATURES).transform(
+            {}, details, baseline, ["a", "c", "d"])
+        self.assertEqual(old_matrix.shape, (3, len(V4_FEATURES)))
+
     def test_hybrid_features_use_bm25_and_dense_lists(self):
         items = [{"item_id": "a", "item_title_raw": "ремонт", "item_location_id": "1"},
                  {"item_id": "b", "item_title_raw": "монтаж", "item_location_id": "2"}]

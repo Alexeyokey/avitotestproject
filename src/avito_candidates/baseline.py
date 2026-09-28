@@ -134,6 +134,7 @@ class Baseline:
         channel_quota=10,
         geo_candidate_k=0,
         geo_top_locations=3,
+        geo_include_related=False,
         geo_min_history=20,
         geo_weight=0.25,
         geo_associations=None,
@@ -167,6 +168,7 @@ class Baseline:
         )
         self.geo_candidate_k = geo_candidate_k
         self.geo_top_locations = geo_top_locations
+        self.geo_include_related = geo_include_related
         self.geo_min_history = geo_min_history
         self.geo_weight = geo_weight
         self.geo_associations = geo_associations
@@ -266,6 +268,43 @@ class Baseline:
                 location, max_locations=self.geo_top_locations,
                 min_history=self.geo_min_history)
         return ()
+
+    def related_geo_locations(self, query):
+        """Optional destinations that cannot displace the exact-city channel."""
+        location = str(query.get("search_location_id", ""))
+        if (not self.geo_include_related or location not in self._geo_rows
+                or self.geo_associations is None):
+            return ()
+        destinations = self.geo_associations.destinations(
+            location, max_locations=self.geo_top_locations,
+            min_history=self.geo_min_history, include_related=True)
+        return tuple(destination for destination in destinations if destination != location)
+
+    def related_geo_lists_with_scores(self, query, limit):
+        """Retrieve related-city candidates in separate zero-weight pool channels."""
+        destinations = self.related_geo_locations(query)
+        if not destinations or limit <= 0:
+            return [], {}
+        mask = np.zeros(len(self.ids), dtype=bool)
+        for destination in destinations:
+            mask[self._geo_rows[destination]] = True
+        text = query.get("search_query", "")
+        fields = (
+            ("title", self.title_index, self.title_weight),
+            ("params", self.params_index, self.params_weight),
+            ("description", self.description_index, self.description_weight),
+            ("title_stem", self.stem_title_index, self.stem_title_weight),
+            ("params_stem", self.stem_params_index, self.stem_params_weight),
+        )
+        channels, channel_scores = [], {}
+        for name, index, weight in fields:
+            if weight > 0:
+                ids, scores = index.retrieve(text, limit, allowed=mask,
+                                             return_scores=True)
+                channel_name = f"{name}_geo_related"
+                channels.append((channel_name, ids, 0.0))
+                channel_scores[channel_name] = scores
+        return channels, channel_scores
 
     def _geo_mask(self, query):
         """Точная или найденная по обучению локация; общий поиск сохраняется."""
