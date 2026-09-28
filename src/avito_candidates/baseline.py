@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from functools import lru_cache
+from collections import defaultdict
 import re
 
 import numpy as np
@@ -20,12 +21,12 @@ _RUSSIAN_STEMMER = snowballstemmer.stemmer("russian")
 
 @lru_cache(maxsize=500_000)
 def _stem_word(word):
-    # Keep numbers and Latin brand names intact; stem only Russian words.
+    # Числа и латинские названия сохраняем; стемминг применяем лишь к русским словам.
     return _RUSSIAN_STEMMER.stemWord(word) if _RUSSIAN_WORD.fullmatch(word) else word
 
 
 def stem_text(text):
-    """Use the same token boundaries as BM25, then stem Russian tokens."""
+    """Используем границы токенов BM25 и приводим русские слова к основе."""
     return " ".join(_stem_word(word) for word in _TOKEN_PATTERN.findall(normalize(text)))
 
 
@@ -59,11 +60,10 @@ class BM25Index:
         ).astype(np.float32)
         self.index = counts.tocsc()
 
-    def retrieve(self, text, limit):
-        if limit < 0:
-            raise ValueError("limit must be non-negative")
-        if limit == 0 or self.index is None:
-            return []
+    def _score(self, text):
+        """Считаем совпадения один раз для общего и географического списков."""
+        if self.index is None:
+            return None, None
         vector = self.vectorizer.transform([self.transform(text)])
         scores = np.zeros(len(self.ids), dtype=np.float32)
         matched = []
@@ -73,10 +73,41 @@ class BM25Index:
             scores[rows] += self.index.data[start:end]
             matched.append(rows)
         if not matched:
-            return []
-        candidates = np.unique(np.concatenate(matched))
+            return None, None
+        return scores, np.unique(np.concatenate(matched))
+
+    def _top(self, scores, candidates, limit, allowed=None, return_scores=False):
+        if scores is None or limit == 0:
+            return ([], {}) if return_scores else []
+        # Ограничиваем до top-K, чтобы местное объявление не терялось на общем срезе.
+        if allowed is not None:
+            if len(allowed) != len(self.ids):
+                raise ValueError("Allowed-item mask must match the index size")
+            candidates = candidates[allowed[candidates]]
         order = np.lexsort((candidates, -scores[candidates]))[:limit]
-        return [self.ids[candidates[index]] for index in order]
+        selected = candidates[order]
+        ids = [self.ids[row] for row in selected]
+        if return_scores:
+            return ids, {self.ids[row]: float(scores[row]) for row in selected}
+        return ids
+
+    def retrieve(self, text, limit, *, allowed=None, return_scores=False):
+        if limit < 0:
+            raise ValueError("limit must be non-negative")
+        scores, candidates = self._score(text) if limit else (None, None)
+        return self._top(scores, candidates, limit, allowed, return_scores)
+
+    def retrieve_global_and_allowed(self, text, global_limit, allowed_limit, allowed,
+                                    *, return_scores=False):
+        """Получаем два списка top-K без повторного расчёта оценок запроса."""
+        if global_limit < 0 or allowed_limit < 0:
+            raise ValueError("Limits must be non-negative")
+        scores, candidates = self._score(text)
+        global_result = self._top(scores, candidates, global_limit,
+                                  return_scores=return_scores)
+        allowed_result = self._top(scores, candidates, allowed_limit, allowed,
+                                   return_scores=return_scores)
+        return global_result, allowed_result
 
 
 class Baseline:
@@ -101,6 +132,11 @@ class Baseline:
         candidate_k=300,
         rank_constant=30,
         channel_quota=10,
+        geo_candidate_k=0,
+        geo_top_locations=3,
+        geo_min_history=20,
+        geo_weight=0.25,
+        geo_associations=None,
     ):
         self.ids = [item["item_id"] for item in items]
         if len(set(self.ids)) != len(self.ids):
@@ -115,6 +151,9 @@ class Baseline:
             raise ValueError("Location bonus must be non-negative and finite")
         if candidate_k <= 0 or rank_constant < 0 or channel_quota < 0:
             raise ValueError("BM25 fusion parameters are invalid")
+        if (geo_candidate_k < 0 or geo_top_locations <= 0 or geo_min_history <= 0
+                or not np.isfinite(geo_weight) or geo_weight <= 0):
+            raise ValueError("BM25 geography parameters are invalid")
 
         self.title_weight = title_weight
         self.params_weight = params_weight
@@ -124,8 +163,19 @@ class Baseline:
         self.location_bonus = location_bonus
         self._item_locations = (
             {item["item_id"]: str(item.get("item_location_id", "")) for item in items}
-            if location_bonus > 0 else None
+            if location_bonus > 0 or geo_candidate_k > 0 else None
         )
+        self.geo_candidate_k = geo_candidate_k
+        self.geo_top_locations = geo_top_locations
+        self.geo_min_history = geo_min_history
+        self.geo_weight = geo_weight
+        self.geo_associations = geo_associations
+        self._geo_rows = defaultdict(list)
+        if geo_candidate_k:
+            for row, item in enumerate(items):
+                location = str(item.get("item_location_id", ""))
+                if location:
+                    self._geo_rows[location].append(row)
         self.candidate_k = candidate_k
         self.rank_constant = rank_constant
         self.channel_quota = channel_quota
@@ -147,7 +197,7 @@ class Baseline:
             k1=description_k1,
             b=description_b,
         )
-        # Build extra indices only when their channels are enabled.
+        # Дополнительные индексы строим только для включённых каналов.
         self.stem_title_index = (
             BM25Index(
                 self.ids,
@@ -168,6 +218,12 @@ class Baseline:
         )
 
     def ranked_lists(self, query, limit):
+        """Возвращаем взвешенные списки кандидатов через прежний интерфейс."""
+        channels, _scores = self.ranked_lists_with_scores(query, limit)
+        return channels
+
+    def ranked_lists_with_scores(self, query, limit):
+        """Сохраняем исходные оценки BM25 выбранных объявлений по каждому полю."""
         if limit < 0:
             raise ValueError("limit must be non-negative")
         text = query.get("search_query", "")
@@ -179,15 +235,52 @@ class Baseline:
             ("params_stem", self.stem_params_index, self.stem_params_weight),
         )
         channels = []
+        channel_scores = {}
+        geo_mask = self._geo_mask(query) if self.geo_candidate_k else None
         for name, index, weight in fields:
             if weight > 0:
-                channels.append((name, index.retrieve(text, limit), weight))
-        return channels
+                if geo_mask is None:
+                    ids, scores = index.retrieve(text, limit, return_scores=True)
+                    channels.append((name, ids, weight))
+                    channel_scores[name] = scores
+                else:
+                    (global_ids, global_scores), (geo_ids, geo_scores) = (
+                        index.retrieve_global_and_allowed(
+                            text, limit, self.geo_candidate_k, geo_mask,
+                            return_scores=True))
+                    channels.append((name, global_ids, weight))
+                    channels.append((f"{name}_geo", geo_ids, weight * self.geo_weight))
+                    channel_scores[name] = global_scores
+                    channel_scores[f"{name}_geo"] = geo_scores
+        return channels, channel_scores
+
+    def geo_locations(self, query):
+        """Локации, выбранные географическими каналами для запроса."""
+        location = str(query.get("search_location_id", ""))
+        if not location:
+            return ()
+        if location in self._geo_rows:
+            return (location,)
+        if self.geo_associations is not None:
+            return self.geo_associations.destinations(
+                location, max_locations=self.geo_top_locations,
+                min_history=self.geo_min_history)
+        return ()
+
+    def _geo_mask(self, query):
+        """Точная или найденная по обучению локация; общий поиск сохраняется."""
+        destinations = self.geo_locations(query)
+        if not destinations:
+            return None
+        mask = np.zeros(len(self.ids), dtype=bool)
+        for destination in destinations:
+            mask[self._geo_rows[destination]] = True
+        return mask
 
     def retrieve_with_diagnostics(self, query, limit=50):
-        """Return the final ranking and every unique item found by BM25 fields."""
+        """Возвращаем итоговый порядок и все уникальные объявления каналов BM25."""
         depth = max(limit, self.candidate_k)
-        channels = self.ranked_lists(query, depth)
+        channels, channel_scores = self.ranked_lists_with_scores(query, depth)
         candidate_pool = list(dict.fromkeys(
             item_id for _name, item_ids, _weight in channels for item_id in item_ids
         ))
@@ -200,15 +293,17 @@ class Baseline:
             score_boosts=score_boosts,
             return_scores=True,
         )
-        # The pool includes results from all enabled fields before RRF keeps 50.
+        # Пул включает результаты всех включённых полей до отбора 50 по RRF.
         return prediction, {
             "candidate_pool": candidate_pool,
             "rrf_scores": rrf_scores,
             "channels": {name: item_ids for name, item_ids, _weight in channels},
+            "channel_scores": channel_scores,
+            "geo_locations": self.geo_locations(query) if self.geo_candidate_k else (),
         }
 
     def location_score_boosts(self, query, item_ids):
-        """Promote exact-location matches while retaining nonlocal candidates."""
+        """Повышаем точные совпадения локации, сохраняя неместных кандидатов."""
         location = str(query.get("search_location_id", ""))
         if self.location_bonus == 0 or not location:
             return {}

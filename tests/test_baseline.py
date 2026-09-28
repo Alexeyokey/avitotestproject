@@ -102,6 +102,51 @@ class BaselineTest(unittest.TestCase):
         self.assertEqual(model.retrieve({"search_query": "ремонт"}, 1), ["0" * 16])
         self.assertEqual(set(model.retrieve(query, 2)), {"0" * 16, "1" * 16})
 
+    def test_geo_channel_recovers_local_item_below_global_cutoff(self):
+        items = [
+            {"item_id": f"{index:016x}", "item_title_raw": "ремонт",
+             "item_location_id": "local" if index == 4 else "other"}
+            for index in range(5)
+        ]
+        query = {"search_query": "ремонт", "search_location_id": "local"}
+        model = Baseline(items, title_weight=1, params_weight=0,
+                         description_weight=0, candidate_k=1,
+                         geo_candidate_k=1, channel_quota=0)
+        prediction, details = model.retrieve_with_diagnostics(query, limit=1)
+        self.assertEqual(details["channels"]["title"], [items[0]["item_id"]])
+        self.assertEqual(details["channels"]["title_geo"], [items[4]["item_id"]])
+        self.assertEqual(set(details["candidate_pool"]),
+                         {items[0]["item_id"], items[4]["item_id"]})
+        self.assertEqual(details["geo_locations"], ("local",))
+        self.assertGreater(details["channel_scores"]["title"][items[0]["item_id"]], 0)
+        self.assertGreater(details["channel_scores"]["title_geo"][items[4]["item_id"]], 0)
+        self.assertEqual(prediction, [items[0]["item_id"]])
+
+    def test_geo_channel_uses_historical_destinations_when_exact_id_is_absent(self):
+        from collections import Counter, defaultdict
+        from avito_candidates.geography import LocationAssociations
+
+        items = [
+            {"item_id": f"{index:016x}", "item_title_raw": "ремонт",
+             "item_location_id": "popular" if index == 4 else "other"}
+            for index in range(5)
+        ]
+        associations = LocationAssociations(
+            {"popular", "other"}, defaultdict(Counter, {"region": Counter({"popular": 30})}),
+            Counter({"region": 30}))
+        model = Baseline(items, title_weight=1, params_weight=0,
+                         description_weight=0, candidate_k=1,
+                         geo_candidate_k=1, geo_associations=associations,
+                         channel_quota=0)
+        query = {"search_query": "ремонт", "search_location_id": "region"}
+        _prediction, details = model.retrieve_with_diagnostics(query, limit=1)
+        self.assertEqual(details["channels"]["title_geo"], [items[4]["item_id"]])
+        self.assertEqual(len(details["candidate_pool"]), 2)
+        # При недостаточной истории остаётся общий поисковый канал.
+        model.geo_min_history = 31
+        _prediction, details = model.retrieve_with_diagnostics(query, limit=1)
+        self.assertNotIn("title_geo", details["channels"])
+
     def test_length_normalization(self):
         ids = ["0" * 16, "1" * 16]
         texts = ["ремонт авто шин дисков", "ремонт"]
