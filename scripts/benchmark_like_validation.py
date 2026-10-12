@@ -15,6 +15,7 @@ from __future__ import annotations
 import argparse
 from collections import Counter, defaultdict
 import csv
+import hashlib
 import json
 from pathlib import Path
 import random
@@ -154,6 +155,8 @@ def main():
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--validation-fraction", type=float, default=0.2)
+    parser.add_argument("--max-queries", type=int, default=0,
+                        help="Compare the first N held-out keys in evaluation hash order")
     args = parser.parse_args()
     item_table = pq.read_table(args.data_dir / "benchmark_items.parquet",
                                columns=["item_id", "item_location_id"])
@@ -166,6 +169,13 @@ def main():
         args.data_dir / "train.parquet", item_ids, mode="queries",
         fraction=args.validation_fraction, seed=args.seed, batch_size=65536,
     )
+    if args.max_queries < 0:
+        parser.error("--max-queries must be nonnegative")
+    if args.max_queries:
+        keys = sorted(truth, key=lambda key: hashlib.sha256(repr(key).encode()).digest())
+        keys = keys[:args.max_queries]
+        truth = {key: truth[key] for key in keys}
+        representatives = {key: representatives[key] for key in keys}
     fit_texts, fit_items = set(), set()
     for batch in pq.ParquetFile(args.data_dir / "train.parquet").iter_batches(
         batch_size=65536, columns=["search_query", "item_id"]
@@ -178,7 +188,7 @@ def main():
     targets = Counter(signature(row, locations) for row in benchmark)
     positive_items = [item_id for positives in truth.values() for item_id in positives]
     result = {
-        "split": "queries", "seed": args.seed,
+        "split": "queries", "seed": args.seed, "evaluated_queries": len(truth),
         "benchmark_query_profile": profile(benchmark, locations, fit_texts),
         "heldout_query_profile": profile(representatives.values(), locations, fit_texts),
         "heldout_rows": heldout_rows, "heldout_in_corpus_fraction": heldout_in_corpus / heldout_rows,
@@ -193,7 +203,8 @@ def main():
         if "=" not in specification:
             parser.error("--report must be NAME=PATH")
         name, filename = specification.split("=", 1)
-        predictions_by_name[name] = load_predictions(Path(filename))
+        raw_predictions = load_predictions(Path(filename))
+        predictions_by_name[name] = {key: raw_predictions[key] for key in truth}
         result["reports"][name] = score_report(
             predictions_by_name[name], truth, representatives, targets,
             locations, fit_items)

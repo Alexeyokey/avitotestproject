@@ -406,11 +406,13 @@ def prepare_training_data(path, retriever, builder, truth, representatives, *,
     if not stats["positive_rows"]:
         path.unlink(missing_ok=True)
         raise ValueError("No retrieved training positives; check corpus and retrieval settings")
-    metadata = {"feature_version": FEATURE_VERSION,
+    feature_version = {LEGACY_FEATURES: 3, V4_FEATURES: 4, FEATURES: 5}[
+        builder.feature_names]
+    metadata = {"feature_version": feature_version,
                 "feature_names": list(builder.feature_names),
                 "retrieval_config": builder.config,
                 "corpus_fingerprint": corpus_fingerprint(
-                    builder.items.values(), feature_version=FEATURE_VERSION),
+                    builder.items.values(), feature_version=feature_version),
                 "split": split, "validation_fraction": fraction if split == "queries" else 1.0,
                 "seed": seed, "stats": stats}
     joblib.dump({"microcategory_prior": builder.microcategory_prior,
@@ -421,7 +423,8 @@ def prepare_training_data(path, retriever, builder, truth, representatives, *,
     return metadata
 
 
-def fit_model(data_path, model_path, *, max_iter=150, estimator="histgb"):
+def fit_model(data_path, model_path, *, max_iter=150, estimator="histgb",
+              disable_microcategory_prior=False):
     """Обучаем локальную модель после освобождения памяти поискового индекса."""
     data_path, model_path = Path(data_path), Path(model_path)
     metadata = json.loads(data_path.with_suffix(data_path.suffix + ".json").read_text(encoding="utf-8"))
@@ -438,6 +441,11 @@ def fit_model(data_path, model_path, *, max_iter=150, estimator="histgb"):
             raise ImportError("Install the optional LightGBM dependency: pip install -e .[lightgbm]") from exc
     table = pq.read_table(data_path)
     matrix = np.column_stack([table[name].to_numpy() for name in expected]).astype(np.float32)
+    if disable_microcategory_prior:
+        for name in ("microcat_token_probability", "microcat_token_rank"):
+            if name not in expected:
+                raise ValueError("Microcategory prior is absent from this feature schema")
+            matrix[:, expected.index(name)] = 0.0
     labels = table["label"].to_numpy()
     weights = table["weight"].to_numpy()
     if len(np.unique(labels)) != 2:
@@ -456,15 +464,18 @@ def fit_model(data_path, model_path, *, max_iter=150, estimator="histgb"):
     prior_path = data_path.with_suffix(data_path.suffix + ".priors.joblib")
     priors = joblib.load(prior_path) if prior_path.exists() and version >= 4 else {}
     joblib.dump({"model": model, "metadata": metadata, "priors": priors,
-                 "estimator": estimator}, model_path)
+                 "estimator": estimator,
+                 "disable_microcategory_prior": disable_microcategory_prior}, model_path)
     return {"model": str(model_path), "estimator": estimator,
+            "disable_microcategory_prior": disable_microcategory_prior,
             "training_rows": len(labels),
             "positive_rows": int(labels.sum()), "iterations": max_iter,
             "training_stats": metadata["stats"]}
 
 
 class Reranker:
-    def __init__(self, path, items, config, *, evaluation_split=None):
+    def __init__(self, path, items, config, *, evaluation_split=None,
+                 microcategory_exact_bonus=0.0):
         artifact = joblib.load(path)
         self.model = artifact["model"]
         self.metadata = artifact["metadata"]
@@ -484,8 +495,12 @@ class Reranker:
                     or self.metadata["seed"] != seed):
                 raise ValueError("Evaluate reranker only on its held-out query-text split")
         priors = artifact.get("priors", {})
+        self.exact_microcategory_prior = priors.get("microcategory_prior")
+        self.microcategory_exact_bonus = microcategory_exact_bonus
         self.builder = FeatureBuilder(
-            items, config, microcategory_prior=priors.get("microcategory_prior"),
+            items, config,
+            microcategory_prior=(None if artifact.get("disable_microcategory_prior")
+                                 else priors.get("microcategory_prior")),
             geo_associations=priors.get("geo_associations"),
             feature_names=expected)
 
@@ -498,13 +513,28 @@ class Reranker:
             return [[] for _ in queries]
         probabilities = self.model.predict_proba(np.concatenate(nonempty))[:, 1]
         predictions, start = [], 0
-        for matrix, (_baseline, details) in zip(matrices, results):
+        for query, matrix, (_baseline, details) in zip(queries, matrices, results):
             count = len(matrix)
             if count:
-                # География служит признаком, а не жёстким разделением пула.
+                scores = probabilities[start:start + count].copy()
+                if (getattr(self, "microcategory_exact_bonus", 0.0)
+                        and getattr(self, "exact_microcategory_prior", None)):
+                    # Aggregate training history by normalized query text,
+                    # then shrink short histories toward zero. No test labels
+                    # or query IDs enter this prior.
+                    history = self.exact_microcategory_prior.exact_counts.get(
+                        normalize(query.get("search_query", "")), {})
+                    total = sum(history.values())
+                    if total:
+                        scale = self.microcategory_exact_bonus / (total + 3)
+                        scores += np.fromiter(
+                            (scale * history.get(
+                                str(self.builder.items[item_id].get("item_microcat_id", "")), 0)
+                             for item_id in details["candidate_pool"]),
+                            dtype=np.float64, count=count)
                 # При равенстве оценок модели используем исходный балл поиска.
                 order = np.lexsort((np.arange(count), -matrix[:, 0],
-                                    -probabilities[start:start + count]))[:limit]
+                                    -scores))[:limit]
                 predictions.append([details["candidate_pool"][int(index)] for index in order])
                 start += count
             else:

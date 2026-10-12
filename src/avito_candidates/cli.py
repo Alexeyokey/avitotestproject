@@ -371,8 +371,14 @@ def main():
                         help="Sampled candidate features for supervised training")
     parser.add_argument("--reranker-model", type=Path,
                         help="Trained model to use in evaluate/predict; output path in fit-reranker")
+    parser.add_argument("--microcategory-exact-bonus", type=float, default=0.0,
+                        help="Smoothed exact-query-text microcategory prior after reranking")
     parser.add_argument("--reranker-negatives-per-query", type=int, default=64)
     parser.add_argument("--reranker-max-iter", type=int, default=150)
+    parser.add_argument("--reranker-feature-version", type=int, choices=[4, 5],
+                        default=5, help="Feature schema for prepare-reranker")
+    parser.add_argument("--reranker-disable-microcategory-prior", action="store_true",
+                        help="Ablate microcategory-prior features in fit-reranker")
     parser.add_argument("--reranker-estimator", choices=["histgb", "lightgbm"],
                         default="histgb",
                         help="Classifier for fit-reranker (LightGBM requires optional dependency)")
@@ -386,7 +392,9 @@ def main():
         result = fit_model(args.reranker_data,
                            args.reranker_model or Path("artifacts/reranker.joblib"),
                            max_iter=args.reranker_max_iter,
-                           estimator=args.reranker_estimator)
+                           estimator=args.reranker_estimator,
+                           disable_microcategory_prior=(
+                               args.reranker_disable_microcategory_prior))
         print(json.dumps(result, ensure_ascii=False, indent=2))
         return
     if args.data_dir is None:
@@ -443,7 +451,8 @@ def main():
         })
         return
     if args.command == "prepare-reranker":
-        from .reranker import (FeatureBuilder, prepare_training_data, read_fit_labels,
+        from .reranker import (FEATURES, V4_FEATURES, FeatureBuilder,
+                               prepare_training_data, read_fit_labels,
                                retrieval_config)
         truth, representatives, label_stats = read_fit_labels(
             root / "train.parquet", ids, split=args.split,
@@ -462,7 +471,8 @@ def main():
         builder = FeatureBuilder(
             items, retrieval_config(args), microcategory_prior=microcategory_prior,
             geo_associations=getattr(bm25, "geo_associations", None),
-            leave_query_out=True)
+            feature_names=(V4_FEATURES if args.reranker_feature_version == 4
+                           else FEATURES), leave_query_out=True)
         metadata = prepare_training_data(
             args.reranker_data, model, builder,
             truth, representatives, split=args.split, fraction=args.validation_fraction,
@@ -476,7 +486,8 @@ def main():
     if args.command == "evaluate":
         from .reranker import Reranker, retrieval_config
         reranker = (Reranker(args.reranker_model, items, retrieval_config(args),
-                             evaluation_split=(args.split, args.validation_fraction, args.seed))
+                             evaluation_split=(args.split, args.validation_fraction, args.seed),
+                             microcategory_exact_bonus=args.microcategory_exact_bonus)
                     if args.reranker_model else None)
         truth, representatives, fit_rows, heldout_rows, heldout_in_corpus = read_validation(
             root / "train.parquet", ids, mode=args.split,
@@ -681,7 +692,8 @@ def main():
             "max_queries": args.max_queries})
     else:
         from .reranker import Reranker, retrieval_config
-        reranker = (Reranker(args.reranker_model, items, retrieval_config(args))
+        reranker = (Reranker(args.reranker_model, items, retrieval_config(args),
+                             microcategory_exact_bonus=args.microcategory_exact_bonus)
                     if args.reranker_model else None)
         model = build_retriever(args, items)
         rows = []
