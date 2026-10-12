@@ -191,11 +191,20 @@ def _transfer_training_prior_policy(source, report, *, allow_legacy=False):
         raise ValueError("Legacy policy recovery supports only the known frozen V4 microcategory-LOO/full-history geography policy")
     if source.get("provenance"):
         raise ValueError("Frozen producer policy recovery is only permitted for a hashless legacy source artifact")
-    return dict(cached), {"policy": dict(cached),
-                          "status": "inferred_from_frozenproducer_cache",
-                          "source": "audit_report.training_prior_policy",
-                          "historical_training_policy_verified": False,
-                          "caveat": "The known frozen producer/cache policy is used for compatibility; historical training-row policy was not independently verified."}
+    evidence = {"policy": dict(cached), "status": "inferred_from_frozenproducer_cache",
+                "source": "audit_report.training_prior_policy",
+                "historical_training_policy_verified": False,
+                "caveat": "The known frozen producer/cache policy is used for compatibility; historical training-row policy was not independently verified."}
+    annotated = (report or {}).get("training_prior_policy_evidence")
+    if annotated is not None:
+        if (not isinstance(annotated, Mapping)
+                or annotated.get("status") != "inferred_from_frozenproducer_cache"
+                or annotated.get("policy") != cached
+                or annotated.get("historical_training_policy_verified") is not False
+                or annotated.get("audited_model_sha256") != report.get("sha256")):
+            raise ValueError("Annotated frozen-producer policy evidence is inconsistent with the audit")
+        evidence["frozenproducer_evidence"] = dict(annotated)
+    return dict(cached), evidence
 
 
 def validate_capacity_transfer(source, target, stage, *, audit_report=None,
