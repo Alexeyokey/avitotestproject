@@ -346,7 +346,10 @@ def export_bundle(project_root, reranker_path, checkpoint, hub_cache, output_dir
         if not re.fullmatch(r"[0-9a-fA-F]{40}", reference):
             ref = repo_out / "refs" / reference
             ref.parent.mkdir(parents=True, exist_ok=True)
-            ref.write_text(base["revision"] + "\n", encoding="utf-8")
+            # HF cache readers use f.read() verbatim as the snapshot directory
+            # name. A trailing newline passes our stripped identity check but
+            # breaks actual offline AutoConfig/model loading.
+            ref.write_text(base["revision"], encoding="utf-8")
     relocated = {**config, "embedding_model": str(output / "models" / "embedding")}
     with temporary_environment(HF_HUB_CACHE=output / "hf-cache", HF_HUB_OFFLINE="1"):
         if contract["checkpoint_fingerprint"](output / "models" / "embedding") != actual_sha:

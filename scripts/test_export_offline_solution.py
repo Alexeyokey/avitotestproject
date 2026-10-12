@@ -155,6 +155,8 @@ if __name__ == "__main__": main()
             self.assertTrue((output / "project/docs/figures/curve.svg").is_file())
             self.assertFalse((output / "project/docs/figures/excluded.parquet").exists())
             self.assertFalse((output / "INCOMPLETE").exists())
+            self.assertEqual((output / "hf-cache/models--Octen--Octen-Embedding-0.6B/refs/main").read_bytes(),
+                             EXPORT.OCTEN_REVISION.encode("ascii"))
             self.assertEqual(manifest["base_revision"], EXPORT.OCTEN_REVISION)
             self.assertEqual(manifest["selected_iteration"], 50)
             self.assertFalse(manifest["adapter_merged"])
@@ -164,6 +166,23 @@ if __name__ == "__main__": main()
             self.assertEqual(bundled["metadata"]["retrieval_config"]["embedding_model"], str(checkpoint))
             for relative, digest in manifest["files"].items():
                 self.assertEqual(EXPORT.sha256(output / relative), digest)
+
+    def test_actual_hf_cache_reader_resolves_exported_ref_without_newline(self):
+        try:
+            from huggingface_hub import try_to_load_from_cache
+        except ImportError:
+            self.skipTest("Optional Hugging Face runtime is not installed")
+        with TemporaryDirectory() as directory:
+            fixture = self.fixture(directory)
+            self.export(fixture)
+            output = fixture[4]
+            # Pure cache lookup: this performs no network request or model load.
+            resolved = try_to_load_from_cache("Octen/Octen-Embedding-0.6B", "config.json",
+                                              cache_dir=str(output / "hf-cache"), revision="main")
+            expected = output / ("hf-cache/models--Octen--Octen-Embedding-0.6B/snapshots/"
+                                 + EXPORT.OCTEN_REVISION + "/config.json")
+            self.assertIsInstance(resolved, str)
+            self.assertEqual(Path(resolved).resolve(), expected.resolve())
 
     def test_legacy_requires_explicit_independent_identity_attestation(self):
         with TemporaryDirectory() as directory:
