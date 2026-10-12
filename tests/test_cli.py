@@ -2,6 +2,7 @@
 
 import unittest
 import csv
+import importlib.util
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest.mock import patch
@@ -60,6 +61,7 @@ class EvaluationBatchTest(unittest.TestCase):
         args = ["avito", "evaluate", "--data-dir", "unused", "--split", "all",
                 "--method", "hybrid", "--candidate-k", "60",
                 "--embedding-batch-size", "2", "--location-bonus", "0.1",
+                "--embedding-max-length", "128", "--ef-search", "1000",
                 "--sweep-location-bonus", "--output", str(output_path)]
         with (
             patch("sys.argv", args),
@@ -71,6 +73,29 @@ class EvaluationBatchTest(unittest.TestCase):
         ):
             cli.main()
         report = save_json.call_args.args[1]
+        self.assertEqual(report["retrieval_config"]["ef_search"], 1000)
+        self.assertEqual(report["embedding_max_length"], 128)
+        self.assertEqual(report["ef_search"], 1000)
+        self.assertEqual(report["microcategory_exact_bonus"], 0.0)
+        self.assertIsNone(report["embedding_checkpoint_sha256"])
+        # Reproduction inherits the saved search depth instead of silently
+        # replacing ef=1000 with an unrelated command-line default of 300.
+        script_path = Path(__file__).resolve().parents[1] / "scripts" / "train_reranker_new_octen.py"
+        spec = importlib.util.spec_from_file_location("train_reranker_run_test", script_path)
+        script = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(script)
+        source = {**report, "split": "queries"}
+        common = dict(data_dir=Path("dataset"), checkpoint=Path("checkpoint"),
+                      device="cuda", batch_size=32)
+        restored = script.retrieval_arguments(source, **common)
+        self.assertEqual(restored[restored.index("--ef-search") + 1], "1000")
+        self.assertEqual(restored[restored.index("--embedding-max-length") + 1], "128")
+        override = script.retrieval_arguments(source, **common, ef_search=1200)
+        self.assertEqual(override[override.index("--ef-search") + 1], "1200")
+        legacy = {name: value for name, value in source.items()
+                  if name not in {"retrieval_config", "ef_search", "embedding_max_length"}}
+        legacy_arguments = script.retrieval_arguments(legacy, **common)
+        self.assertEqual(legacy_arguments[legacy_arguments.index("--ef-search") + 1], "300")
         sweep = report["retrieval_diagnostics"]["location_bonus_sweep"]
         rows = {row["bonus"]: row for row in sweep["results"]}
         self.assertEqual(model.calls, 1)

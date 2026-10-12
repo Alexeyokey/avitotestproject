@@ -131,6 +131,7 @@ class HybridRetriever:
         dense_weight=1.0,
         channel_quota=0,
         location_bonus=0.0,
+        rescore_dense_union=False,
     ):
         if candidate_k <= 0:
             raise ValueError("candidate_k must be positive")
@@ -142,6 +143,8 @@ class HybridRetriever:
             raise ValueError("Location bonus must be non-negative and finite")
         if location_bonus > 0 and getattr(bm25, "_item_locations", None) is None:
             raise ValueError("Location bonus requires BM25 item locations")
+        if rescore_dense_union and not callable(getattr(dense, "score_candidates_batch", None)):
+            raise ValueError("Full-pool dense rescoring requires score_candidates_batch")
         self.bm25 = bm25
         self.dense = dense
         self.candidate_k = candidate_k
@@ -150,6 +153,7 @@ class HybridRetriever:
         self.dense_weight = dense_weight
         self.channel_quota = channel_quota
         self.location_bonus = location_bonus
+        self.rescore_dense_union = rescore_dense_union
 
     def _ranked_channels(self, query, dense_result=None):
         channels = []
@@ -254,9 +258,24 @@ class HybridRetriever:
         }
 
     def retrieve_with_diagnostics(self, query, limit=50):
-        return self._fuse_with_diagnostics(
+        result = self._fuse_with_diagnostics(
             query, self._ranked_channels(query), limit
         )
+        return self._attach_full_dense_scores([query], [result])[0]
+
+    def _attach_full_dense_scores(self, queries, results):
+        """Add an optional feature signal without changing the baseline path."""
+        if not self.rescore_dense_union:
+            return results
+        pools = [details["candidate_pool"] for _baseline, details in results]
+        scored = self.dense.score_candidates_batch(queries, pools)
+        if len(scored) != len(results):
+            raise ValueError("Full-pool dense scorer returned a different batch size")
+        for pool, scores, (_baseline, details) in zip(pools, scored, results):
+            if set(scores) != set(pool):
+                raise ValueError("Full-pool dense scores must cover every candidate exactly")
+            details["full_dense_scores"] = scores
+        return results
 
     def retrieve_batch_with_diagnostics(self, queries, limit=50):
         """Ищем dense-кандидатов пачкой, сохраняя BM25 и RRF для каждого запроса."""
@@ -270,12 +289,13 @@ class HybridRetriever:
                                  self.dense.retrieve_batch(queries, self.candidate_k)]
         else:
             dense_results = [None] * len(queries)
-        return [
+        results = [
             self._fuse_with_diagnostics(
                 query, self._ranked_channels(query, dense_ids), limit
             )
             for query, dense_ids in zip(queries, dense_results)
         ]
+        return self._attach_full_dense_scores(queries, results)
 
     def retrieve(self, query, limit=50):
         prediction, _diagnostics = self.retrieve_with_diagnostics(query, limit)

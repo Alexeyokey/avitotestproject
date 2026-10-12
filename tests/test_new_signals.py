@@ -15,6 +15,28 @@ from avito_candidates.microcategory import MicrocategoryPrior, fit_microcategory
 
 
 class NewSignalsTest(unittest.TestCase):
+    def test_training_geo_candidates_do_not_use_querys_own_history(self):
+        associations = LocationAssociations(
+            {"own_city", "other_city"},
+            counts={"region": Counter({"own_city": 3, "other_city": 2})},
+            totals=Counter({"region": 5}),
+            query_counts={"ремонт": {"region": Counter({"own_city": 3})}})
+        items = [{"item_id": location, "item_location_id": location,
+                  "item_description_raw": "ремонт"}
+                 for location in ("own_city", "other_city")]
+        common = dict(title_weight=0, params_weight=0, description_weight=1,
+                      geo_candidate_k=1, geo_top_locations=1,
+                      geo_min_history=2, geo_associations=associations)
+        ordinary = Baseline(items, **common)
+        training = Baseline(items, **common, geo_leave_query_out=True)
+        query = {"search_query": " РЕМОНТ ", "search_location_id": "region"}
+        self.assertEqual(ordinary.geo_locations(query), ("own_city",))
+        self.assertEqual(training.geo_locations(query), ("other_city",))
+        _ranking, details = training.retrieve_with_diagnostics(query)
+        self.assertEqual(details["channels"]["description_geo"], ["other_city"])
+        self.assertEqual(set(details["channels"]["description"]),
+                         {"own_city", "other_city"})
+
     def test_microcategory_prior_excludes_heldout_query_text(self):
         fit_text = next(f"ремонт обуви {i}" for i in range(1000)
                         if not held_out(normalize(f"ремонт обуви {i}"), 0.2, 42))

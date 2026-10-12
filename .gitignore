@@ -37,3 +37,7 @@ answer.csv
 *.log
 *.pid
 tempCodeRunnerFile.py
+
+# Локальные данные и артефакты могут быть символьными ссылками
+/dataset
+/artifacts

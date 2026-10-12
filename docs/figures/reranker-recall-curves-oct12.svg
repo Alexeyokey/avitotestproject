@@ -1,0 +1,133 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1800" height="1000" viewBox="0 0 1800 1000">
+<rect width="100%" height="100%" fill="white"/>
+<text x="65.000" y="34.000" fill="#17252d" font-family="DejaVu Sans, sans-serif" font-size="34" font-weight="bold" text-anchor="start" dominant-baseline="text-before-edge">Реранкер: Recall@50 по числу деревьев</text>
+<text x="65.000" y="86.000" fill="#53646e" font-family="DejaVu Sans, sans-serif" font-size="22" font-weight="normal" text-anchor="start" dominant-baseline="text-before-edge">Полные фиксированные пулы · fit sample: 1 000 групп · строгая validation: 5 157 групп</text>
+<polyline points="65.000,144.000 110.000,144.000" fill="none" stroke="#0072B2" stroke-width="3" stroke-linejoin="round"/>
+<circle cx="87.000" cy="144.000" r="5" fill="#0072B2" stroke="white" stroke-width="1"/>
+<text x="124.000" y="130.000" fill="#17252d" font-family="DejaVu Sans, sans-serif" font-size="21" font-weight="normal" text-anchor="start" dominant-baseline="text-before-edge">Обучающая сторона: выборка 1 000</text>
+<polyline points="690.000,144.000 735.000,144.000" fill="none" stroke="#D55E00" stroke-width="3" stroke-linejoin="round"/>
+<circle cx="712.000" cy="144.000" r="5" fill="#D55E00" stroke="white" stroke-width="1"/>
+<text x="749.000" y="130.000" fill="#17252d" font-family="DejaVu Sans, sans-serif" font-size="21" font-weight="normal" text-anchor="start" dominant-baseline="text-before-edge">Вся строгая validation</text>
+<polyline points="1260.000,134.000 1260.000,154.000" fill="none" stroke="#7d8991" stroke-width="2" stroke-linejoin="round" stroke-dasharray="7 6"/>
+<text x="1274.000" y="130.000" fill="#17252d" font-family="DejaVu Sans, sans-serif" font-size="21" font-weight="normal" text-anchor="start" dominant-baseline="text-before-edge">Этап выбран только по tune</text>
+<text x="95.000" y="205.000" fill="#17252d" font-family="DejaVu Sans, sans-serif" font-size="23" font-weight="bold" text-anchor="start" dominant-baseline="text-before-edge">HistGradientBoosting</text>
+<text x="95.000" y="243.000" fill="#53646e" font-family="DejaVu Sans, sans-serif" font-size="19" font-weight="normal" text-anchor="start" dominant-baseline="text-before-edge">Выбор tune: 50 деревьев · validation 85,00%</text>
+<polyline points="95.000,690.739 600.000,690.739" fill="none" stroke="#dde5e9" stroke-width="1" stroke-linejoin="round"/>
+<text x="80.000" y="678.739" fill="#17252d" font-family="DejaVu Sans, sans-serif" font-size="19" font-weight="normal" text-anchor="end" dominant-baseline="text-before-edge">84%</text>
+<polyline points="95.000,599.870 600.000,599.870" fill="none" stroke="#dde5e9" stroke-width="1" stroke-linejoin="round"/>
+<text x="80.000" y="587.870" fill="#17252d" font-family="DejaVu Sans, sans-serif" font-size="19" font-weight="normal" text-anchor="end" dominant-baseline="text-before-edge">85%</text>
+<polyline points="95.000,509.000 600.000,509.000" fill="none" stroke="#dde5e9" stroke-width="1" stroke-linejoin="round"/>
+<text x="80.000" y="497.000" fill="#17252d" font-family="DejaVu Sans, sans-serif" font-size="19" font-weight="normal" text-anchor="end" dominant-baseline="text-before-edge">86%</text>
+<polyline points="95.000,418.130 600.000,418.130" fill="none" stroke="#dde5e9" stroke-width="1" stroke-linejoin="round"/>
+<text x="80.000" y="406.130" fill="#17252d" font-family="DejaVu Sans, sans-serif" font-size="19" font-weight="normal" text-anchor="end" dominant-baseline="text-before-edge">87%</text>
+<polyline points="95.000,327.261 600.000,327.261" fill="none" stroke="#dde5e9" stroke-width="1" stroke-linejoin="round"/>
+<text x="80.000" y="315.261" fill="#17252d" font-family="DejaVu Sans, sans-serif" font-size="19" font-weight="normal" text-anchor="end" dominant-baseline="text-before-edge">88%</text>
+<polyline points="95.000,300.000 95.000,718.000 600.000,718.000" fill="none" stroke="#53646e" stroke-width="1" stroke-linejoin="round"/>
+<polyline points="95.000,718.000 95.000,724.000" fill="none" stroke="#53646e" stroke-width="1" stroke-linejoin="round"/>
+<text x="95.000" y="734.000" fill="#17252d" font-family="DejaVu Sans, sans-serif" font-size="19" font-weight="normal" text-anchor="middle" dominant-baseline="text-before-edge">0</text>
+<polyline points="252.812,718.000 252.812,724.000" fill="none" stroke="#53646e" stroke-width="1" stroke-linejoin="round"/>
+<text x="252.812" y="734.000" fill="#17252d" font-family="DejaVu Sans, sans-serif" font-size="19" font-weight="normal" text-anchor="middle" dominant-baseline="text-before-edge">50</text>
+<polyline points="410.625,718.000 410.625,724.000" fill="none" stroke="#53646e" stroke-width="1" stroke-linejoin="round"/>
+<text x="410.625" y="734.000" fill="#17252d" font-family="DejaVu Sans, sans-serif" font-size="19" font-weight="normal" text-anchor="middle" dominant-baseline="text-before-edge">100</text>
+<polyline points="568.438,718.000 568.438,724.000" fill="none" stroke="#53646e" stroke-width="1" stroke-linejoin="round"/>
+<text x="568.438" y="734.000" fill="#17252d" font-family="DejaVu Sans, sans-serif" font-size="19" font-weight="normal" text-anchor="middle" dominant-baseline="text-before-edge">150</text>
+<polyline points="252.812,300.000 252.812,718.000" fill="none" stroke="#7d8991" stroke-width="2" stroke-linejoin="round" stroke-dasharray="7 6"/>
+<polyline points="173.906,484.859 252.812,447.784 331.719,449.299 410.625,447.027 489.531,451.570 568.438,415.223" fill="none" stroke="#0072B2" stroke-width="3" stroke-linejoin="round"/>
+<circle cx="173.906" cy="484.859" r="5" fill="#0072B2" stroke="white" stroke-width="1"/>
+<circle cx="252.812" cy="447.784" r="5" fill="#0072B2" stroke="white" stroke-width="1"/>
+<circle cx="331.719" cy="449.299" r="5" fill="#0072B2" stroke="white" stroke-width="1"/>
+<circle cx="410.625" cy="447.027" r="5" fill="#0072B2" stroke="white" stroke-width="1"/>
+<circle cx="489.531" cy="451.570" r="5" fill="#0072B2" stroke="white" stroke-width="1"/>
+<circle cx="568.438" cy="415.223" r="5" fill="#0072B2" stroke="white" stroke-width="1"/>
+<polyline points="173.906,622.676 252.812,599.710 331.719,626.170 410.625,644.232 489.531,662.954 568.438,648.035" fill="none" stroke="#D55E00" stroke-width="3" stroke-linejoin="round"/>
+<circle cx="173.906" cy="622.676" r="5" fill="#D55E00" stroke="white" stroke-width="1"/>
+<circle cx="252.812" cy="599.710" r="5" fill="#D55E00" stroke="white" stroke-width="1"/>
+<circle cx="331.719" cy="626.170" r="5" fill="#D55E00" stroke="white" stroke-width="1"/>
+<circle cx="410.625" cy="644.232" r="5" fill="#D55E00" stroke="white" stroke-width="1"/>
+<circle cx="489.531" cy="662.954" r="5" fill="#D55E00" stroke="white" stroke-width="1"/>
+<circle cx="568.438" cy="648.035" r="5" fill="#D55E00" stroke="white" stroke-width="1"/>
+<circle cx="252.812" cy="599.710" r="9" fill="#D55E00" stroke="#17252d" stroke-width="2"/>
+<text x="347.500" y="774.000" fill="#17252d" font-family="DejaVu Sans, sans-serif" font-size="21" font-weight="normal" text-anchor="middle" dominant-baseline="text-before-edge">Число деревьев</text>
+<text x="665.000" y="205.000" fill="#17252d" font-family="DejaVu Sans, sans-serif" font-size="23" font-weight="bold" text-anchor="start" dominant-baseline="text-before-edge">LightGBM · классификация</text>
+<text x="665.000" y="243.000" fill="#53646e" font-family="DejaVu Sans, sans-serif" font-size="19" font-weight="normal" text-anchor="start" dominant-baseline="text-before-edge">Выбор tune: 50 деревьев · validation 85,03%</text>
+<polyline points="665.000,690.739 1170.000,690.739" fill="none" stroke="#dde5e9" stroke-width="1" stroke-linejoin="round"/>
+<polyline points="665.000,599.870 1170.000,599.870" fill="none" stroke="#dde5e9" stroke-width="1" stroke-linejoin="round"/>
+<polyline points="665.000,509.000 1170.000,509.000" fill="none" stroke="#dde5e9" stroke-width="1" stroke-linejoin="round"/>
+<polyline points="665.000,418.130 1170.000,418.130" fill="none" stroke="#dde5e9" stroke-width="1" stroke-linejoin="round"/>
+<polyline points="665.000,327.261 1170.000,327.261" fill="none" stroke="#dde5e9" stroke-width="1" stroke-linejoin="round"/>
+<polyline points="665.000,300.000 665.000,718.000 1170.000,718.000" fill="none" stroke="#53646e" stroke-width="1" stroke-linejoin="round"/>
+<polyline points="665.000,718.000 665.000,724.000" fill="none" stroke="#53646e" stroke-width="1" stroke-linejoin="round"/>
+<text x="665.000" y="734.000" fill="#17252d" font-family="DejaVu Sans, sans-serif" font-size="19" font-weight="normal" text-anchor="middle" dominant-baseline="text-before-edge">0</text>
+<polyline points="788.171,718.000 788.171,724.000" fill="none" stroke="#53646e" stroke-width="1" stroke-linejoin="round"/>
+<text x="788.171" y="734.000" fill="#17252d" font-family="DejaVu Sans, sans-serif" font-size="19" font-weight="normal" text-anchor="middle" dominant-baseline="text-before-edge">100</text>
+<polyline points="911.341,718.000 911.341,724.000" fill="none" stroke="#53646e" stroke-width="1" stroke-linejoin="round"/>
+<text x="911.341" y="734.000" fill="#17252d" font-family="DejaVu Sans, sans-serif" font-size="19" font-weight="normal" text-anchor="middle" dominant-baseline="text-before-edge">200</text>
+<polyline points="1034.512,718.000 1034.512,724.000" fill="none" stroke="#53646e" stroke-width="1" stroke-linejoin="round"/>
+<text x="1034.512" y="734.000" fill="#17252d" font-family="DejaVu Sans, sans-serif" font-size="19" font-weight="normal" text-anchor="middle" dominant-baseline="text-before-edge">300</text>
+<polyline points="1157.683,718.000 1157.683,724.000" fill="none" stroke="#53646e" stroke-width="1" stroke-linejoin="round"/>
+<text x="1157.683" y="734.000" fill="#17252d" font-family="DejaVu Sans, sans-serif" font-size="19" font-weight="normal" text-anchor="middle" dominant-baseline="text-before-edge">400</text>
+<polyline points="726.585,300.000 726.585,718.000" fill="none" stroke="#7d8991" stroke-width="2" stroke-linejoin="round" stroke-dasharray="7 6"/>
+<polyline points="695.793,485.980 726.585,465.928 757.378,508.000 788.171,435.668 818.963,483.375 849.756,493.219 972.927,425.430 1157.683,358.429" fill="none" stroke="#0072B2" stroke-width="3" stroke-linejoin="round"/>
+<circle cx="695.793" cy="485.980" r="5" fill="#0072B2" stroke="white" stroke-width="1"/>
+<circle cx="726.585" cy="465.928" r="5" fill="#0072B2" stroke="white" stroke-width="1"/>
+<circle cx="757.378" cy="508.000" r="5" fill="#0072B2" stroke="white" stroke-width="1"/>
+<circle cx="788.171" cy="435.668" r="5" fill="#0072B2" stroke="white" stroke-width="1"/>
+<circle cx="818.963" cy="483.375" r="5" fill="#0072B2" stroke="white" stroke-width="1"/>
+<circle cx="849.756" cy="493.219" r="5" fill="#0072B2" stroke="white" stroke-width="1"/>
+<circle cx="972.927" cy="425.430" r="5" fill="#0072B2" stroke="white" stroke-width="1"/>
+<circle cx="1157.683" cy="358.429" r="5" fill="#0072B2" stroke="white" stroke-width="1"/>
+<polyline points="695.793,611.369 726.585,597.361 757.378,614.453 788.171,613.278 818.963,609.636 849.756,616.244 972.927,638.872 1157.683,645.920" fill="none" stroke="#D55E00" stroke-width="3" stroke-linejoin="round"/>
+<circle cx="695.793" cy="611.369" r="5" fill="#D55E00" stroke="white" stroke-width="1"/>
+<circle cx="726.585" cy="597.361" r="5" fill="#D55E00" stroke="white" stroke-width="1"/>
+<circle cx="757.378" cy="614.453" r="5" fill="#D55E00" stroke="white" stroke-width="1"/>
+<circle cx="788.171" cy="613.278" r="5" fill="#D55E00" stroke="white" stroke-width="1"/>
+<circle cx="818.963" cy="609.636" r="5" fill="#D55E00" stroke="white" stroke-width="1"/>
+<circle cx="849.756" cy="616.244" r="5" fill="#D55E00" stroke="white" stroke-width="1"/>
+<circle cx="972.927" cy="638.872" r="5" fill="#D55E00" stroke="white" stroke-width="1"/>
+<circle cx="1157.683" cy="645.920" r="5" fill="#D55E00" stroke="white" stroke-width="1"/>
+<circle cx="726.585" cy="597.361" r="9" fill="#D55E00" stroke="#17252d" stroke-width="2"/>
+<text x="917.500" y="774.000" fill="#17252d" font-family="DejaVu Sans, sans-serif" font-size="21" font-weight="normal" text-anchor="middle" dominant-baseline="text-before-edge">Число деревьев</text>
+<text x="1235.000" y="205.000" fill="#17252d" font-family="DejaVu Sans, sans-serif" font-size="23" font-weight="bold" text-anchor="start" dominant-baseline="text-before-edge">LightGBM · LambdaRank</text>
+<text x="1235.000" y="243.000" fill="#53646e" font-family="DejaVu Sans, sans-serif" font-size="19" font-weight="normal" text-anchor="start" dominant-baseline="text-before-edge">Выбор tune: 250 деревьев · validation 85,47%</text>
+<polyline points="1235.000,690.739 1740.000,690.739" fill="none" stroke="#dde5e9" stroke-width="1" stroke-linejoin="round"/>
+<polyline points="1235.000,599.870 1740.000,599.870" fill="none" stroke="#dde5e9" stroke-width="1" stroke-linejoin="round"/>
+<polyline points="1235.000,509.000 1740.000,509.000" fill="none" stroke="#dde5e9" stroke-width="1" stroke-linejoin="round"/>
+<polyline points="1235.000,418.130 1740.000,418.130" fill="none" stroke="#dde5e9" stroke-width="1" stroke-linejoin="round"/>
+<polyline points="1235.000,327.261 1740.000,327.261" fill="none" stroke="#dde5e9" stroke-width="1" stroke-linejoin="round"/>
+<polyline points="1235.000,300.000 1235.000,718.000 1740.000,718.000" fill="none" stroke="#53646e" stroke-width="1" stroke-linejoin="round"/>
+<polyline points="1235.000,718.000 1235.000,724.000" fill="none" stroke="#53646e" stroke-width="1" stroke-linejoin="round"/>
+<text x="1235.000" y="734.000" fill="#17252d" font-family="DejaVu Sans, sans-serif" font-size="19" font-weight="normal" text-anchor="middle" dominant-baseline="text-before-edge">0</text>
+<polyline points="1358.171,718.000 1358.171,724.000" fill="none" stroke="#53646e" stroke-width="1" stroke-linejoin="round"/>
+<text x="1358.171" y="734.000" fill="#17252d" font-family="DejaVu Sans, sans-serif" font-size="19" font-weight="normal" text-anchor="middle" dominant-baseline="text-before-edge">100</text>
+<polyline points="1481.341,718.000 1481.341,724.000" fill="none" stroke="#53646e" stroke-width="1" stroke-linejoin="round"/>
+<text x="1481.341" y="734.000" fill="#17252d" font-family="DejaVu Sans, sans-serif" font-size="19" font-weight="normal" text-anchor="middle" dominant-baseline="text-before-edge">200</text>
+<polyline points="1604.512,718.000 1604.512,724.000" fill="none" stroke="#53646e" stroke-width="1" stroke-linejoin="round"/>
+<text x="1604.512" y="734.000" fill="#17252d" font-family="DejaVu Sans, sans-serif" font-size="19" font-weight="normal" text-anchor="middle" dominant-baseline="text-before-edge">300</text>
+<polyline points="1727.683,718.000 1727.683,724.000" fill="none" stroke="#53646e" stroke-width="1" stroke-linejoin="round"/>
+<text x="1727.683" y="734.000" fill="#17252d" font-family="DejaVu Sans, sans-serif" font-size="19" font-weight="normal" text-anchor="middle" dominant-baseline="text-before-edge">400</text>
+<polyline points="1542.927,300.000 1542.927,718.000" fill="none" stroke="#7d8991" stroke-width="2" stroke-linejoin="round" stroke-dasharray="7 6"/>
+<polyline points="1265.793,477.711 1296.585,471.653 1327.378,460.294 1358.171,453.479 1388.963,398.957 1419.756,389.870 1542.927,380.783 1727.683,350.857" fill="none" stroke="#0072B2" stroke-width="3" stroke-linejoin="round"/>
+<circle cx="1265.793" cy="477.711" r="5" fill="#0072B2" stroke="white" stroke-width="1"/>
+<circle cx="1296.585" cy="471.653" r="5" fill="#0072B2" stroke="white" stroke-width="1"/>
+<circle cx="1327.378" cy="460.294" r="5" fill="#0072B2" stroke="white" stroke-width="1"/>
+<circle cx="1358.171" cy="453.479" r="5" fill="#0072B2" stroke="white" stroke-width="1"/>
+<circle cx="1388.963" cy="398.957" r="5" fill="#0072B2" stroke="white" stroke-width="1"/>
+<circle cx="1419.756" cy="389.870" r="5" fill="#0072B2" stroke="white" stroke-width="1"/>
+<circle cx="1542.927" cy="380.783" r="5" fill="#0072B2" stroke="white" stroke-width="1"/>
+<circle cx="1727.683" cy="350.857" r="5" fill="#0072B2" stroke="white" stroke-width="1"/>
+<polyline points="1265.793,641.559 1296.585,573.720 1327.378,579.814 1358.171,547.450 1388.963,557.142 1419.756,555.233 1542.927,556.995 1727.683,572.795" fill="none" stroke="#D55E00" stroke-width="3" stroke-linejoin="round"/>
+<circle cx="1265.793" cy="641.559" r="5" fill="#D55E00" stroke="white" stroke-width="1"/>
+<circle cx="1296.585" cy="573.720" r="5" fill="#D55E00" stroke="white" stroke-width="1"/>
+<circle cx="1327.378" cy="579.814" r="5" fill="#D55E00" stroke="white" stroke-width="1"/>
+<circle cx="1358.171" cy="547.450" r="5" fill="#D55E00" stroke="white" stroke-width="1"/>
+<circle cx="1388.963" cy="557.142" r="5" fill="#D55E00" stroke="white" stroke-width="1"/>
+<circle cx="1419.756" cy="555.233" r="5" fill="#D55E00" stroke="white" stroke-width="1"/>
+<circle cx="1542.927" cy="556.995" r="5" fill="#D55E00" stroke="white" stroke-width="1"/>
+<circle cx="1727.683" cy="572.795" r="5" fill="#D55E00" stroke="white" stroke-width="1"/>
+<circle cx="1542.927" cy="556.995" r="9" fill="#D55E00" stroke="#17252d" stroke-width="2"/>
+<text x="1487.500" y="774.000" fill="#17252d" font-family="DejaVu Sans, sans-serif" font-size="21" font-weight="normal" text-anchor="middle" dominant-baseline="text-before-edge">Число деревьев</text>
+<text x="65.000" y="837.000" fill="#53646e" font-family="DejaVu Sans, sans-serif" font-size="19" font-weight="normal" text-anchor="start" dominant-baseline="text-before-edge">Recall включает положительные объявления вне пула; fit sample содержит такие группы.</text>
+<text x="65.000" y="872.000" fill="#53646e" font-family="DejaVu Sans, sans-serif" font-size="19" font-weight="normal" text-anchor="start" dominant-baseline="text-before-edge">Историческая validation уже использовалась в экспериментах; это не новая независимая проверка.</text>
+<text x="65.000" y="907.000" fill="#53646e" font-family="DejaVu Sans, sans-serif" font-size="19" font-weight="normal" text-anchor="start" dominant-baseline="text-before-edge">Энкодер обучался на fit-текстах: разрыв train / validation сам по себе не доказывает переобучение.</text>
+<text x="65.000" y="960.000" fill="#53646e" font-family="DejaVu Sans, sans-serif" font-size="16" font-weight="normal" text-anchor="start" dominant-baseline="text-before-edge">Источник: завершённые JSON-аудиты · macro Recall@50 · 12 октября 2026</text>
+</svg>

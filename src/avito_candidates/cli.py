@@ -4,12 +4,13 @@ from collections import defaultdict
 import csv
 import json
 from pathlib import Path
+import time
 
 import pandas as pd
 import pyarrow.parquet as pq
 
 from .core import SEARCH_FIELDS, held_out, normalize, query_key, recall_at_k, validate_answers
-from .dense import DEFAULT_EMBEDDING_MODEL
+from .dense import DEFAULT_EMBEDDING_MODEL, local_checkpoint_content_fingerprint
 
 
 def read(path, columns):
@@ -229,11 +230,13 @@ def read_validation(path, corpus_ids, *, mode, fraction, seed, batch_size):
     return truth, representatives, fit_rows, heldout_rows, heldout_in_corpus
 
 
-def build_retriever(args, items):
+def build_retriever(args, items, *, geo_associations_override=None):
     from .baseline import Baseline
 
-    associations = None
-    if args.geo_candidate_k > 0:
+    # Cold-split rerankers must retrieve with the same saved geography history
+    # used by their feature builder. Prediction must not silently refit all rows.
+    associations = geo_associations_override
+    if args.geo_candidate_k > 0 and associations is None:
         from .geography import LocationAssociations, fit_location_associations
 
         corpus_locations = {item["item_location_id"] for item in items
@@ -247,6 +250,8 @@ def build_retriever(args, items):
                 args.data_dir / "train.parquet", corpus_locations,
                 split=fit_split, fraction=args.validation_fraction,
                 seed=args.seed, batch_size=args.train_batch_size,
+                track_query_texts=(args.command == "prepare-reranker"
+                                   and getattr(args, "reranker_crossfit_geography", False)),
             )
 
     bm25_kwargs = {
@@ -271,6 +276,8 @@ def build_retriever(args, items):
         "geo_min_history": args.geo_min_history,
         "geo_weight": args.geo_weight,
         "geo_associations": associations,
+        "geo_leave_query_out": (args.command == "prepare-reranker"
+                                and getattr(args, "reranker_crossfit_geography", False)),
     }
     if args.method == "bm25":
         return Baseline(items, **bm25_kwargs)
@@ -302,6 +309,7 @@ def build_retriever(args, items):
         dense_weight=args.dense_weight,
         channel_quota=args.channel_quota,
         location_bonus=args.location_bonus,
+        rescore_dense_union=getattr(args, "rescore_dense_union", False),
     )
 
 
@@ -318,6 +326,8 @@ def main():
                         help="Fraction held out by pairs/queries; ignored for --split all")
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--method", choices=["bm25", "dense", "hybrid"], default="bm25")
+    parser.add_argument("--rescore-dense-union", action="store_true",
+                        help="Hybrid: attach exact dense cosine for every union candidate")
     parser.add_argument("--k1", type=float, help="Override k1 for all BM25 fields")
     parser.add_argument("--b", type=float, help="Override b for all BM25 fields")
     parser.add_argument("--title-k1", type=float, default=1.0)
@@ -376,16 +386,27 @@ def main():
                         help="Smoothed exact-query-text microcategory prior after reranking")
     parser.add_argument("--reranker-negatives-per-query", type=int, default=64)
     parser.add_argument("--reranker-max-iter", type=int, default=150)
-    parser.add_argument("--reranker-feature-version", type=int, choices=[4, 5],
-                        default=5, help="Feature schema for prepare-reranker")
+    parser.add_argument("--reranker-feature-version", type=int, choices=[4, 5, 6],
+                        default=4, help="Feature schema for prepare-reranker; verified V4 is default")
+    parser.add_argument("--reranker-selected-iteration", type=int,
+                        help="Evaluate/predict with an explicit available model prefix")
     parser.add_argument("--reranker-disable-microcategory-prior", action="store_true",
                         help="Ablate microcategory-prior features in fit-reranker")
-    parser.add_argument("--reranker-estimator", choices=["histgb", "lightgbm"],
+    parser.add_argument("--reranker-crossfit-geography", action="store_true",
+                        help="Prepare training candidates/features with all history of "
+                             "the current normalized query text removed from geography")
+    parser.add_argument("--reranker-estimator", choices=["histgb", "lightgbm", "lambdarank"],
                         default="histgb",
-                        help="Classifier for fit-reranker (LightGBM requires optional dependency)")
+                        help="Estimator for fit-reranker; LambdaRank requires grouped training data")
     parser.add_argument("--max-train-queries", type=int, default=0,
                         help="Limit training-query preparation for a smoke test")
     args = parser.parse_args()
+    if args.rescore_dense_union and args.method != "hybrid":
+        parser.error("--rescore-dense-union requires --method hybrid")
+    if args.reranker_selected_iteration is not None and (
+            args.command not in {"evaluate", "predict"} or args.reranker_model is None
+            or args.reranker_selected_iteration <= 0):
+        parser.error("--reranker-selected-iteration requires evaluate/predict with a model and positive prefix")
     if args.command == "fit-reranker":
         from .reranker import fit_model
         if args.reranker_max_iter <= 0:
@@ -406,6 +427,13 @@ def main():
                      "without --reranker-model")
     if args.command == "prepare-reranker" and args.split == "pairs":
         parser.error("Reranker preparation requires --split queries or --split all")
+    if (args.command == "prepare-reranker" and args.reranker_feature_version == 6
+            and (args.method != "hybrid" or not args.rescore_dense_union)):
+        parser.error("V6 preparation requires --method hybrid --rescore-dense-union")
+    if args.reranker_crossfit_geography and (
+            args.command != "prepare-reranker" or args.geo_candidate_k <= 0):
+        parser.error("--reranker-crossfit-geography requires prepare-reranker "
+                     "with --geo-candidate-k > 0")
     if args.reranker_negatives_per_query <= 0 or args.max_train_queries < 0:
         parser.error("Reranker negatives must be positive; max train queries nonnegative")
     if args.method == "dense" and args.location_bonus > 0:
@@ -452,7 +480,7 @@ def main():
         })
         return
     if args.command == "prepare-reranker":
-        from .reranker import (FEATURES, V4_FEATURES, FeatureBuilder,
+        from .reranker import (FEATURE_SCHEMAS, FeatureBuilder,
                                prepare_training_data, read_fit_labels,
                                retrieval_config)
         truth, representatives, label_stats = read_fit_labels(
@@ -472,8 +500,8 @@ def main():
         builder = FeatureBuilder(
             items, retrieval_config(args), microcategory_prior=microcategory_prior,
             geo_associations=getattr(bm25, "geo_associations", None),
-            feature_names=(V4_FEATURES if args.reranker_feature_version == 4
-                           else FEATURES), leave_query_out=True)
+            feature_names=FEATURE_SCHEMAS[args.reranker_feature_version], leave_query_out=True,
+            leave_geography_query_out=args.reranker_crossfit_geography)
         metadata = prepare_training_data(
             args.reranker_data, model, builder,
             truth, representatives, split=args.split, fraction=args.validation_fraction,
@@ -488,7 +516,8 @@ def main():
         from .reranker import Reranker, retrieval_config
         reranker = (Reranker(args.reranker_model, items, retrieval_config(args),
                              evaluation_split=(args.split, args.validation_fraction, args.seed),
-                             microcategory_exact_bonus=args.microcategory_exact_bonus)
+                             microcategory_exact_bonus=args.microcategory_exact_bonus,
+                             selected_iteration=args.reranker_selected_iteration)
                     if args.reranker_model else None)
         truth, representatives, fit_rows, heldout_rows, heldout_in_corpus = read_validation(
             root / "train.parquet", ids, mode=args.split,
@@ -503,7 +532,8 @@ def main():
         # Знаменатель Recall формируется только из известных выбранных
         # объявлений, которые есть в benchmark_items. Это полезно для
         # сравнения настроек, но не измеряет качество по всему train.
-        model = build_retriever(args, items)
+        model = build_retriever(args, items,
+            geo_associations_override=(reranker.builder.geo_associations if reranker else None))
         retrieval_diagnostics = {}
         geo_extra_count = geo_extra_recall = geo_new_positive_queries = 0
 
@@ -644,7 +674,10 @@ def main():
                 raise RuntimeError("Location sweep does not reproduce the current hybrid ranking")
             retrieval_diagnostics["location_bonus_sweep"] = sweep_report
         save_json(args.output, {"method": args.method,
+            "retrieval_config": retrieval_config(args),
             "reranker_model": str(args.reranker_model) if reranker else None,
+            "reranker_selected_iteration": reranker.selected_iteration if reranker else None,
+            "microcategory_exact_bonus": args.microcategory_exact_bonus if reranker else 0.0,
             "fusion": (
                 "flat_bm25_fields_dense" if args.method == "hybrid"
                 else "bm25_fields" if args.method == "bm25" else None
@@ -672,6 +705,12 @@ def main():
                 "geo_weight": args.geo_weight,
             } if args.method != "dense" else None,
             "embedding_model": args.embedding_model if args.method != "bm25" else None,
+            "embedding_checkpoint_sha256": (
+                local_checkpoint_content_fingerprint(args.embedding_model)
+                if args.method != "bm25" else None
+            ),
+            "embedding_max_length": args.embedding_max_length if args.method != "bm25" else None,
+            "ef_search": args.ef_search if args.method != "bm25" else None,
             "embedding_params_words": (
                 args.embedding_params_words if args.method != "bm25" else None
             ),
@@ -697,10 +736,24 @@ def main():
     else:
         from .reranker import Reranker, retrieval_config
         reranker = (Reranker(args.reranker_model, items, retrieval_config(args),
-                             microcategory_exact_bonus=args.microcategory_exact_bonus)
+                             microcategory_exact_bonus=args.microcategory_exact_bonus,
+                             selected_iteration=args.reranker_selected_iteration)
                     if args.reranker_model else None)
-        model = build_retriever(args, items)
+        model = build_retriever(args, items,
+            geo_associations_override=(reranker.builder.geo_associations if reranker else None))
         rows = []
+        prediction_started = last_prediction_progress = time.monotonic()
+
+        def progress_if_due():
+            nonlocal last_prediction_progress
+            now = time.monotonic()
+            if now - last_prediction_progress >= 30 or len(rows) == len(queries):
+                print(json.dumps({"prediction": {
+                    "queries": len(rows), "total": len(queries),
+                    "elapsed_seconds": round(now - prediction_started),
+                }}), flush=True)
+                last_prediction_progress = now
+
         if args.method == "bm25":
             for query_batch in batches(queries, 64):
                 results = [model.retrieve_with_diagnostics(query) for query in query_batch]
@@ -708,6 +761,7 @@ def main():
                                [prediction for prediction, _details in results])
                 rows.extend({"query_id": q["query_id"], "answer": " ".join(prediction)}
                             for q, prediction in zip(query_batch, predictions))
+                progress_if_due()
         else:
             for query_batch in batches(queries, args.embedding_batch_size):
                 if args.method == "hybrid":
@@ -728,6 +782,7 @@ def main():
                         predictions = [pool[:50] for pool in pools]
                 rows.extend({"query_id": q["query_id"], "answer": " ".join(prediction)}
                             for q, prediction in zip(query_batch, predictions))
+                progress_if_due()
         validate_answers(rows, [q["query_id"] for q in queries], ids)
         args.answer.parent.mkdir(parents=True, exist_ok=True)
         with args.answer.open("w", encoding="utf-8", newline="") as stream:

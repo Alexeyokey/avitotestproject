@@ -142,6 +142,7 @@ class Baseline:
         geo_min_history=20,
         geo_weight=0.25,
         geo_associations=None,
+        geo_leave_query_out=False,
     ):
         self.ids = [item["item_id"] for item in items]
         if len(set(self.ids)) != len(self.ids):
@@ -176,6 +177,7 @@ class Baseline:
         self.geo_min_history = geo_min_history
         self.geo_weight = geo_weight
         self.geo_associations = geo_associations
+        self.geo_leave_query_out = geo_leave_query_out
         self._geo_rows = defaultdict(list)
         if geo_candidate_k:
             for row, item in enumerate(items):
@@ -270,7 +272,9 @@ class Baseline:
         if self.geo_associations is not None:
             return self.geo_associations.destinations(
                 location, max_locations=self.geo_top_locations,
-                min_history=self.geo_min_history)
+                min_history=self.geo_min_history,
+                exclude_query_text=(query.get("search_query", "")
+                                    if self.geo_leave_query_out else None))
         return ()
 
     def related_geo_locations(self, query):
@@ -281,7 +285,9 @@ class Baseline:
             return ()
         destinations = self.geo_associations.destinations(
             location, max_locations=self.geo_top_locations,
-            min_history=self.geo_min_history, include_related=True)
+            min_history=self.geo_min_history, include_related=True,
+            exclude_query_text=(query.get("search_query", "")
+                                if self.geo_leave_query_out else None))
         return tuple(destination for destination in destinations if destination != location)
 
     def related_geo_lists_with_scores(self, query, limit):
