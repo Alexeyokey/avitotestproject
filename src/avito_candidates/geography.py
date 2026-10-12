@@ -28,6 +28,9 @@ class LocationAssociations:
         exact = (location,) if location in self.corpus_locations else ()
         if exact and not include_related:
             return exact
+        # По умолчанию связи из train применяются при отсутствии точного ID;
+        # расширение доступной точной локации включается явно.
+        # Минимальная история защищает от выбора по единичному клику.
         if self.totals[location] < min_history:
             return exact
         candidates = (
@@ -60,6 +63,8 @@ def fit_location_associations(path, corpus_locations, *, split="all", fraction=0
         columns.append("item_id")
     for batch in pq.ParquetFile(path).iter_batches(batch_size=batch_size, columns=columns):
         for row in batch.to_pandas().fillna("").astype(str).to_dict("records"):
+            # При локальной оценке отложенные клики не участвуют даже в
+            # построении географических связей: иначе подсмотрели бы ответ.
             if split == "queries" and held_out(normalize(row["search_query"]), fraction, seed):
                 continue
             if split == "pairs" and held_out((query_key(row), row["item_id"]), fraction, seed):
