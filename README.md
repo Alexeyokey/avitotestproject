@@ -300,6 +300,53 @@ pip install -e '.[dense]'
 
 ## Команды
 
+### Воспроизведение итогового HGB-50
+
+Глубина 50 выбрана по tune на `split=queries, seed=42`. Финальные веса
+обучаются после выбора глубины на всех доступных группах, с ограничением
+30 000 (в этих данных доступно 26 549). Их нельзя оценивать как независимую
+модель на тех же обучающих запросах. Для основного варианта сохраняется
+проверенная политика геостатистики; географическая LOO и V6 доступны как
+отдельные исследовательские варианты.
+
+При подготовленных локальных весах и HF-кэше:
+
+```bash
+export PYTHONPATH=src HF_HUB_OFFLINE=1 OMP_NUM_THREADS=4
+CHECKPOINT="$(realpath artifacts/octen-lora-128-full-mb16-s42/model)"
+COMMON=(
+  --data-dir dataset --method hybrid --device cuda
+  --embedding-model "$CHECKPOINT" --embedding-batch-size 32
+  --embedding-max-length 128 --embedding-params-words 40
+  --embedding-description-words 48 --candidate-k 449 --ef-search 1000
+  --title-weight 0 --params-weight 0 --description-weight 0.5
+  --stem-title-weight 0 --stem-params-weight 0
+  --location-bonus 0.02 --channel-quota 0
+  --geo-candidate-k 100 --geo-top-locations 3 --geo-min-history 20 --geo-weight 0.25
+)
+python -m avito_candidates.cli prepare-reranker "${COMMON[@]}" \
+  --split all --seed 42 --reranker-feature-version 4 \
+  --max-train-queries 30000 --reranker-negatives-per-query 64 \
+  --reranker-data artifacts/final-hgb50/train.parquet
+python -m avito_candidates.cli fit-reranker \
+  --reranker-data artifacts/final-hgb50/train.parquet \
+  --reranker-estimator histgb --reranker-max-iter 50 \
+  --reranker-model artifacts/final-hgb50/model.joblib
+python -m avito_candidates.cli predict "${COMMON[@]}" \
+  --reranker-model artifacts/final-hgb50/model.joblib --answer answer.csv
+python -m avito_candidates.cli validate --data-dir dataset --answer answer.csv
+```
+
+Готовый автономный пакет запускается через `run_predict.py`: он проверяет
+хеши, задаёт локальный HF-кэш и валидирует CSV. Данные предоставляются
+отдельно. На новом компьютере потребуется один раз построить локальный
+HNSW-индекс; сохранённые веса заново обучать не требуется.
+
+Для аудита используйте `cache_reranker_audit.py`,
+`audit_reranker_learning_curve.py` и `compare_audit_models.py`. Весь опыт
+V4/V6 повторяет `run_dense_feature_ablation.py`; он сохраняет группы и
+кандидатов и выбирает префиксы только по tune.
+
 Запустить тесты:
 
 ```shell
