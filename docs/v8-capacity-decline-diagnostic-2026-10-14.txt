@@ -1,0 +1,18 @@
+Диагностика снижения Recall при увеличении HGB V8 до150 итераций
+Дата UTC: 2026-10-13T22:58:26.987592+00:00
+Только завершённые Tune scores; Audit не читался. Выбор100 уже зафиксирован и не меняется.
+Один и тот же пул, одна модель, сравниваются только префиксы75/100/150.
+
+Stage75: text-macro Recall@50=0.827476715481; weighted train log loss=0.198620793385
+Stage100: text-macro Recall@50=0.828904976586; weighted train log loss=0.192786063536
+Stage150: text-macro Recall@50=0.825608571677; weighted train log loss=0.184760121975
+
+100_minus_75: delta=0.001428261106 (0.1428 п.п.); 95% exploratory bootstrap=[-0.001368523949, 0.004197892908]; clusters=3069; replicates2000, seed20261013.
+100_minus_150: delta=0.003296404909 (0.3296 п.п.); 95% exploratory bootstrap=[0.000271532530, 0.006337569241]; clusters=3069; replicates2000, seed20261013.
+
+Оговорки:
+Tune was used for retrieval hypotheses and prefix selection, so percentile intervals are not independent confirmation or corrected selection inference.
+Declining Tune Recall while sampled-row train loss decreases is consistent with possible capacity overfitting or an unsuitable setting; it is not a proof.
+Sampled unobserved candidates are not proven negatives, and binary row loss is not percentage relevance error.
+The best prefix among75/100/150 is not a claim that100 is the global optimum.
+The running frozen Audit regression and its sealed prefix100 are unchanged.
