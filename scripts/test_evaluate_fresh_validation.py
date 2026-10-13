@@ -175,6 +175,21 @@ class SourceControlledDiagnosticTests(unittest.TestCase):
         self.assertEqual(scored["available_relevant_count"], 1)
         self.assertEqual(scored["full_relevant_count"], 1)
 
+    def test_tied_source_rrf_uses_lexical_ids_but_model_retains_pool_order(self):
+        items = [f"{index:016x}" for index in range(51, 0, -1)]
+        positive = items[-1]
+        source = protocol_group(available=(positive,), full=(positive,))
+        group = scoring_group(source, pool_size=51, positives=1, baseline_hits=1)
+        scored = EVAL.score_cached_group(group, items, [0] * 50 + [1],
+            [False] * 50 + [True], None, [False] + [True] * 50,
+            [1.0] * 51, {50: [0.5] * 51}, original_benchmark_ids=set())
+        # Equal RRF: lexical smallest 50 include the last positive. Equal model
+        # and RRF: original first 50 omit it. These are different core policies.
+        self.assertEqual(scored["train_source_only_baseline_hits"], 1)
+        self.assertEqual(scored["s50_train_source_only_hits"], 0)
+        self.assertEqual(scored["train_source_only_baseline_selected_count"], 50)
+        self.assertEqual(scored["s50_train_source_only_selected_count"], 50)
+
     def test_positive_source_filter_and_incomplete_diagnostics_fail_closed(self):
         group = scoring_group(protocol_group(), pool_size=1)
         with self.assertRaisesRegex(ValueError, "removed a fresh positive"):

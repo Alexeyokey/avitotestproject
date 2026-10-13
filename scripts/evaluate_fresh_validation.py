@@ -277,12 +277,14 @@ def score_cached_group(group, items, labels, local, seen, baseline, rrf, predict
         source_hits = sum(labels[index] for index in source_indices)
         if source_hits != row["pool_hits"]:
             raise ValueError("Source filtering removed a fresh positive from the candidate pool")
-        source_rrf = [rrf[index] for index in source_indices]
-        source_baseline = top_indices(source_rrf, source_rrf, 50)
+        # Hybrid RRF breaks ties by item ID; reranker ties below deliberately
+        # retain its separate probability/RRF/original-pool-order policy.
+        source_baseline = sorted(source_indices,
+                                 key=lambda index: (-float(rrf[index]), items[index]))[:50]
         row.update(train_source_only_pool_size=len(source_indices),
                    train_source_only_removed_candidates=count - len(source_indices),
                    train_source_only_pool_hits=source_hits,
-                   train_source_only_baseline_hits=sum(labels[source_indices[index]] for index in source_baseline),
+                   train_source_only_baseline_hits=sum(labels[index] for index in source_baseline),
                    train_source_only_baseline_selected_count=len(source_baseline))
     masks = {"local_positive": list(map(bool, local)),
              "nonlocal_positive": [not bool(x) for x in local]}
