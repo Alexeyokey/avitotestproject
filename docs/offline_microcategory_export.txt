@@ -1,0 +1,62 @@
+Portable saved V7/V8 inference export
+===================================
+
+scripts/export_offline_solution.py supports the recorded microcategory and
+micro-typed-dense-v1 supplemental-fill settings of saved V7/V8 rerankers.
+Older artifacts retain their existing default export behavior and output keys.
+No actual research model bundle was built as part of this change.
+
+Identity and relocation
+-----------------------
+The exporter checks the external classifier .joblib SHA against retrieval_config
+and its .joblib.json sidecar. The sidecar and payload metadata must exactly match
+the embedded saved classifier snapshot. The corpus fingerprint, train source SHA,
+normalized fit-text digest/count, classes, query split/seed/fraction and grouped OOF
+training policy are retained. Each OOF model's fitted-text inventory must exclude
+its held-out text fold. joblib SHA1 content hashes of the immutable global model
+and every OOF model must match between external and embedded classifier objects;
+this covers fitted vocabulary, coefficients, classes and estimator configuration.
+Disposable prediction caches are cleared only in the exported artifact.
+
+The exact microcategory_model string '../models/microcategory.joblib' is recorded
+in the exported reranker metadata and passed unchanged to the CLI, with subprocess
+cwd=bundle/project. The classifier file and sidecar are copied byte-for-byte.
+Core retrieval identity checks are unchanged. Encoder checkpoint fingerprints,
+adapter base repository and pinned cached revision retain their existing checks.
+
+Derived settings (classifier SHA and selection policies, supplemental depth998
+and rank constant60) are checked against the currently implemented policy. They
+are never serialized as CLI flags. Unknown or incomplete policies fail closed.
+The tests run the actual retrieval_config AST to verify that emitted CLI settings
+reconstruct the saved derived identity.
+
+The original retrieval_config and alias mapping are recorded in the exported
+artifact and manifest, together with source artifact/file SHAs, classifier metadata
+and immutable model hashes. This is an integrity attestation, not a signature or
+proof that the underlying training procedure was unbiased.
+
+Runtime constraints
+-------------------
+This path supports relocation between filesystem locations in the same Linux/WSL
+runtime. It does not relax core path equality for cross-OS separator conversions.
+The saved inference-prior override reuses embedded classifier coefficients and
+geographic history; it does not reload a second classifier or scan train Parquet
+for an allowlist. Runtime still performs its existing single streaming train source
+SHA check and the catalog fingerprint check. The wrapper does not duplicate that
+train hash. Dataset/index files remain external and are not copied.
+
+The current research artifact is bound to the fresh 200k catalog. Exporting it does
+not make it compatible with the original benchmark catalog. A different corpus or
+different train source remains rejected; the export is not a submission-ready claim.
+
+Verification scope
+------------------
+Eight new tiny fixture tests cover V7/V8 copy integrity, immutable coefficient and
+vocabulary mismatches, OOF self-exclusion, metadata/source/corpus/split mismatch,
+derived-key guards, actual config reconstruction, relocation of the generated
+wrapper and manifest rejection of a changed MCC file. Together with eleven existing
+export tests: 19 tests run, 18 passed, one optional Hugging Face cache-reader test
+skipped on the host. Tests passed with actual joblib/cloudpickle copied from the
+existing WSL environment and with a standard-library pickle joblib double. No
+Torch/sklearn imports, GPU use, fitted research models or large copies were used.
+The actual saved model export remains a separate action after model selection.
