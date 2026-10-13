@@ -1,0 +1,90 @@
+RETRIEVAL FULL-TUNE V1 — SEVEN DECLARED FOLLOW-UP COMPARISONS
+2026-10-13
+
+Completed report
+----------------
+artifacts/microcategory-research-2026-10-13/retrieval-full-tune.json
+SHA256:55110e4bf5c6995befebf459484ec6ff1777ad923610c8f3cc104896512e3a8e
+All6111 Tune texts /12103 context groups are retained. Available-target
+denominators cover3069 texts /4750 groups and4871 of12800 full pairs(38.055%).
+7353 groups have no available target and remain in full-truth denominators.
+
+Primary metric is conditional-available text-macro CANDIDATE Recall.
+The seven systems/controls were selected by the declared2000-text screen.
+Full Tune includes those screened texts; it is not an independent holdout.
+
+All seven outcomes
+------------------
+Variant                       Candidate Recall  Average pool  New GT / lost GT
+A_title_values(control)            0.89424335       943.6384       29 /0
+A_micro_combined_top3               0.90086233       943.6384       56 /0
+B_description_values(control)      0.89124310       949.3368       14 /0
+B_micro_description_top5            0.89304219       949.3368       28 /0
+F_hybrid_routes                    0.90616785       998.0000       85 /0
+R_dense_current(control)            0.88864498       821.3533        0 /0
+R_dense_no_prompt                   0.88686780       822.8362       17 /22
+
+The original protected pool equals the current-input control in all Recall
+aggregates:0.88864498,average821.3533,max997. Re-encoding current queries
+causes4 non-target substitutions across all groups; no relevant pair is added/lost.
+Every fill retains the original pool and remains at most998 unique IDs.
+
+Paired effects (already computed in the completed report)
+---------------------------------------------------------
+A micro combined(top3) minus typed-title control, SAME realized size:
+  +0.00661898; exploratory95% CI[+0.00341393,+0.01001528].
+B micro description(top5) minus typed-description control, SAME size:
+  +0.00179910; exploratory95% CI[-0.00016525,+0.00382861].
+The B contrast does not clearly distinguish its winner from the control.
+
+F_hybrid_routes minus the original pool:
+  +0.01752287; exploratory95% CI[+0.01346129,+0.02208267].
+Its average size increases by176.6467 to998, adding85 relevant pairs and
+losing none. This is a practical coverage gain, including the effect of more
+candidates. It does not isolate the classifier's contribution from typed
+title/parameters, deeper dense, or their combination.
+
+R_dense_no_prompt minus current:
+  -0.00177718; exploratory95% CI[-0.00484492,+0.00112880].
+There is no evidence here to adopt the no-prompt replacement.
+
+Intervals use3069 normalized-text clusters,2000 bootstrap replicates,
+seed20261013. They are exploratory, uncorrected for the preceding screen and
+winner selection. No new bootstrap or relevant-label parsing was required
+for this summary: both A/B direct contrasts were present in report.matched_controls.
+
+Full-truth and short-query scope
+--------------------------------
+F_hybrid full-truth text-macro candidate Recall rises from0.33542679 to
+0.34162716. Do not multiply conditional Recall by global availability:
+the aggregation weights differ. This sampled cold corpus is not the official
+benchmark, so its score must not be compared directly with historical/hidden
+benchmark numbers.
+
+One-word available texts:152(289 contexts). F_hybrid pool Recall rises from
+0.73054511 to0.77705201, a+0.04650689 point difference. The remaining gap
+persists. This slice result is descriptive after selection, not a separate
+confirmation that short-query relevance has been solved.
+
+Practical decision
+------------------
+F_hybrid is the strongest tested FULL-Tune candidate-pool option under the
+998-ID budget. The A comparison supports micro combined over typed-title
+retrieval at equal size. The earlier screen's microcombined-vs-deeper-dense
+difference was tiny; the current follow-up did not re-evaluate a full-Tune
+dense-depth member, so no full-Tune superiority over depth is claimed.
+The B winner is weaker than A and its direct interval crosses zero.
+
+No new-pool reranker Recall@50 was measured in this candidate-only report.
+The unchanged original RRF reference has Recall@50=0.76972980. Candidate
+Recall0.90617 is an upper bound, not a released reranker or hidden-score gain.
+Any new-pool training must preserve fit-only priors and grouped OOF features.
+
+Full matching used each retained control+winner(2 members per family); the
+screen's minimum used4 members. Equal per-query sizes remain valid, but its
+realized addition budget can increase. Do not call this identical allocation
+to the screen, or an independent validation of the screen's selected winner.
+
+No Audit labels/report were opened or used for this follow-up interpretation.
+Production cached-route parity is a separate membership/order check; it does
+not validate raw BM25 scores, model probabilities, or embedding generation.
