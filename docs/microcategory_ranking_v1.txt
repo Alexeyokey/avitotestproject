@@ -1,0 +1,68 @@
+SOFT MICROCATEGORY RANKING V1 — DECLARED BEFORE NEW OUTCOMES
+2026-10-13
+
+This experiment reuses every candidate and all cached HGB features from the
+completed fresh Tune arm. It retrieves no new IDs, changes no item embedding,
+fits no new reranker and rewrites no HGB model. It never parses the Audit
+labels or report. The independent microcategory classifier must have been
+fitted only on the protocol's allowed fit texts; cold Tune inference does not
+need an OOF fold. A future reranker trained on these scores would require
+normalized-text grouped OOF predictions on its training side.
+
+Frozen hypotheses
+-----------------
+Use the earlier Tune-selected HGB prefix. The completed Tune seal fixes that
+prefix and verifies the same model, training data, cached pools and priors.
+For each candidate, obtain the full microcategory class score for its known
+metadata item_microcat_id, with unseen/missing classes assigned score zero.
+Class scores are soft classifier outputs, not calibrated relevance scores.
+
+Score = logit(HGB probability) + alpha * log(max(class score, 1e-5)).
+Fixed alpha grid: 0, 0.05, 0.1, 0.25. HGB logit clips to [1e-12,1-1e-12].
+For alpha zero use the ORIGINAL HGB probability directly, so transformation
+or clipping cannot change ordering near zero/one. Preserve the established
+tie rule: descending model score, descending original RRF score, original
+candidate-pool order. Each selected top50 stays inside the original pool.
+
+Alpha zero must match the completed HGB hit count for EVERY evaluated group.
+For a full-Tune run every aggregate metric must also reproduce its completed
+reference exactly. A mismatch aborts the experiment; do not loosen this gate
+or label a changed cohort/reference as an improvement.
+
+Measurement
+-----------
+Tune only; optionally screen2000 normalized texts with the SAME label-blind
+salt and context grouping as the retrieval hypothesis study. A full run uses
+--text-limit 0. Keep zero-availability groups in the full-truth denominators.
+Primary metric: conditional-available text-macro Recall@50. Also report full
+truth, group/representative/micro Recall, original RRF, unchanged pool Recall,
+one-word/filter/exact-location slices and paired text-cluster bootstrap.
+Bootstrap: 2000 replicates, seed20261013, percentile95% interval.
+Select the smallest alpha within1e-12 of the best Tune primary score.
+An alpha selected on these same Tune texts is exploratory. Its confidence
+interval does not remove model/alpha selection bias; this is not a new blind
+Audit confirmation or an official benchmark score.
+
+Memory and execution
+--------------------
+Run after root's active GPU/index/large feature jobs finish. This process uses
+CPU HGB and sparse classification only. It scores row batches (default16384)
+and keeps a single complete candidate pool across batch boundaries. Full-class
+probabilities are computed per cold context, and their disposable prediction
+cache is immediately cleared rather than retaining209 scores for12k contexts.
+All model/metadata/producer bytes and classifier source are SHA-bound. Output
+paths must be new; the report and its .groups.jsonl are never overwritten.
+
+Example, from the WSL research checkout
+---------------------------------------
+PYTHONPATH=src:scripts OMP_NUM_THREADS=4 \
+ /home/alex/avitotestproject/.venv/bin/python \
+ scripts/evaluate_microcategory_ranking.py \
+ --protocol-dir artifacts/fresh-validation-2026-10-13/protocol \
+ --cache-dir artifacts/fresh-validation-2026-10-13/cache \
+ --evaluation-dir artifacts/fresh-validation-2026-10-13/evaluation \
+ --model artifacts/fresh-validation-2026-10-13/hgb150-corrected.joblib \
+ --train-data artifacts/fresh-validation-2026-10-13/train-corrected.parquet \
+ --microcategory-model ACTUAL_TRAIN_ONLY_CLASSIFIER.joblib \
+ --text-limit 2000 --batch-size 16384 --bootstrap-replicates 2000 \
+ --output artifacts/microcategory-research-2026-10-13/micro-ranking-screen-v1.json

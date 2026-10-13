@@ -25,6 +25,56 @@ def save_json(path, value):
     print(json.dumps(value, ensure_ascii=False, indent=2))
 
 
+def microcategory_fit_texts(path, *, split, fraction, seed, batch_size=32768):
+    """Explicit query-text allowlist; pairs cannot exclude a query's own labels."""
+    if split not in {"queries", "all"} or (split == "queries" and not 0 < fraction < 1):
+        raise ValueError("Microcategory training requires queries/all with a valid fraction")
+    if batch_size <= 0:
+        raise ValueError("Train batch size must be positive")
+    texts = set()
+    for batch in pq.ParquetFile(path).iter_batches(batch_size=batch_size,
+                                                  columns=["search_query"]):
+        for raw in batch.column(0).to_pylist():
+            text = normalize(raw or "")
+            if text and (split == "all" or not held_out(text, fraction, seed)):
+                texts.add(text)
+    return texts
+
+
+def load_microcategory_channel(args, items, bm25):
+    """Verify saved model/source/allowlist; prediction never refits its history."""
+    from .microcategory import MicrocategoryChannel, SoftMicrocategoryClassifier, _sha_file
+    from .reranker import corpus_fingerprint
+    model_path = Path(args.microcategory_model)
+    envelope = json.loads(model_path.with_suffix(model_path.suffix + ".json").read_text(encoding="utf-8"))
+    metadata = envelope["metadata"]
+    if args.command == "predict":
+        # The original research artifact used an explicit seed42 allowlist.
+        # New CLI artifacts also record the split/fraction. In either case the
+        # derived allowlist digest must exactly match the saved model.
+        split = metadata.get("fit_split", "queries")
+        fraction = metadata.get("validation_fraction", .2)
+        seed = metadata["seed"]
+    else:
+        split, fraction, seed = args.split, args.validation_fraction, args.seed
+        if (metadata.get("fit_split", split) != split or metadata["seed"] != seed
+                or (split == "queries" and metadata.get("validation_fraction", fraction) != fraction)):
+            raise ValueError("Microcategory classifier was trained for a different query split")
+    source = args.data_dir / "train.parquet"
+    allowed = microcategory_fit_texts(source, split=split, fraction=fraction,
+                                     seed=seed, batch_size=args.train_batch_size)
+    classifier = SoftMicrocategoryClassifier.load(model_path, allowed_fit_texts=allowed,
+        corpus_fingerprint=corpus_fingerprint(items, feature_version=4),
+        source_sha256=_sha_file(source))
+    if args.command == "prepare-reranker" and classifier.metadata["crossfit_folds"] < 2:
+        raise ValueError("Reranker preparation requires a microcategory classifier with grouped OOF folds")
+    indexes = {"title": bm25.title_index, "params": bm25.params_index,
+               "description": bm25.description_index}
+    return MicrocategoryChannel(classifier, items, indexes=indexes,
+        field_weights={"title": 2.0, "params": 1.0, "description": .5},
+        top_categories=args.microcategory_top_categories)
+
+
 def batches(rows, size):
     """Ограничиваем память запросов, сохраняя пакетное кодирование dense."""
     for start in range(0, len(rows), size):
@@ -232,6 +282,9 @@ def read_validation(path, corpus_ids, *, mode, fraction, seed, batch_size):
 
 def build_retriever(args, items, *, geo_associations_override=None):
     from .baseline import Baseline
+    micro_enabled = getattr(args, "microcategory_candidate_k", 0) > 0
+    if micro_enabled and (args.method != "hybrid" or getattr(args, "microcategory_model", None) is None):
+        raise ValueError("Microcategory candidates require hybrid and a saved classifier")
 
     # Cold-split rerankers must retrieve with the same saved geography history
     # used by their feature builder. Prediction must not silently refit all rows.
@@ -282,6 +335,11 @@ def build_retriever(args, items, *, geo_associations_override=None):
     if args.method == "bm25":
         return Baseline(items, **bm25_kwargs)
 
+    bm25 = Baseline(items, **bm25_kwargs) if micro_enabled else None
+    micro_channel = None
+    if micro_enabled:
+        micro_channel = load_microcategory_channel(args, items, bm25)
+
     from .dense import DenseRetriever
 
     dense = DenseRetriever(
@@ -294,6 +352,7 @@ def build_retriever(args, items, *, geo_associations_override=None):
         description_words=args.embedding_description_words,
         device=args.device,
         ef_search=args.ef_search,
+        document_format=getattr(args, "embedding_document_format", "current"),
     )
     if args.method == "dense":
         return dense
@@ -301,7 +360,7 @@ def build_retriever(args, items, *, geo_associations_override=None):
     from .hybrid import HybridRetriever
 
     return HybridRetriever(
-        Baseline(items, **bm25_kwargs),
+        bm25 if bm25 is not None else Baseline(items, **bm25_kwargs),
         dense,
         candidate_k=args.candidate_k,
         rank_constant=args.rrf_k,
@@ -310,13 +369,20 @@ def build_retriever(args, items, *, geo_associations_override=None):
         channel_quota=args.channel_quota,
         location_bonus=args.location_bonus,
         rescore_dense_union=getattr(args, "rescore_dense_union", False),
+        microcategory_channel=micro_channel,
+        microcategory_candidate_k=getattr(args, "microcategory_candidate_k", 0),
+        microcategory_field=getattr(args, "microcategory_field", "combined"),
+        microcategory_weight=getattr(args, "microcategory_weight", .25),
+        microcategory_exclude_self=True,
+        supplemental_fill=getattr(args, "supplemental_fill", "off"),
     )
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("command", choices=["profile", "evaluate", "predict", "validate",
-                                             "prepare-reranker", "fit-reranker"])
+                                             "prepare-reranker", "fit-reranker",
+                                             "fit-microcategory"])
     parser.add_argument("--data-dir", type=Path)
     parser.add_argument("--output", type=Path, default=Path("artifacts/result.json"))
     parser.add_argument("--answer", type=Path, default=Path("artifacts/answer.csv"))
@@ -363,6 +429,8 @@ def main():
     parser.add_argument("--embedding-max-length", type=int, default=128)
     parser.add_argument("--embedding-params-words", type=int, default=40)
     parser.add_argument("--embedding-description-words", type=int, default=48)
+    parser.add_argument("--embedding-document-format", choices=["current", "compact", "title_description"],
+                        default="current", help="Document text template; changing it requires its own dense cache")
     parser.add_argument("--device", help="Sentence Transformers device: cpu, mps or cuda")
     parser.add_argument("--dense-cache", type=Path, default=Path("artifacts/dense"))
     parser.add_argument("--ef-search", type=int, default=300)
@@ -384,9 +452,23 @@ def main():
                         help="Trained model to use in evaluate/predict; output path in fit-reranker")
     parser.add_argument("--microcategory-exact-bonus", type=float, default=0.0,
                         help="Smoothed exact-query-text microcategory prior after reranking")
+    parser.add_argument("--microcategory-model", type=Path,
+                        help="Saved fit-only soft classifier; output path for fit-microcategory")
+    parser.add_argument("--microcategory-candidate-k", type=int, default=0,
+                        help="Extra hybrid candidates in unused slots below 1000; 0 disables")
+    parser.add_argument("--microcategory-field", choices=["combined", "title", "params", "description", "desc"],
+                        default="combined", help="BM25 field used inside predicted service microcategories")
+    parser.add_argument("--microcategory-weight", type=float, default=.25,
+                        help="Independent RRF weight of the added microcategory channel")
+    parser.add_argument("--microcategory-top-categories", type=int, default=3,
+                        help="Soft retrieval considers this many predicted microcategories")
+    parser.add_argument("--microcategory-crossfit-folds", type=int, choices=[0, 3, 5], default=0,
+                        help="fit-microcategory: grouped OOF models; 0 is for cold inference only")
+    parser.add_argument("--supplemental-fill", choices=["off", "micro-typed-dense-v1"], default="off",
+                        help="Fill protected hybrid pool with typed title/params, top3 microcategory and deeper dense routes")
     parser.add_argument("--reranker-negatives-per-query", type=int, default=64)
     parser.add_argument("--reranker-max-iter", type=int, default=150)
-    parser.add_argument("--reranker-feature-version", type=int, choices=[4, 5, 6],
+    parser.add_argument("--reranker-feature-version", type=int, choices=[4, 5, 6, 7, 8],
                         default=4, help="Feature schema for prepare-reranker; verified V4 is default")
     parser.add_argument("--reranker-selected-iteration", type=int,
                         help="Evaluate/predict with an explicit available model prefix")
@@ -401,6 +483,30 @@ def main():
     parser.add_argument("--max-train-queries", type=int, default=0,
                         help="Limit training-query preparation for a smoke test")
     args = parser.parse_args()
+    if args.microcategory_field == "desc":
+        args.microcategory_field = "description"
+    if args.supplemental_fill != "off" and (
+            args.method != "hybrid" or args.microcategory_model is None
+            or args.microcategory_candidate_k != 998 or args.microcategory_field != "combined"
+            or args.microcategory_top_categories != 3 or args.embedding_document_format != "current"
+            or args.bm25_weight <= 0 or args.dense_weight <= 0):
+        parser.error("Supplemental v1 requires hybrid, combined micro K998 top3, current dense format and active BM25/dense")
+    import math
+    if (not 0 <= args.microcategory_candidate_k <= 998 or args.microcategory_top_categories < 1
+            or not math.isfinite(args.microcategory_weight) or args.microcategory_weight < 0):
+        parser.error("Microcategory K must be 0..998, top categories positive, weight finite/nonnegative")
+    if args.microcategory_candidate_k and (
+            args.method != "hybrid" or args.microcategory_model is None
+            or args.command not in {"prepare-reranker", "evaluate", "predict"}):
+        parser.error("Microcategory candidates require hybrid evaluate/predict/prepare-reranker with a model")
+    if (args.microcategory_candidate_k and args.command != "predict" and args.split == "pairs"):
+        parser.error("Microcategory retrieval requires --split queries or --split all")
+    if args.command == "fit-microcategory" and (args.microcategory_model is None or args.split == "pairs"):
+        parser.error("fit-microcategory requires --microcategory-model and --split queries/all")
+    if args.command == "fit-microcategory" and (
+            args.microcategory_model.exists()
+            or args.microcategory_model.with_suffix(args.microcategory_model.suffix + ".json").exists()):
+        parser.error("Refusing to overwrite an existing microcategory classifier")
     if args.rescore_dense_union and args.method != "hybrid":
         parser.error("--rescore-dense-union requires --method hybrid")
     if args.reranker_selected_iteration is not None and (
@@ -430,6 +536,13 @@ def main():
     if (args.command == "prepare-reranker" and args.reranker_feature_version == 6
             and (args.method != "hybrid" or not args.rescore_dense_union)):
         parser.error("V6 preparation requires --method hybrid --rescore-dense-union")
+    if (args.command == "prepare-reranker" and args.reranker_feature_version in {7, 8}
+            and (args.method != "hybrid" or args.microcategory_candidate_k <= 0
+                 or args.microcategory_model is None)):
+        parser.error("V7 preparation requires hybrid with a saved OOF microcategory model and positive candidate K")
+    if (args.command == "prepare-reranker" and args.reranker_feature_version == 8
+            and not args.rescore_dense_union):
+        parser.error("V8 preparation requires --rescore-dense-union")
     if args.reranker_crossfit_geography and (
             args.command != "prepare-reranker" or args.geo_candidate_k <= 0):
         parser.error("--reranker-crossfit-geography requires prepare-reranker "
@@ -450,12 +563,27 @@ def main():
         "item_id", "item_title_raw", "item_infm_params_text", "item_description_raw",
         "item_category_id", "item_location_id",
     )
-    if args.command == "prepare-reranker" or args.reranker_model is not None:
+    if (args.command in {"prepare-reranker", "fit-microcategory"}
+            or args.reranker_model is not None or args.microcategory_candidate_k > 0):
         item_columns += ("item_microcat_id", "item_price", "item_rating",
                          "item_rating_reviews_count",
                          "item_is_phone_hidden", "item_is_message_forbidden")
     items = read(root / "benchmark_items.parquet", item_columns)
     ids = {x["item_id"] for x in items}
+    if args.command == "fit-microcategory":
+        from .microcategory import fit_soft_microcategory_classifier
+        from .reranker import corpus_fingerprint
+        allowed = microcategory_fit_texts(root / "train.parquet", split=args.split,
+            fraction=args.validation_fraction, seed=args.seed, batch_size=args.train_batch_size)
+        classifier = fit_soft_microcategory_classifier(root / "train.parquet",
+            allowed_fit_texts=allowed, corpus_fingerprint=corpus_fingerprint(items, feature_version=4),
+            batch_size=args.train_batch_size, crossfit_folds=args.microcategory_crossfit_folds,
+            seed=args.seed)
+        classifier.metadata.update({"fit_split": args.split,
+                                    "validation_fraction": args.validation_fraction if args.split == "queries" else None})
+        classifier.save(args.microcategory_model)
+        save_json(args.output, {"model": str(args.microcategory_model), **classifier.metadata})
+        return
     if args.command == "validate":
         with args.answer.open(encoding="utf-8", newline="") as stream:
             validate_answers(list(csv.DictReader(stream)), [q["query_id"] for q in queries], ids)
@@ -501,7 +629,9 @@ def main():
             items, retrieval_config(args), microcategory_prior=microcategory_prior,
             geo_associations=getattr(bm25, "geo_associations", None),
             feature_names=FEATURE_SCHEMAS[args.reranker_feature_version], leave_query_out=True,
-            leave_geography_query_out=args.reranker_crossfit_geography)
+            leave_geography_query_out=args.reranker_crossfit_geography,
+            microcategory_classifier=(getattr(getattr(model, "microcategory_channel", None), "classifier", None)
+                                       if args.reranker_feature_version in {7, 8} else None))
         metadata = prepare_training_data(
             args.reranker_data, model, builder,
             truth, representatives, split=args.split, fraction=args.validation_fraction,

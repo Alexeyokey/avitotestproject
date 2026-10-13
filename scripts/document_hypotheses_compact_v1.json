@@ -1,0 +1,170 @@
+{
+  "experiment_version": 1,
+  "phase": "tune",
+  "purpose": "Preregistered document-format candidate study after query-only screening; no document outcomes observed",
+  "candidate_budget": 998,
+  "execution_subsets": {
+    "compact_first": "document-hypotheses-compact-v1.json: original control plus four compact layouts",
+    "title_description_if_needed": "document-hypotheses-title-description-v1.json: original control plus four title_description layouts",
+    "joint": "this complete nine-variant declaration requires both produced document streams"
+  },
+  "frozen": {
+    "protocol": "fresh-validation-2026-10-13/protocol",
+    "corpus_size": 200000,
+    "embedding_model": "octen-lora-128-full-mb16-s42/model",
+    "embedding_max_length": 128,
+    "ef_search": 1000,
+    "description_quota": 449,
+    "dense_quota": 449,
+    "geography_quota": 100,
+    "location_bonus": 0.02,
+    "encoder_base_reference": "frozen-encoder-base.json",
+    "encoder_base_reference_required": true,
+    "document_vector_change": "new separate indices; preserve old index and model",
+    "positive_insertion": false
+  },
+  "document_formats": [
+    "compact",
+    "title_description"
+  ],
+  "query_layouts": [
+    "current",
+    "plain",
+    "values",
+    "no_category"
+  ],
+  "primary_reference": "R_dense_current",
+  "screening": {
+    "text_limit": 2000,
+    "text_selection_salt": "retrieval-hypotheses-tune-texts-v1",
+    "groups": "all contexts of selected normalized texts, including zero-availability queries",
+    "selection_metric": "conditional_available_text_macro_candidate_recall",
+    "comparison": "each document/query pair minus new batched dense_current on original document vectors"
+  },
+  "full_tune_followup": {
+    "text_limit": 0,
+    "role": "exploratory follow-up, not an independent confirmation",
+    "selection_rule": "Within each built document format advance exactly the best of current/plain/values/no_category by conditional-available text-macro candidate Recall; keep R_dense_current as its direct full-Tune control. Ties within1e-12 prefer smaller average realized unique pool, then lexicographic variant name. Losing winners must be reported as losing, not silently discarded.",
+    "maximum_non_control_variants": 2,
+    "index_schedule": "Build/evaluate compact first. The title_description index is a separate declared option and is built only if the remaining retrieval/ranking bottleneck or compact result justifies another index experiment; record that decision before starting its producer, not from Audit outcomes.",
+    "audit_rule": "Do not parse or score the completed Audit labels/report to choose document format, query input, quotas or model settings"
+  },
+  "inference": {
+    "candidate_metric": "pool upper bound, not new-reranker Recall@50",
+    "rrf_reference": "unchanged original cached top50, separate reference only",
+    "bootstrap": {
+      "unit": "normalized query text",
+      "replicates": 2000,
+      "seed": 20261013,
+      "interval": "percentile95%; exploratory, not corrected for hypothesis selection"
+    },
+    "source_scope": "same sampled cold catalog and completeGT denominators as other Tune studies; no direct comparison with historical/official scores"
+  },
+  "provenance": {
+    "required_producer_flag": "--encoder-base-reference",
+    "reference_filename": "frozen-encoder-base.json",
+    "index_identity": "corpus identifiers/order plus encoder fingerprint, base-model reference, document-format version and token/word limits",
+    "candidate_channels": "ranked unique research-catalog IDs; protocol/cache/source/model file hashes remain bound"
+  },
+  "variants": [
+    {
+      "name": "R_dense_current",
+      "mode": "replace",
+      "channels": {
+        "description": {
+          "source": "base",
+          "quota": 449
+        },
+        "dense_current": {
+          "source": "new",
+          "quota": 449
+        },
+        "description_geo": {
+          "source": "base",
+          "quota": 100
+        }
+      }
+    },
+    {
+      "name": "R_compact_current",
+      "mode": "replace",
+      "channels": {
+        "description": {
+          "source": "base",
+          "quota": 449
+        },
+        "dense_compact_current": {
+          "source": "new",
+          "quota": 449
+        },
+        "description_geo": {
+          "source": "base",
+          "quota": 100
+        }
+      },
+      "comparison_reference": "R_dense_current"
+    },
+    {
+      "name": "R_compact_plain",
+      "mode": "replace",
+      "channels": {
+        "description": {
+          "source": "base",
+          "quota": 449
+        },
+        "dense_compact_plain": {
+          "source": "new",
+          "quota": 449
+        },
+        "description_geo": {
+          "source": "base",
+          "quota": 100
+        }
+      },
+      "comparison_reference": "R_dense_current"
+    },
+    {
+      "name": "R_compact_values",
+      "mode": "replace",
+      "channels": {
+        "description": {
+          "source": "base",
+          "quota": 449
+        },
+        "dense_compact_values": {
+          "source": "new",
+          "quota": 449
+        },
+        "description_geo": {
+          "source": "base",
+          "quota": 100
+        }
+      },
+      "comparison_reference": "R_dense_current"
+    },
+    {
+      "name": "R_compact_no_category",
+      "mode": "replace",
+      "channels": {
+        "description": {
+          "source": "base",
+          "quota": 449
+        },
+        "dense_compact_no_category": {
+          "source": "new",
+          "quota": 449
+        },
+        "description_geo": {
+          "source": "base",
+          "quota": 100
+        }
+      },
+      "comparison_reference": "R_dense_current"
+    }
+  ],
+  "active_document_formats": [
+    "compact"
+  ],
+  "declared_before_document_outcomes": true,
+  "derived_from": "document_hypotheses_v1.json"
+}

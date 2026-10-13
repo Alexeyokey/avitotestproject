@@ -67,6 +67,21 @@ def query_text(query) -> str:
     return " ".join(parts)
 
 
+def document_text(item, *, document_format="current", params_words=40,
+                  description_words=48):
+    """Render one explicit corpus format without altering the legacy layout."""
+    if document_format == "current":
+        return item_text(item, params_words=params_words,
+                         description_words=description_words)
+    if document_format not in {"compact", "title_description"}:
+        raise ValueError(f"Unknown embedding document format: {document_format}")
+    # Lazy import avoids the helper module's deliberate imports of item_text
+    # and query_text forming an initialization cycle.
+    from .embedding_formats import item_format
+    return item_format(item, document_format, params_words=params_words,
+                       description_words=description_words)
+
+
 def _fingerprint(
     items,
     model_name: str,
@@ -74,18 +89,25 @@ def _fingerprint(
     params_words=40,
     description_words=48,
     model_signature="",
+    document_format="current",
 ) -> str:
+    if document_format not in {"current", "compact", "title_description"}:
+        raise ValueError(f"Unknown embedding document format: {document_format}")
     digest = hashlib.sha256(
         f"{_CACHE_VERSION}\0{model_name}\0{max_seq_length}\0"
         f"{params_words}\0{description_words}\0".encode()
     )
     if model_signature:
         digest.update(f"{model_signature}\0".encode())
+    if document_format != "current":
+        from .embedding_formats import FORMAT_VERSION
+        digest.update(f"document_format\0{document_format}\0{FORMAT_VERSION}\0".encode())
     for item in items:
         digest.update(str(item["item_id"]).encode())
         digest.update(b"\0")
-        digest.update(item_text(
+        digest.update(document_text(
             item,
+            document_format=document_format,
             params_words=params_words,
             description_words=description_words,
         ).encode())
@@ -218,12 +240,16 @@ class DenseRetriever:
         ef_construction=200,
         ef_search=300,
         m=32,
+        require_cached_index=False,
+        document_format="current",
     ):
         if (batch_size <= 0 or encode_chunk_size <= 0 or max_seq_length <= 0
                 or checkpoint_items <= 0):
             raise ValueError("Embedding batch and chunk sizes must be positive")
         if ef_construction <= 0 or ef_search <= 0 or m <= 0:
             raise ValueError("HNSW parameters must be positive")
+        if document_format not in {"current", "compact", "title_description"}:
+            raise ValueError(f"Unknown embedding document format: {document_format}")
         self.ids = [item["item_id"] for item in items]
         if len(set(self.ids)) != len(self.ids):
             raise ValueError("Duplicate corpus item_id")
@@ -234,6 +260,7 @@ class DenseRetriever:
         self.max_seq_length = max_seq_length
         self.params_words = params_words
         self.description_words = description_words
+        self.document_format = document_format
         self.checkpoint_items = checkpoint_items
         self.ef_search = ef_search
         self.index = None
@@ -262,6 +289,7 @@ class DenseRetriever:
             params_words,
             description_words,
             self.model_signature,
+            document_format=document_format,
         )
         index_path = cache_dir / f"{fingerprint}.bin"
         metadata_path = cache_dir / f"{fingerprint}.json"
@@ -277,6 +305,12 @@ class DenseRetriever:
                 self.index.load_index(str(index_path), max_elements=len(items))
                 self.index.set_ef(max(self.ef_search, 50))
                 return
+
+        # Query-format experiments must never silently encode the inventory
+        # again. A cache-only caller gets an explicit failure on any mismatch.
+        if require_cached_index:
+            raise FileNotFoundError(
+                f"Matching completed dense index is required: {index_path}")
 
         start_item = 0
         # Промежуточный индекс содержит только первые indexed_items объявлений.
@@ -301,8 +335,9 @@ class DenseRetriever:
         for start in range(start_item, len(items), encode_chunk_size):
             stop = min(start + encode_chunk_size, len(items))
             texts = [
-                item_text(
+                document_text(
                     item,
+                    document_format=self.document_format,
                     params_words=self.params_words,
                     description_words=self.description_words,
                 )
@@ -364,6 +399,10 @@ class DenseRetriever:
         }
         if self.model_signature:
             metadata["model_signature"] = self.model_signature
+        if self.document_format != "current":
+            from .embedding_formats import FORMAT_VERSION
+            metadata["document_format"] = self.document_format
+            metadata["document_format_version"] = FORMAT_VERSION
         return metadata
 
     def retrieve(self, query, limit=50):

@@ -55,7 +55,14 @@ V4_FEATURES = (*LEGACY_FEATURES,
 FEATURES = (*V4_FEATURES, "microcat_top50_share")
 # V5 remains loadable; the full-pool cosine experiment starts from verified V4.
 V6_FEATURES = (*V4_FEATURES, "full_dense_score", "full_dense_known")
-FEATURE_SCHEMAS = {3: LEGACY_FEATURES, 4: V4_FEATURES, 5: FEATURES, 6: V6_FEATURES}
+V7_FEATURES = (*V4_FEATURES,
+    "microcat_classifier_probability", "microcat_classifier_rank",
+    "microcat_classifier_entropy", "microcat_classifier_top3_mass",
+    "microcat_classifier_known", "rank_microcategory_channel",
+    "present_microcategory_channel", "score_microcategory_channel")
+V8_FEATURES = (*V7_FEATURES, "full_dense_score", "full_dense_known")
+FEATURE_SCHEMAS = {3: LEGACY_FEATURES, 4: V4_FEATURES, 5: FEATURES,
+                   6: V6_FEATURES, 7: V7_FEATURES, 8: V8_FEATURES}
 GROUP_COLUMNS = (
     ("group_id", pa.string()), ("query_text", pa.string()),
     ("query_key_json", pa.string()), ("item_id", pa.string()),
@@ -120,12 +127,36 @@ def retrieval_config(args):
         for name in ("embedding_model", "embedding_max_length", "embedding_params_words",
                      "embedding_description_words", "ef_search"):
             config[name] = getattr(args, name)
+        if getattr(args, "embedding_document_format", "current") != "current":
+            config["embedding_document_format"] = args.embedding_document_format
     if args.method == "hybrid":
         for name in ("rrf_k", "bm25_weight", "dense_weight", "channel_quota"):
             config[name] = getattr(args, name)
         if getattr(args, "rescore_dense_union", False):
             config["rescore_dense_union"] = True
+        if getattr(args, "microcategory_candidate_k", 0) > 0:
+            from .microcategory import _sha_file
+            config.update({
+                "microcategory_model": str(args.microcategory_model),
+                "microcategory_model_sha256": _sha_file(args.microcategory_model),
+                "microcategory_candidate_k": args.microcategory_candidate_k,
+                "microcategory_field": args.microcategory_field,
+                "microcategory_weight": args.microcategory_weight,
+                "microcategory_top_categories": args.microcategory_top_categories,
+                "microcategory_selection_policy": "top998-then-novel-prefix",
+            })
+        if getattr(args, "supplemental_fill", "off") != "off":
+            config.update(supplemental_fill=args.supplemental_fill,
+                          supplemental_raw_depth=998, supplemental_rank_constant=60,
+                          supplemental_selection_policy="raw-ranks-equal-route-novel-rrf-id-ties")
     return config
+
+
+def inference_microcategory_classifier(classifier):
+    """Share fitted estimators while excluding disposable prediction-cache data."""
+    from .microcategory import SoftMicrocategoryClassifier
+    return SoftMicrocategoryClassifier(classifier.model, classifier.crossfit_models,
+                                        dict(classifier.metadata))
 
 
 class FeatureBuilder:
@@ -133,10 +164,12 @@ class FeatureBuilder:
 
     def __init__(self, items, config, *, microcategory_prior=None,
                  geo_associations=None, feature_names=None,
-                 leave_query_out=False, leave_geography_query_out=False):
+                 leave_query_out=False, leave_geography_query_out=False,
+                 microcategory_classifier=None):
         self.items = {item["item_id"]: item for item in items}
         self.config = config
         self.microcategory_prior = microcategory_prior
+        self.microcategory_classifier = microcategory_classifier
         self.geo_associations = geo_associations
         self.leave_query_out = leave_query_out
         self.leave_geography_query_out = leave_geography_query_out
@@ -146,6 +179,17 @@ class FeatureBuilder:
         if self.feature_names == V6_FEATURES and (
                 config.get("method") != "hybrid" or not config.get("rescore_dense_union")):
             raise ValueError("V6 requires hybrid retrieval with full-pool dense rescoring")
+        if self.feature_names in {V7_FEATURES, V8_FEATURES}:
+            if (config.get("method") != "hybrid" or config.get("microcategory_candidate_k", 0) <= 0
+                    or microcategory_classifier is None):
+                raise ValueError("V7 requires hybrid microcategory retrieval and its saved classifier")
+            if microcategory_classifier.metadata.get("crossfit_folds", 0) < 2:
+                raise ValueError("V7 requires a grouped OOF microcategory classifier")
+            if microcategory_classifier.metadata.get("corpus_fingerprint") != corpus_fingerprint(
+                    self.items.values(), feature_version=4):
+                raise ValueError("V7 microcategory classifier was trained for a different item corpus")
+        if self.feature_names == V8_FEATURES and not config.get("rescore_dense_union"):
+            raise ValueError("V8 requires full-pool measured dense rescoring")
         from collections import Counter
         self.location_counts = Counter(str(item.get("item_location_id", ""))
                                        for item in items)
@@ -165,8 +209,54 @@ class FeatureBuilder:
     def transform(self, query, details, baseline, candidate_ids=None):
         pool = details["candidate_pool"]
         candidate_ids = pool if candidate_ids is None else candidate_ids
+        classifier_probabilities, classifier_ranks = {}, {}
+        classifier_entropy = classifier_top3_mass = 0.0
+        micro_name, micro_rank_map, micro_score_map = None, {}, {}
+        if self.feature_names in {V7_FEATURES, V8_FEATURES}:
+            classifier = self.microcategory_classifier
+            try:
+                # Seen query texts always use their held-out-fold model, also
+                # at prediction time. All classes are needed for item scores
+                # and entropy, rather than truncating the distribution at K.
+                predictions = classifier.predict_categories(query,
+                    top_k=len(classifier.model.classes), exclude_self=True)
+            finally:
+                # No 30k-query cache of 200-class Python tuples is serialized
+                # or retained between feature frames. Retrieval's top-K cache
+                # is disposable and the actual model weights remain untouched.
+                classifier._prediction_cache.clear()
+            probabilities = np.asarray([prob for _category, prob in predictions], dtype=np.float64)
+            classes = [str(category) for category, _prob in predictions]
+            if (not len(probabilities) or len(set(classes)) != len(classes)
+                    or not np.isfinite(probabilities).all() or np.any(probabilities < 0)
+                    or np.any(probabilities > 1) or not np.isclose(probabilities.sum(), 1, atol=1e-5)):
+                raise ValueError("V7 classifier requires a complete finite probability distribution")
+            classifier_probabilities = dict(zip(classes, probabilities))
+            classifier_ranks = {category: 1 / rank for rank, category in enumerate(classes, 1)}
+            positive = probabilities[probabilities > 0]
+            classifier_entropy = (float(-(positive * np.log(positive)).sum() / np.log(len(classes)))
+                                  if len(classes) > 1 else 0.0)
+            classifier_entropy = float(np.clip(classifier_entropy, 0, 1))
+            classifier_top3_mass = float(probabilities[:3].sum())
+            micro_name = "micro_" + self.config.get("microcategory_field", "combined")
+            active = [name for name in details["channels"] if name.startswith("micro_")]
+            if any(name != micro_name for name in active):
+                raise ValueError("V7 expects only the configured microcategory candidate channel")
+            micro_ids = details["channels"].get(micro_name, [])
+            micro_score_map = details.get("channel_scores", {}).get(micro_name, {})
+            try:
+                valid_micro_scores = all(np.isfinite(float(score)) and float(score) >= 0
+                                         for score in micro_score_map.values())
+            except (TypeError, ValueError):
+                valid_micro_scores = False
+            if (len(micro_ids) != len(set(micro_ids)) or not set(micro_ids).issubset(pool)
+                    or set(micro_score_map) != set(micro_ids)
+                    or not valid_micro_scores):
+                raise ValueError("V7 microcategory scores must cover its channel exactly and be finite")
+            micro_rank_map = {item_id: 1 / (self.config["rrf_k"] + rank)
+                              for rank, item_id in enumerate(micro_ids, 1)}
         full_dense_scores = {}
-        if self.feature_names == V6_FEATURES:
+        if self.feature_names in {V6_FEATURES, V8_FEATURES}:
             full_dense_scores = details.get("full_dense_scores", {})
             if set(full_dense_scores) != set(pool):
                 raise ValueError("V6 full dense scores must cover every pool candidate")
@@ -316,6 +406,15 @@ class FeatureBuilder:
                 # A score of zero is a real measured cosine, not missing data.
                 # Nonempty V6 pools must be fully scored; empty pools have no rows.
                 output[row_number] = (*v4_values, full_dense_scores[item_id], 1.0)
+            elif self.feature_names in {V7_FEATURES, V8_FEATURES}:
+                v7_values = (*v4_values,
+                    classifier_probabilities.get(microcat, 0.0),
+                    classifier_ranks.get(microcat, 0.0), classifier_entropy,
+                    classifier_top3_mass, float(microcat in classifier_probabilities),
+                    micro_rank_map.get(item_id, 0.0), float(item_id in micro_rank_map),
+                    micro_score_map.get(item_id, 0.0))
+                output[row_number] = (v7_values if self.feature_names == V7_FEATURES else
+                                      (*v7_values, full_dense_scores[item_id], 1.0))
             else:
                 share = top50_microcats[microcat] / max(1, len(baseline)) if microcat else 0.0
                 output[row_number] = (*v4_values, share)
@@ -496,6 +595,9 @@ def prepare_training_data(path, retriever, builder, truth, representatives, *,
                     builder.items.values(), feature_version=feature_version),
                 "split": split, "validation_fraction": fraction if split == "queries" else 1.0,
                 "seed": seed, "stats": stats}
+    if feature_version in {7, 8}:
+        metadata["training_prior_policy"]["microcategory_classifier"] = "grouped-out-of-fold"
+        metadata["microcategory_classifier_metadata"] = dict(builder.microcategory_classifier.metadata)
     if builder.config["method"] in {"dense", "hybrid"}:
         from .dense import local_checkpoint_content_fingerprint, offline_adapter_base_reference
         checkpoint = builder.config.get("embedding_model")
@@ -508,9 +610,14 @@ def prepare_training_data(path, retriever, builder, truth, representatives, *,
             embedding_base_repo=base["base_repo"],
             embedding_base_revision=base["base_revision"],
         )
-    joblib.dump({"microcategory_prior": builder.microcategory_prior,
-                 "geo_associations": builder.geo_associations},
-                path.with_suffix(path.suffix + ".priors.joblib"))
+    priors = {"microcategory_prior": builder.microcategory_prior,
+              "geo_associations": builder.geo_associations}
+    if feature_version in {7, 8}:
+        classifier = builder.microcategory_classifier
+        # Share immutable TF-IDF/SGD objects; do not deepcopy their coefficients.
+        # A fresh wrapper drops the disposable prediction cache from the file.
+        priors["microcategory_classifier"] = inference_microcategory_classifier(classifier)
+    joblib.dump(priors, path.with_suffix(path.suffix + ".priors.joblib"))
     path.with_suffix(path.suffix + ".json").write_text(
         json.dumps(metadata, ensure_ascii=False, indent=2), encoding="utf-8")
     return metadata
@@ -696,6 +803,16 @@ def fit_model(data_path, model_path, *, max_iter=150, estimator="histgb",
     if version == 6 and (metadata.get("retrieval_config", {}).get("method") != "hybrid"
                          or not metadata["retrieval_config"].get("rescore_dense_union")):
         raise ValueError("V6 fitting requires hybrid full-pool dense rescoring metadata")
+    if version in {7, 8}:
+        config = metadata.get("retrieval_config", {})
+        classifier_metadata = metadata.get("microcategory_classifier_metadata", {})
+        if (config.get("method") != "hybrid" or config.get("microcategory_candidate_k", 0) <= 0
+                or classifier_metadata.get("crossfit_folds", 0) < 2
+                or classifier_metadata.get("corpus_fingerprint") != metadata.get("corpus_fingerprint")
+                or metadata.get("training_prior_policy", {}).get("microcategory_classifier") != "grouped-out-of-fold"):
+            raise ValueError("V7 fitting requires verified grouped OOF classifier provenance")
+        if version == 8 and not config.get("rescore_dense_union"):
+            raise ValueError("V8 fitting requires full-pool measured dense rescoring metadata")
     if not isinstance(max_iter, Integral) or isinstance(max_iter, bool) or max_iter <= 0:
         raise ValueError("Reranker iterations must be positive")
     if estimator not in {"histgb", "lightgbm", "lambdarank"}:
@@ -725,7 +842,7 @@ def fit_model(data_path, model_path, *, max_iter=150, estimator="histgb",
         raise ValueError("Training requires both clicked and unobserved examples")
     if not np.isfinite(matrix).all() or not np.isfinite(weights).all() or np.any(weights <= 0):
         raise ValueError("Training features and positive weights must be finite")
-    if version == 6 and (np.any(matrix[:, expected.index("full_dense_known")] != 1.0)
+    if version in {6, 8} and (np.any(matrix[:, expected.index("full_dense_known")] != 1.0)
                          or np.any(np.abs(matrix[:, expected.index("full_dense_score")]) > 1.0001)):
         raise ValueError("Every V6 training row requires a measured valid full dense cosine")
     group_sizes = validate_training_groups(table, metadata) if estimator == "lambdarank" else None
@@ -753,6 +870,11 @@ def fit_model(data_path, model_path, *, max_iter=150, estimator="histgb",
     model_path.parent.mkdir(parents=True, exist_ok=True)
     prior_path = data_path.with_suffix(data_path.suffix + ".priors.joblib")
     priors = joblib.load(prior_path) if prior_path.exists() and version >= 4 else {}
+    if version in {7, 8}:
+        classifier = priors.get("microcategory_classifier")
+        if classifier is None or classifier.metadata != metadata["microcategory_classifier_metadata"]:
+            raise ValueError("V7 fitting requires the matching saved microcategory classifier")
+        classifier._prediction_cache.clear()
     versions = {}
     for name in ("numpy", "scikit-learn", "lightgbm", "pyarrow", "joblib"):
         try:
@@ -816,6 +938,12 @@ class Reranker:
                     or self.metadata["seed"] != seed):
                 raise ValueError("Evaluate reranker only on its held-out query-text split")
         priors = artifact.get("priors", {})
+        if version in {7, 8}:
+            classifier = priors.get("microcategory_classifier")
+            if (classifier is None or classifier.metadata != self.metadata.get("microcategory_classifier_metadata")
+                    or self.metadata.get("training_prior_policy", {}).get("microcategory_classifier") != "grouped-out-of-fold"):
+                raise ValueError("V7 reranker requires the matching saved OOF microcategory classifier")
+            classifier._prediction_cache.clear()
         self.exact_microcategory_prior = priors.get("microcategory_prior")
         self.microcategory_exact_bonus = microcategory_exact_bonus
         self.builder = FeatureBuilder(
@@ -823,7 +951,8 @@ class Reranker:
             microcategory_prior=(None if artifact.get("disable_microcategory_prior")
                                  else priors.get("microcategory_prior")),
             geo_associations=priors.get("geo_associations"),
-            feature_names=expected)
+            feature_names=expected,
+            microcategory_classifier=priors.get("microcategory_classifier"))
 
     def rank_batch(self, queries, results, limit=50):
         """Считаем оценки пачкой и сортируем каждый пул отдельно."""

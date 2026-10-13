@@ -132,6 +132,12 @@ class HybridRetriever:
         channel_quota=0,
         location_bonus=0.0,
         rescore_dense_union=False,
+        microcategory_channel=None,
+        microcategory_candidate_k=0,
+        microcategory_field="combined",
+        microcategory_weight=0.25,
+        microcategory_exclude_self=True,
+        supplemental_fill="off",
     ):
         if candidate_k <= 0:
             raise ValueError("candidate_k must be positive")
@@ -145,6 +151,19 @@ class HybridRetriever:
             raise ValueError("Location bonus requires BM25 item locations")
         if rescore_dense_union and not callable(getattr(dense, "score_candidates_batch", None)):
             raise ValueError("Full-pool dense rescoring requires score_candidates_batch")
+        if (not 0 <= microcategory_candidate_k <= 998
+                or microcategory_field not in {"combined", "title", "params", "description"}
+                or not math.isfinite(microcategory_weight) or microcategory_weight < 0):
+            raise ValueError("Invalid microcategory candidate settings")
+        if microcategory_candidate_k and microcategory_channel is None:
+            raise ValueError("Microcategory candidates require a fitted channel")
+        if supplemental_fill not in {"off", "micro-typed-dense-v1"}:
+            raise ValueError("Unknown supplemental fill policy")
+        if supplemental_fill != "off" and (
+                microcategory_candidate_k != 998 or microcategory_field != "combined"
+                or microcategory_channel is None or microcategory_channel.top_categories != 3
+                or bm25_weight <= 0 or dense_weight <= 0):
+            raise ValueError("Supplemental v1 requires combined micro K998 top3 and active BM25/dense")
         self.bm25 = bm25
         self.dense = dense
         self.candidate_k = candidate_k
@@ -154,8 +173,18 @@ class HybridRetriever:
         self.channel_quota = channel_quota
         self.location_bonus = location_bonus
         self.rescore_dense_union = rescore_dense_union
+        self.microcategory_channel = microcategory_channel
+        self.microcategory_candidate_k = microcategory_candidate_k
+        self.microcategory_field = microcategory_field
+        self.microcategory_weight = microcategory_weight
+        self.microcategory_exclude_self = microcategory_exclude_self
+        self.supplemental_fill = supplemental_fill
+        self.supplemental = None
+        if supplemental_fill != "off":
+            from .supplemental import SupplementalFill
+            self.supplemental = SupplementalFill(microcategory_channel, dense)
 
-    def _ranked_channels(self, query, dense_result=None):
+    def _ranked_channels(self, query, dense_result=None, supplemental_dense_result=None):
         channels = []
         channel_scores = {}
         if self.bm25_weight > 0:
@@ -186,6 +215,43 @@ class HybridRetriever:
             dense_ids, dense_scores = dense_result
             channels.append(("dense", dense_ids, self.dense_weight))
             channel_scores["dense"] = dense_scores
+        if self.supplemental is not None:
+            protected = {item_id for _name, ids, _weight in channels for item_id in ids}
+            added, retained, measured, fill_scores = self.supplemental.retrieve(
+                query, protected, dense_result=supplemental_dense_result,
+                exclude_self=self.microcategory_exclude_self)
+            # The zero-weight marker preserves the prototype's exact novel-RRF
+            # append order. Route lists then expose their raw measured scores
+            # and order without duplicating candidates in the union.
+            if added:
+                channels.append(("supplemental_fill", added, 0.))
+                channel_scores["supplemental_fill"] = fill_scores
+            for name, ids in retained.items():
+                if ids:
+                    channels.append((name, ids, self.microcategory_weight))
+                    channel_scores[name] = measured[name]
+        elif self.microcategory_candidate_k:
+            # Preserve the exact-city, global BM25 and dense union. The new
+            # route spends only unused capacity, before optional related cities.
+            protected = {item_id for _name, ids, _weight in channels for item_id in ids}
+            if len(protected) > 998:
+                raise ValueError("Protected hybrid pool exceeds the 998-item microcategory budget")
+            proposed, raw_scores, _micro_diagnostics = self.microcategory_channel.retrieve(
+                query, 998, existing_ids=(), field=self.microcategory_field,
+                exclude_self=self.microcategory_exclude_self)
+            if (len(proposed) != len(set(proposed)) or len(proposed) > 998
+                    or set(raw_scores) != set(proposed)):
+                raise ValueError("Microcategory route violated the protected candidate budget")
+            # Match the frozen prototype: category diversity is allocated in
+            # the raw top998 list, then base duplicates are removed. Re-running
+            # its category guarantees after removal changes the tested pool.
+            added = [item_id for item_id in proposed if item_id not in protected][
+                :min(self.microcategory_candidate_k, 998 - len(protected))]
+            scores = {item_id: raw_scores[item_id] for item_id in added}
+            if added:
+                name = f"micro_{self.microcategory_field}"
+                channels.append((name, added, self.microcategory_weight))
+                channel_scores[name] = scores
         # Preserve every exact-city, global BM25 and dense candidate. Related
         # cities only fill unused places under the challenge's 998-item cap.
         if (self.bm25_weight > 0 and getattr(self.bm25, "geo_include_related", False)
@@ -280,6 +346,10 @@ class HybridRetriever:
     def retrieve_batch_with_diagnostics(self, queries, limit=50):
         """Ищем dense-кандидатов пачкой, сохраняя BM25 и RRF для каждого запроса."""
         queries = list(queries)
+        if self.microcategory_candidate_k:
+            self.microcategory_channel.classifier.predict_categories_batch(
+                queries, top_k=self.microcategory_channel.top_categories,
+                exclude_self=self.microcategory_exclude_self)
         if self.dense_weight > 0:
             if hasattr(self.dense, "retrieve_batch_with_scores"):
                 dense_results = self.dense.retrieve_batch_with_scores(
@@ -289,11 +359,19 @@ class HybridRetriever:
                                  self.dense.retrieve_batch(queries, self.candidate_k)]
         else:
             dense_results = [None] * len(queries)
+        # A larger HNSW request can change its smaller prefix. Preserve the
+        # original base search exactly; issue the supplemental request separately.
+        if self.supplemental is not None:
+            supplemental_results = self.dense.retrieve_batch_with_scores(queries, 998)
+            if len(supplemental_results) != len(queries):
+                raise ValueError("Supplemental dense search returned a different batch size")
+        else:
+            supplemental_results = [None] * len(queries)
         results = [
             self._fuse_with_diagnostics(
-                query, self._ranked_channels(query, dense_ids), limit
+                query, self._ranked_channels(query, dense_ids, supplemental_dense), limit
             )
-            for query, dense_ids in zip(queries, dense_results)
+            for query, dense_ids, supplemental_dense in zip(queries, dense_results, supplemental_results)
         ]
         return self._attach_full_dense_scores(queries, results)
 

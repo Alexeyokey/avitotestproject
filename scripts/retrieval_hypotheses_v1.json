@@ -1,0 +1,255 @@
+{
+  "experiment_version": 1,
+  "phase": "tune",
+  "purpose": "Preregistered candidate-only microcategory and query-input study; no Audit selection",
+  "candidate_budget": 998,
+  "frozen": {
+    "corpus": "fresh-validation-2026-10-13/protocol",
+    "encoder": "octen-lora-128-full-mb16-s42/model",
+    "embedding_max_length": 128,
+    "ef_search": 1000,
+    "base_description_k": 449,
+    "base_dense_k": 449,
+    "base_geo_k": 100,
+    "location_bonus": 0.02,
+    "original_pool_preserved_by_fill": true,
+    "positive_insertion": false
+  },
+  "screening": {
+    "text_limit": 2000,
+    "text_selection_salt": "retrieval-hypotheses-tune-texts-v1",
+    "unit": "normalized query text; every context of a selected text is retained",
+    "source": "tune cache metadata identities only",
+    "selection_metric": "conditional_available_text_macro_candidate_recall"
+  },
+  "full_tune_followup": {
+    "text_limit": 0,
+    "role": "Exploratory follow-up on every 6111 Tune text, not an independent holdout",
+    "groups": 12103,
+    "selection_rule": "Take best non-control candidate Recall within family A and family B, best practical fill, and best alternate dense replacement; retain each family's declared control for direct full-Tune comparison. Ties within 1e-12 choose smaller average realized pool, then lexicographic variant name. A selected hypothesis may still lose to its control and must be reported as such.",
+    "maximum_non_control_variants": 4,
+    "audit_rule": "Do not open or score the completed Audit arm to select variants or change retrieval/model settings"
+  },
+  "inference": {
+    "candidate_metric": "Candidate Recall is the pool upper bound; no new-pool reranker Recall@50 is computed",
+    "unchanged_rrf_reference": "Original cached top50, shown separately",
+    "bootstrap": {
+      "unit": "normalized query text",
+      "replicates": 2000,
+      "seed": 20261013,
+      "interval": "percentile 95%; exploratory and uncorrected for hypothesis-grid selection"
+    }
+  },
+  "variants": [
+    {
+      "name": "A_title_values",
+      "mode": "fill",
+      "channels": {
+        "lexical_title_values": 1
+      },
+      "addition_quota": 177,
+      "matched_addition_family": "A_equal_additions"
+    },
+    {
+      "name": "A_micro_title_top3",
+      "mode": "fill",
+      "channels": {
+        "micro_title_top3": 1
+      },
+      "addition_quota": 177,
+      "matched_addition_family": "A_equal_additions"
+    },
+    {
+      "name": "A_micro_combined_top3",
+      "mode": "fill",
+      "channels": {
+        "micro_combined_top3": 1
+      },
+      "addition_quota": 177,
+      "matched_addition_family": "A_equal_additions"
+    },
+    {
+      "name": "A_dense_depth",
+      "mode": "fill",
+      "channels": {
+        "dense_current": 1
+      },
+      "addition_quota": 177,
+      "matched_addition_family": "A_equal_additions"
+    },
+    {
+      "name": "B_description_values",
+      "mode": "fill",
+      "channels": {
+        "lexical_description_values": 1
+      },
+      "addition_quota": 177,
+      "matched_addition_family": "B_equal_additions"
+    },
+    {
+      "name": "B_micro_description_top1",
+      "mode": "fill",
+      "channels": {
+        "micro_description_top1": 1
+      },
+      "addition_quota": 177,
+      "matched_addition_family": "B_equal_additions"
+    },
+    {
+      "name": "B_micro_description_top3",
+      "mode": "fill",
+      "channels": {
+        "micro_description_top3": 1
+      },
+      "addition_quota": 177,
+      "matched_addition_family": "B_equal_additions"
+    },
+    {
+      "name": "B_micro_description_top5",
+      "mode": "fill",
+      "channels": {
+        "micro_description_top5": 1
+      },
+      "addition_quota": 177,
+      "matched_addition_family": "B_equal_additions"
+    },
+    {
+      "name": "F_title_plain",
+      "mode": "fill",
+      "channels": {
+        "lexical_title": 1
+      },
+      "addition_quota": null
+    },
+    {
+      "name": "F_title_values",
+      "mode": "fill",
+      "channels": {
+        "lexical_title_values": 1
+      },
+      "addition_quota": null
+    },
+    {
+      "name": "F_typed_title_params",
+      "mode": "fill",
+      "channels": {
+        "lexical_title_values": 1,
+        "lexical_params_values": 1
+      },
+      "addition_quota": null
+    },
+    {
+      "name": "F_micro_combined_top3",
+      "mode": "fill",
+      "channels": {
+        "micro_combined_top3": 1
+      },
+      "addition_quota": null
+    },
+    {
+      "name": "F_hybrid_routes",
+      "mode": "fill",
+      "channels": {
+        "lexical_title_values": 1,
+        "lexical_params_values": 1,
+        "micro_combined_top3": 1,
+        "dense_current": 1
+      },
+      "addition_quota": null
+    },
+    {
+      "name": "R_dense_current",
+      "mode": "replace",
+      "channels": {
+        "description": {
+          "source": "base",
+          "quota": 449
+        },
+        "dense_current": {
+          "source": "new",
+          "quota": 449
+        },
+        "description_geo": {
+          "source": "base",
+          "quota": 100
+        }
+      }
+    },
+    {
+      "name": "R_dense_plain",
+      "mode": "replace",
+      "channels": {
+        "description": {
+          "source": "base",
+          "quota": 449
+        },
+        "dense_plain": {
+          "source": "new",
+          "quota": 449
+        },
+        "description_geo": {
+          "source": "base",
+          "quota": 100
+        }
+      },
+      "comparison_reference": "R_dense_current"
+    },
+    {
+      "name": "R_dense_values",
+      "mode": "replace",
+      "channels": {
+        "description": {
+          "source": "base",
+          "quota": 449
+        },
+        "dense_values": {
+          "source": "new",
+          "quota": 449
+        },
+        "description_geo": {
+          "source": "base",
+          "quota": 100
+        }
+      },
+      "comparison_reference": "R_dense_current"
+    },
+    {
+      "name": "R_dense_no_category",
+      "mode": "replace",
+      "channels": {
+        "description": {
+          "source": "base",
+          "quota": 449
+        },
+        "dense_no_category": {
+          "source": "new",
+          "quota": 449
+        },
+        "description_geo": {
+          "source": "base",
+          "quota": 100
+        }
+      },
+      "comparison_reference": "R_dense_current"
+    },
+    {
+      "name": "R_dense_no_prompt",
+      "mode": "replace",
+      "channels": {
+        "description": {
+          "source": "base",
+          "quota": 449
+        },
+        "dense_no_prompt": {
+          "source": "new",
+          "quota": 449
+        },
+        "description_geo": {
+          "source": "base",
+          "quota": 100
+        }
+      },
+      "comparison_reference": "R_dense_current"
+    }
+  ]
+}

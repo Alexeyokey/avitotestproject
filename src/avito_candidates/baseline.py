@@ -88,8 +88,25 @@ class BM25Index:
             if len(allowed) != len(self.ids):
                 raise ValueError("Allowed-item mask must match the index size")
             candidates = candidates[allowed[candidates]]
-        order = np.lexsort((candidates, -scores[candidates]))[:limit]
-        selected = candidates[order]
+        values = scores[candidates]
+        if 0 < limit < len(candidates) and np.all(np.isfinite(values)):
+            # Only K rows need sorting. Partition on the score first, then
+            # resolve every tie at the boundary by the original row number.
+            # Merely sorting argpartition's arbitrary K rows loses tied IDs.
+            top = np.argpartition(values, len(values) - limit)[-limit:]
+            boundary = values[top].min()
+            better = candidates[values > boundary]
+            tied = candidates[values == boundary]
+            remaining = limit - len(better)
+            if len(tied) > remaining:
+                tied = np.partition(tied, remaining - 1)[:remaining]
+            selected = np.concatenate((better, tied))
+            selected = selected[np.lexsort((selected, -scores[selected]))]
+        else:
+            # Empty/small lists and nonfinite caller-supplied scores retain
+            # NumPy's existing complete-sort semantics exactly.
+            order = np.lexsort((candidates, -values))[:limit]
+            selected = candidates[order]
         ids = [self.ids[row] for row in selected]
         if return_scores:
             return ids, {self.ids[row]: float(scores[row]) for row in selected}

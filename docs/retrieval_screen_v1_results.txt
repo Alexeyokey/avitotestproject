@@ -1,0 +1,126 @@
+RETRIEVAL SCREEN V1 — RESULTS AND DECLARED FULL-TUNE FOLLOW-UP
+2026-10-13
+
+Completed input
+---------------
+artifacts/microcategory-research-2026-10-13/retrieval-screen-2000.json
+SHA256:3d85a3c1acbaa6e9b2efd3ada8e749dc1db2bfef05584cb9f94e09d2fe7bc619
+The completed screen contains all18 declared variants,2000 normalized Tune
+texts and3902 context groups selected by identity hash. Available targets:
+1515 groups /988 texts,1548 pairs out of4115 full relevant pairs(37.618%).
+This is the sampled research catalog, not the official benchmark.
+
+Candidate-only results
+----------------------
+Primary column: conditional-available text-macro CANDIDATE Recall.
+
+Variant                         Recall       Average pool    Added positives
+Original protected pool        0.88972190      823.6871              0
+A_title_values(control)        0.89368614      937.3626              6
+A_micro_combined_top3           0.90198814      937.3626             18
+A_dense_depth                  0.90118566      937.3626             17
+B_description_values(control)  0.89279208      937.7845              5
+B_micro_description_top5        0.89604299      937.7845             13
+F_micro_combined_top3           0.90258820      978.7309             21
+F_hybrid_routes                0.90563187      998.0000             25
+R_dense_current(control)        0.88972190      823.6871              0
+R_dense_no_prompt               0.88839888      824.9851              9*
+
+All fill variants preserve every original candidate; their positive losses
+are zero. Replacement no_prompt also LOSES8 positives. Its macro Recall is
+lower despite9 additions because texts/contexts have different macro weights.
+Plain/values/no_category query replacements also trail the current control.
+No query-layout replacement is recommended for adoption from this screen.
+
+Matched controls
+----------------
+Family A uses EXACTLY the same realized pool size for all four members.
+Micro combined(top3) minus unrestricted typed title:
+  delta+0.00830201; exploratory95% CI[+0.00219298,+0.01450742].
+Dense-depth extension minus the same title control:
+  delta+0.00749952; exploratory95% CI[+0.00067476,+0.01485444].
+Micro combined minus dense-depth is only+0.00080249 in point estimates.
+The screen therefore does NOT establish that microcategory classification
+beats a deeper dense extension; do not attribute the whole gain to it.
+
+Family B micro description(top5) minus unrestricted typed description:
+  delta+0.00325092; exploratory95% CI[+0.00025304,+0.00690428].
+
+The practical four-route fill gains+0.01590997 vs the protected pool,
+CI[+0.00912618,+0.02301427], but grows its average size to998 from823.69.
+The practical micro-only fill gains+0.01286630,
+CI[+0.00678379,+0.01961635], at average978.73.
+These comparisons include the effect of more candidates. They cannot isolate
+the classifier's causal contribution. All intervals are exploratory Tune
+intervals, uncorrected for hypothesis-grid and winner selection.
+
+One-word slice has only49 available texts(92 contexts). Its pool Recall goes
+from0.69567541 to0.74912536 with F_hybrid_routes. This is a small selected
+subgroup, not evidence that the general one-word problem has been solved.
+
+Full-Tune selection applied exactly as declared
+-----------------------------------------------
+New config:
+artifacts/microcategory-research-2026-10-13/retrieval-full-followup-v1.json
+Source:scripts/retrieval_hypotheses_followup_v1.json
+
+Four selected non-control variants:
+  Family A: A_micro_combined_top3.
+  Family B: B_micro_description_top5.
+  Practical fill: F_hybrid_routes.
+  Best query alternate: R_dense_no_prompt(still below current on screen).
+Retained controls:A_title_values,B_description_values,R_dense_current.
+Total7 variants. Primary ties within1e-12 would choose smaller average pool,
+then lexicographic name; none of the winning choices needs a tie override.
+
+Use the same three frozen supplementary streams and headers with
+--configuration .../retrieval-full-followup-v1.json --text-limit 0.
+The existing evaluator CLI already implements this comparison. No producer
+or evaluator was edited to select/execute the follow-up. Root schedules the
+actual full run; this subtask did not launch a heavy job.
+
+Budget caveat: the screen's matched minimum was computed across four family
+members. Full follow-up retains only each control and winner, so its minimum
+is recomputed across those two. Additions may rise on a query. The two systems
+still have exactly equal realized sizes, at most177 new IDs and total998.
+Record this allocation change; full-Tune numbers are not a fresh holdout
+confirmation and must not be silently called the identical screen capacity.
+
+Production implementation parity (CURRENT WSL source inspected)
+---------------------------------------------------------------
+The earlier prototype/runtime discrepancies have BEEN FIXED:
+  MicrocategoryChannel._scores now uses embedding_formats.extract_filter_values
+  exactly as the frozen micro producer, without changing classifier formatting.
+  Hybrid obtains raw top998 with existing_ids=(), then removes protected base
+  duplicates and takes the novel prefix. It does not reallocate per-category
+  guarantees after excluding the original pool.
+Proof:artifacts/microcategory-research-2026-10-13/microcategory-production-parity.json
+This records unchanged fitting-helper hashes and top998-then-novel-prefix.
+The current avito CLI supports the single microcategory extension, its field,
+top-category count, cap, model and grouped OOF preparation guards.
+
+F_hybrid_routes requires a broader production extension than that single
+microcategory CLI route. Exact candidate membership policy:
+  1. Preserve the original description449+dense449+geo100 UNIQUE pool B.
+  2. Produce these four depth998 lists in this exact order:
+     lexical_title_values,lexical_params_values,micro_combined_top3,dense_current.
+     Typed lexical text is search_query+' '+extract_filter_values(search_params).
+     Title BM25:k1=1,b=.2. Params BM25:k1=1.2,b=.7.
+     Micro combined uses the same classifier and producer's normalized field
+     scores/category allocation. Dense uses the unchanged current query input.
+  3. For novel ID i outside B, addition_score(i)=sum[1/(60+rank(i))]
+     over those four lists containing i. Ranks are the ORIGINAL per-list ranks
+     before base IDs are removed. Weights are all1. Duplicate IDs within one
+     list are invalid; an ID present in multiple lists receives multiple terms.
+  4. Sort novel IDs by(-addition_score,item_id), then take first998-|B|.
+  5. Candidate pool order for parity is original B order followed by that novel
+     prefix. No old ID is removed or re-ranked to allocate candidate slots.
+These addition-selection scores are NOT the final RRF/reranker score rule.
+New-pool reranker training/features require a separately declared policy.
+Simply turning on standard title/params BM25 weights or giving a new route a
+positive final-RRF weight does not reproduce this protected four-list policy.
+
+No Audit labels/report were opened or used for selection. No reranker gain,
+independent generalization gain or official hidden score is claimed here.
+The optional global-vs-OOF cold100-query comparison was not run while the
+separate compact-document GPU producer is active.
