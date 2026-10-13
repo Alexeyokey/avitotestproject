@@ -28,6 +28,31 @@ class FakeRetriever:
 
 
 class RerankerTest(unittest.TestCase):
+    def test_unspecified_zero_category_has_same_features_as_missing_category(self):
+        from avito_candidates.reranker import V4_FEATURES
+        items = [{"item_id": "zero", "item_category_id": "0"},
+                 {"item_id": "known", "item_category_id": "service"},
+                 {"item_id": "missing", "item_category_id": ""}]
+        config = {"method": "bm25", "candidate_k": 3, "title_weight": 1.0,
+                  "params_weight": 0.0, "description_weight": 0.0,
+                  "stem_title_weight": 0.0, "stem_params_weight": 0.0,
+                  "location_bonus": 0.0, "bm25_rrf_k": 30}
+        details = {"candidate_pool": ["zero", "known", "missing"],
+                   "channels": {"title": ["zero", "known", "missing"]}}
+        builder = FeatureBuilder(items, config, feature_names=V4_FEATURES)
+        missing = builder.transform({"search_query": "repair"}, details, ["zero"])
+        for sentinel in ("0", 0):
+            matrix = builder.transform({"search_query": "repair", "search_category": sentinel},
+                                       details, ["zero"])
+            self.assertTrue((matrix == missing).all())
+            for name in ("category_match", "category_known"):
+                self.assertEqual(matrix[:, V4_FEATURES.index(name)].tolist(), [0.0, 0.0, 0.0])
+        known = builder.transform({"search_query": "repair", "search_category": "service"},
+                                  details, ["zero"])
+        self.assertEqual(known[:, V4_FEATURES.index("category_match")].tolist(), [0.0, 1.0, 0.0])
+        self.assertEqual(known[1, V4_FEATURES.index("category_known")], 1.0)
+        self.assertEqual(known[2, V4_FEATURES.index("category_known")], 0.0)
+
     def test_geo_features_use_only_remaining_query_text_history(self):
         from avito_candidates.geography import LocationAssociations
         associations = LocationAssociations(

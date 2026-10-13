@@ -103,16 +103,34 @@ def dense_scores_for_full_pools(dense, queries, results, id_to_label):
 
 def build_cache(path, *, truth, representatives, keys, builder, retriever,
                 items_by_id, fit_items, benchmark_strata, model_metadata,
-                model_reference, model_hash, batch_size, role, max_pool_size):
+                model_reference, model_hash, batch_size, role, max_pool_size,
+                partitioner=None, historical_holdout_reused=True,
+                extra_group_metadata=None, extra_metadata=None,
+                allow_empty_relevance=False):
+    # Fresh protocols may keep zero-availability groups to expose inventory
+    # coverage rather than silently removing them from the evaluation cohort.
+    if not keys or (not allow_empty_relevance and any(not truth[key] for key in keys)):
+        raise ValueError("Cache requires groups and nonempty relevance unless explicitly allowed")
+    extra_metadata = dict(extra_metadata or {})
+    extra_group_metadata = extra_group_metadata or {}
     meta_path = path.with_suffix(".json")
     if path.exists() or meta_path.exists():
         if not (path.exists() and meta_path.exists()):
             raise ValueError(f"Incomplete cache already exists: {path}")
         cached = json.loads(meta_path.read_text(encoding="utf-8"))
+        saved_digest = cached.get("cache_parquet_sha256")
+        if ((not historical_holdout_reused and not saved_digest)
+                or (saved_digest and saved_digest != digest(path))):
+            raise ValueError(f"Cache Parquet bytes changed or are unsealed: {path}")
         if (cached.get("cache_version") != 2 or cached["model_sha256"] != model_hash
                 or cached["retrieval_config"] != builder.config
                 or len(cached["groups"]) != len(keys)
-                or cached["role"] != role):
+                or cached.get("corpus_fingerprint") != model_metadata["corpus_fingerprint"]
+                or any(group["pool_size"] > max_pool_size for group in cached["groups"])
+                or cached["role"] != role
+                or [tuple(group["query_key"]) for group in cached["groups"]] != list(keys)
+                or cached.get("historical_holdout_reused", True) != historical_holdout_reused
+                or any(cached.get(key) != value for key, value in extra_metadata.items())):
             raise ValueError(f"Existing cache differs from this audit: {path}")
         print(f"Reusing completed cache {path}", flush=True)
         return cached
@@ -162,11 +180,16 @@ def build_cache(path, *, truth, representatives, keys, builder, retriever,
                     "unseen_relevant_count": len(relevant - fit_items),
                     "pool_size": len(pool), "positives_in_pool": found,
                     "baseline_hits": baseline_hits,
-                    "partition": partition(text) if role == "validation" else "train_sample",
+                    "partition": ((partitioner or partition)(text)
+                                  if role == "validation" else "train_sample"),
                     "no_exact_location": query_location not in corpus_locations,
                     "has_filters": bool(query.get("search_infm_params_text", "")),
                     "one_word": len(text.split()) <= 1,
                 }
+                additions = extra_group_metadata.get(key, {})
+                if set(additions) & set(group):
+                    raise ValueError("Extra group metadata cannot overwrite retrieval outcomes")
+                group.update(additions)
                 groups.append(group)
                 matrix = builder.transform(query, details, baseline)
                 if matrix.shape != (len(pool), len(builder.feature_names)):
@@ -186,8 +209,8 @@ def build_cache(path, *, truth, representatives, keys, builder, retriever,
                 ])
                 tables.append(pa.Table.from_arrays(arrays, schema=schema))
                 rows += len(pool)
-                pool_recall_sum += found / len(relevant)
-                baseline_recall_sum += baseline_hits / len(relevant)
+                pool_recall_sum += found / max(1, len(relevant))
+                baseline_recall_sum += baseline_hits / max(1, len(relevant))
             if tables:
                 writer.write_table(pa.concat_tables(tables))
             if time.monotonic() - last_progress >= 30 or len(groups) == len(keys):
@@ -196,6 +219,7 @@ def build_cache(path, *, truth, representatives, keys, builder, retriever,
                                  ensure_ascii=False), flush=True)
                 last_progress = time.monotonic()
 
+    available_groups = sum(bool(truth[key]) for key in keys)
     metadata = {
         "cache_version": 2, "role": role,
         "created_utc": datetime.now(timezone.utc).isoformat(),
@@ -205,7 +229,7 @@ def build_cache(path, *, truth, representatives, keys, builder, retriever,
         "corpus_fingerprint": model_metadata["corpus_fingerprint"],
         "split": model_metadata["split"], "seed": model_metadata["seed"],
         "validation_fraction": model_metadata["validation_fraction"],
-        "historical_holdout_reused": True,
+        "historical_holdout_reused": historical_holdout_reused,
         "model_reference": str(model_reference), "model_sha256": model_hash,
         "training_prior_policy": model_metadata.get("training_prior_policy", {
             "microcategory": "leave-query-text-out", "geography": "full-fit-history"}),
@@ -213,21 +237,29 @@ def build_cache(path, *, truth, representatives, keys, builder, retriever,
         "leave_geography_query_out": getattr(builder, "leave_geography_query_out", False),
         "full_dense_score_max_abs_difference_from_topk": max_dense_error,
         "rows": rows, "groups": groups, "benchmark_strata": benchmark_strata,
-        "pool_recall": pool_recall_sum / len(keys),
-        "baseline_recall_at_50": baseline_recall_sum / len(keys),
+        "available_groups": available_groups,
+        "pool_recall": pool_recall_sum / available_groups if available_groups else None,
+        "baseline_recall_at_50": baseline_recall_sum / available_groups if available_groups else None,
+        "summary_metric": "available-positive group macro; full-truth/text metrics require fresh evaluator",
+        "cache_parquet_sha256": digest(temporary),
         "limitations": [
             "Positives are observed choices, and other candidates are unlabelled.",
             "Only positive items present in benchmark_items enter the denominator.",
-            "The historical holdout has already been used for model selection.",
+            ("The historical holdout has already been used for model selection."
+             if historical_holdout_reused else
+             "Fresh cohort: model selection must use tuning texts only, with audit locked until selection."),
             "Train-sample features exclude the query's own microcategory history, as in training.",
         ],
     }
+    if set(extra_metadata) & set(metadata):
+        raise ValueError("Extra cache metadata cannot overwrite retrieval provenance")
+    metadata.update(extra_metadata)
     temporary.replace(path)
     meta_temporary = meta_path.with_suffix(".json.partial")
     meta_temporary.write_text(json.dumps(metadata, ensure_ascii=False, indent=2), encoding="utf-8")
     meta_temporary.replace(meta_path)
-    print(f"Completed {path}: pool={metadata['pool_recall']:.6f}, "
-          f"baseline={metadata['baseline_recall_at_50']:.6f}", flush=True)
+    print(f"Completed {path}: available_group_pool={metadata['pool_recall']}, "
+          f"available_group_baseline={metadata['baseline_recall_at_50']}", flush=True)
     return metadata
 
 

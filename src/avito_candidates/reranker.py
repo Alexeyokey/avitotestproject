@@ -201,6 +201,10 @@ class FeatureBuilder:
                         if rating_match else None)
         location = str(query.get("search_location_id", ""))
         category = str(query.get("search_category", ""))
+        # Zero denotes an unspecified search category, as in dense.query_text.
+        # It must not look like an observed category or match an item ID of 0.
+        if category == "0":
+            category = ""
         geo_locations = set(details.get("geo_locations", ()))
         channel_scores = details.get("channel_scores", {})
         channel_rank_maps = [ranks.get(name, {}) for name in CHANNELS]
