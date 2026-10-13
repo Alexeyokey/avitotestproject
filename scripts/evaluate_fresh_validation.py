@@ -34,6 +34,14 @@ POLICY = {
     "audit_comparisons": ["selected_stage", "baseline_rrf"],
     "bootstrap_unit": "normalized query text", "bootstrap_seed": 20261013,
     "bootstrap_replicates": 2000,
+    "source_controlled_diagnostic": {
+        "version": 1, "name": "train_source_only",
+        "candidate_filter": "item_id absent from original benchmark_items; filter existing pool only",
+        "systems": ["tune-selected model prefix", "RRF score order"], "limit": 50,
+        "denominators": "same available and full GT; every full GT must be train-source",
+        "selection_effect": "none; primary text-macro and five-stage winner are unchanged",
+        "scope": "Counterfactual smaller pool, not an official metric or proof of static-feature causality",
+    },
 }
 SLICE_DENOMINATORS = {
     "local_positive": "local_relevant_count",
@@ -130,6 +138,29 @@ def phase_cache_paths(cache_dir, phase):
     return root / "validation.parquet", root / "validation.json"
 
 
+def read_original_benchmark_items(manifest):
+    """Bind the metadata-source control to original inventory bytes, before labels."""
+    import pyarrow.parquet as pq
+    entry = manifest.get("sources", {}).get("benchmark_items", {})
+    expected, raw_path = entry.get("sha256"), entry.get("path")
+    if (not isinstance(expected, str) or not re.fullmatch(r"[0-9a-f]{64}", expected)
+            or not isinstance(raw_path, str) or not raw_path):
+        raise ValueError("Source control requires the sealed original benchmark inventory identity")
+    path = Path(raw_path)
+    if not path.is_file() or sha256_file(path) != expected:
+        raise ValueError("Original benchmark inventory changed or is missing for source control")
+    values = pq.read_table(path, columns=["item_id"])["item_id"].to_pylist()
+    ids = set(values)
+    if (not ids or len(ids) != len(values)
+            or any(not isinstance(item, str) or not re.fullmatch(r"[0-9a-f]{16}", item) for item in ids)
+            or entry.get("rows") != len(values)):
+        raise ValueError("Original benchmark source inventory has invalid IDs or row count")
+    if sha256_file(path) != expected:
+        raise ValueError("Original benchmark source inventory changed while reading IDs")
+    return ids, {"path": str(path.resolve()), "sha256": expected, "items": len(ids),
+                 "item_ids_sha256": canonical_sha256(sorted(ids))}
+
+
 def check_phase_cache_inputs(path, metadata, phase, protocol_hash, model_hash):
     """Validate cache identity, bytes and shape without opening protocol labels."""
     import pyarrow.parquet as pq
@@ -173,7 +204,8 @@ def check_phase_cache_inputs(path, metadata, phase, protocol_hash, model_hash):
     return actual_hash
 
 
-def bind_cache_groups(metadata, protocol_groups, phase, protocol_hash, model_hash):
+def bind_cache_groups(metadata, protocol_groups, phase, protocol_hash, model_hash, *,
+                      original_benchmark_ids=None):
     if (metadata.get("role") != "validation"
             or metadata.get("fresh_partition") != phase
             or metadata.get("fresh_validation_protocol_sha256") != protocol_hash
@@ -191,6 +223,9 @@ def bind_cache_groups(metadata, protocol_groups, phase, protocol_hash, model_has
         if identity not in protocol_groups or identity in identities:
             raise ValueError("Cache query identity differs from protocol")
         source = protocol_groups[identity]
+        if (original_benchmark_ids is not None
+                and set(source["relevant_item_ids"]) & original_benchmark_ids):
+            raise ValueError("Source-controlled fresh full GT contains an original benchmark item")
         if normalize_query_text(cached.get("query_text", "")) != source["query_text"]:
             raise ValueError("Cache query text differs from protocol")
         for field in ("full_relevant_count", "available_relevant_count", "representative"):
@@ -216,7 +251,8 @@ def bind_cache_groups(metadata, protocol_groups, phase, protocol_hash, model_has
     return bound
 
 
-def score_cached_group(group, items, labels, local, seen, baseline, rrf, predictions):
+def score_cached_group(group, items, labels, local, seen, baseline, rrf, predictions, *,
+                       original_benchmark_ids=None):
     count = len(items)
     if (count != group["pool_size"] or len(set(items)) != count
             or not all(len(values) == count for values in (labels, local, baseline, rrf))
@@ -235,6 +271,19 @@ def score_cached_group(group, items, labels, local, seen, baseline, rrf, predict
     row = {key: value for key, value in group.items() if not key.startswith("_")}
     row["baseline_hits"] = baseline_hits
     row["pool_hits"] = sum(labels)
+    source_indices = None
+    if original_benchmark_ids is not None:
+        source_indices = [index for index, item in enumerate(items) if item not in original_benchmark_ids]
+        source_hits = sum(labels[index] for index in source_indices)
+        if source_hits != row["pool_hits"]:
+            raise ValueError("Source filtering removed a fresh positive from the candidate pool")
+        source_rrf = [rrf[index] for index in source_indices]
+        source_baseline = top_indices(source_rrf, source_rrf, 50)
+        row.update(train_source_only_pool_size=len(source_indices),
+                   train_source_only_removed_candidates=count - len(source_indices),
+                   train_source_only_pool_hits=source_hits,
+                   train_source_only_baseline_hits=sum(labels[source_indices[index]] for index in source_baseline),
+                   train_source_only_baseline_selected_count=len(source_baseline))
     masks = {"local_positive": list(map(bool, local)),
              "nonlocal_positive": [not bool(x) for x in local]}
     if seen is not None:
@@ -252,12 +301,18 @@ def score_cached_group(group, items, labels, local, seen, baseline, rrf, predict
             raise ValueError("Model scores do not cover the complete pool")
         selected = top_indices(scores, rrf, 50)
         row[f"s{stage}_hits"] = sum(labels[index] for index in selected)
+        if source_indices is not None:
+            source_selected = top_indices([scores[index] for index in source_indices],
+                                          [rrf[index] for index in source_indices], 50)
+            row[f"s{stage}_train_source_only_hits"] = sum(
+                labels[source_indices[index]] for index in source_selected)
+            row[f"s{stage}_train_source_only_selected_count"] = len(source_selected)
         for kind, mask in masks.items():
             row[f"s{stage}_{kind}_hits"] = sum(labels[index] for index in selected if mask[index])
     return row
 
 
-def score_cache(path, metadata, groups, artifact, stages, batch_size):
+def score_cache(path, metadata, groups, artifact, stages, batch_size, *, original_benchmark_ids=None):
     """Carry a partial query pool across batches; retain metadata-only empty pools."""
     import numpy as np
     import pyarrow.parquet as pq
@@ -283,14 +338,16 @@ def score_cache(path, metadata, groups, artifact, stages, batch_size):
             if group["pool_size"] != 0:
                 raise ValueError("Cache omitted a nonempty protocol pool")
             rows.append(score_cached_group(group, [], [], [], [] if has_seen else None,
-                                           [], [], {stage: [] for stage in stages}))
+                                           [], [], {stage: [] for stage in stages},
+                                           original_benchmark_ids=original_benchmark_ids))
             next_id += 1
 
     def flush():
         nonlocal next_id
         if pending_id != next_id:
             raise ValueError("Cache group order is inconsistent")
-        rows.append(score_cached_group(groups[pending_id], **pending))
+        rows.append(score_cached_group(groups[pending_id], **pending,
+                                       original_benchmark_ids=original_benchmark_ids))
         next_id += 1
 
     for batch in parquet.iter_batches(batch_size=batch_size, columns=columns):
@@ -422,6 +479,41 @@ def paired_bootstrap(rows, stage, *, replicates=2000, seed=20261013):
     return {"metric": POLICY["selection_metric"], "comparison": "selected minus baseline RRF",
             "query_text_clusters": len(deltas), "replicates": replicates, "seed": seed,
             "delta": sum(deltas) / len(deltas), "percentile_95_interval": [sampled[low], sampled[high]]}
+
+
+def summarize_source_controlled(rows, stage, source_identity, *, bootstrap_replicates=2000):
+    """Report only the primary-selected stage on an explicitly counterfactual pool."""
+    if not rows or any(row.get("train_source_only_pool_hits") != row["pool_hits"] for row in rows):
+        raise ValueError("Source-controlled diagnostic must retain all full-pool positive hits")
+    sources = {"selected_reranker": f"s{stage}_train_source_only_hits",
+               "rrf": "train_source_only_baseline_hits", "pool": "train_source_only_pool_hits"}
+    projected = [{**row, f"s{stage}_hits": row[f"s{stage}_train_source_only_hits"],
+                  "baseline_hits": row["train_source_only_baseline_hits"]} for row in rows]
+    paired = paired_bootstrap(projected, stage, replicates=bootstrap_replicates)
+    paired["comparison"] = "selected reranker minus RRF, both restricted to train-source-only candidates"
+    return {
+        "policy": POLICY["source_controlled_diagnostic"], "selected_stage": stage,
+        "original_benchmark_inventory": source_identity,
+        "conditional_available": {name: aggregate(rows, hits, "available_relevant_count")
+                                  for name, hits in sources.items()},
+        "full_truth": {name: aggregate(rows, hits, "full_relevant_count") for name, hits in sources.items()},
+        "paired_selected_vs_rrf": paired,
+        "pool_statistics": {
+            "groups": len(rows), "average_size": sum(row["train_source_only_pool_size"] for row in rows) / len(rows),
+            "maximum_size": max(row["train_source_only_pool_size"] for row in rows),
+            "groups_with_fewer_than_50_candidates": sum(row["train_source_only_pool_size"] < 50 for row in rows),
+            "average_removed_original_benchmark_candidates": sum(
+                row["train_source_only_removed_candidates"] for row in rows) / len(rows),
+            "average_returned_candidates": sum(row[f"s{stage}_train_source_only_selected_count"] for row in rows) / len(rows),
+            "positive_hits_preserved_from_full_pool": True,
+        },
+        "limitations": [
+            "This filters an already retrieved pool; no replacement retrieval is performed.",
+            "Fresh positives were selected outside the original inventory, so a source cue can be predictive.",
+            "Removing original-inventory negatives changes competition and cannot establish causality or justify dropping static features.",
+            "Primary model selection and its denominators are unchanged; this is not the official benchmark metric.",
+        ],
+    }
 
 
 def make_selection(protocol_hash, model_hash, cache_hashes, report_hash, stage, reports, train_hash,
@@ -594,12 +686,15 @@ def main(argv=None):
         raise ValueError("Fresh model changed before opening protocol labels")
     if sha256_file(args.protocol_dir / "manifest.json") != protocol_hash:
         raise ValueError("Fresh protocol changed before opening its label partition")
+    original_benchmark_ids, source_identity = read_original_benchmark_items(manifest)
     # Parsing labels comes after the seal, model/encoder/training provenance,
     # saved priors, cache compatibility and independent Parquet integrity checks.
     labels = read_phase_labels(args.protocol_dir, manifest, args.phase)
-    groups = bind_cache_groups(metadata, labels, args.phase, protocol_hash, model_hash)
+    groups = bind_cache_groups(metadata, labels, args.phase, protocol_hash, model_hash,
+                               original_benchmark_ids=original_benchmark_ids)
     cache_hashes = {"parquet": parquet_hash, "metadata": sha256_file(cache_metadata_path)}
-    rows = score_cache(cache_path, metadata, groups, artifact, stages, args.batch_size)
+    rows = score_cache(cache_path, metadata, groups, artifact, stages, args.batch_size,
+                       original_benchmark_ids=original_benchmark_ids)
     reports = {str(stage): summarize(rows, stage) for stage in stages}
     report = {"report_version": 1, "phase": args.phase, "policy": POLICY,
               "protocol_sha256": protocol_hash, "model_sha256": model_hash,
@@ -613,6 +708,7 @@ def main(argv=None):
     selected = choose_stage(reports) if args.phase == "tune" else stages[0]
     report["selected_stage"] = selected
     report["paired_selected_vs_rrf"] = paired_bootstrap(rows, selected)
+    report["source_controlled"] = summarize_source_controlled(rows, selected, source_identity)
     if args.phase == "tune":
         best = reports[str(selected)]["conditional_available"]["reranker"]["text_macro_recall_at_50"]
         final = reports["150"]["conditional_available"]["reranker"]["text_macro_recall_at_50"]

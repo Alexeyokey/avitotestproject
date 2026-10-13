@@ -132,6 +132,76 @@ class CacheBindingTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "full_relevant_count"):
             EVAL.bind_cache_groups(self.metadata([cached]), groups, "tune", "protocol", "model")
 
+    def test_source_control_rejects_original_benchmark_gt_even_when_unavailable(self):
+        source = protocol_group(available=(A,), full=(A, B))
+        with self.assertRaisesRegex(ValueError, "full GT contains an original benchmark"):
+            EVAL.bind_cache_groups(self.metadata([cached_group(source)]), {source["group_id"]: source},
+                                   "tune", "protocol", "model", original_benchmark_ids={B})
+
+
+class SourceControlledDiagnosticTests(unittest.TestCase):
+    def test_original_benchmark_negatives_can_hide_positive_in_full_top50(self):
+        source = protocol_group(available=(A,), full=(A, B))
+        benchmark_negatives = [f"{index:016x}" for index in range(50)]
+        items = benchmark_negatives + [A]
+        group = scoring_group(source, pool_size=51, positives=1, baseline_hits=0)
+        scored = EVAL.score_cached_group(group, items, [0] * 50 + [1],
+            [False] * 50 + [True], None, [True] * 50 + [False], list(range(50, -1, -1)),
+            {50: [0.9] * 50 + [0.1]}, original_benchmark_ids=set(benchmark_negatives))
+        self.assertEqual(scored["s50_hits"], 0)
+        self.assertEqual(scored["baseline_hits"], 0)
+        self.assertEqual(scored["train_source_only_pool_size"], 1)
+        self.assertEqual(scored["train_source_only_removed_candidates"], 50)
+        self.assertEqual(scored["train_source_only_pool_hits"], scored["pool_hits"])
+        self.assertEqual(scored["train_source_only_baseline_hits"], 1)
+        self.assertEqual(scored["s50_train_source_only_hits"], 1)
+        self.assertEqual(scored["s50_train_source_only_selected_count"], 1)
+        primary = EVAL.summarize([scored], 50)
+        controlled = EVAL.summarize_source_controlled([scored], 50, {"fixture": True}, bootstrap_replicates=20)
+        self.assertEqual(primary["conditional_available"]["reranker"]["text_macro_recall_at_50"], 0.0)
+        self.assertEqual(controlled["conditional_available"]["selected_reranker"]["text_macro_recall_at_50"], 1.0)
+        self.assertEqual(controlled["full_truth"]["selected_reranker"]["text_macro_recall_at_50"], 0.5)
+        self.assertEqual(controlled["paired_selected_vs_rrf"]["delta"], 0.0)
+        self.assertEqual(controlled["pool_statistics"]["groups_with_fewer_than_50_candidates"], 1)
+
+    def test_filter_uses_source_membership_and_reranks_rrf_without_baseline_flags(self):
+        source = protocol_group(available=(A,), full=(A,))
+        group = scoring_group(source, pool_size=3, positives=1, baseline_hits=0)
+        scored = EVAL.score_cached_group(group, [B, A, C], [0, 1, 0], [False, True, False], None,
+            [True, False, False], [3.0, 2.0, 1.0], {50: [0.9, 0.8, 0.7]}, original_benchmark_ids={B})
+        self.assertEqual(scored["train_source_only_baseline_selected_count"], 2)
+        self.assertEqual(scored["train_source_only_baseline_hits"], 1)
+        self.assertEqual(scored["s50_train_source_only_hits"], 1)
+        self.assertEqual(scored["available_relevant_count"], 1)
+        self.assertEqual(scored["full_relevant_count"], 1)
+
+    def test_positive_source_filter_and_incomplete_diagnostics_fail_closed(self):
+        group = scoring_group(protocol_group(), pool_size=1)
+        with self.assertRaisesRegex(ValueError, "removed a fresh positive"):
+            EVAL.score_cached_group(group, [A], [1], [True], None, [True], [0.1], {50: [0.9]},
+                                    original_benchmark_ids={A})
+        with self.assertRaisesRegex(ValueError, "retain all full-pool positive"):
+            EVAL.summarize_source_controlled([row("query", 1, 1, 1, 0, stage=50)], 50, {})
+
+    @unittest.skipUnless(importlib.util.find_spec("pyarrow"), "Source inventory fixture requires pyarrow")
+    def test_original_inventory_identity_is_required_and_verified(self):
+        import pyarrow as pa
+        import pyarrow.parquet as pq
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "original.parquet"
+            pq.write_table(pa.table({"item_id": [B, C]}), path)
+            manifest = {"sources": {"benchmark_items": {"path": str(path),
+                       "sha256": EVAL.sha256_file(path), "rows": 2}}}
+            ids, identity = EVAL.read_original_benchmark_items(manifest)
+            self.assertEqual(ids, {B, C})
+            self.assertEqual(identity["sha256"], EVAL.sha256_file(path))
+            self.assertEqual(identity["item_ids_sha256"], EVAL.canonical_sha256([B, C]))
+            with self.assertRaisesRegex(ValueError, "sealed original benchmark"):
+                EVAL.read_original_benchmark_items({})
+            path.write_bytes(path.read_bytes() + b"changed bytes")
+            with self.assertRaisesRegex(ValueError, "changed or is missing"):
+                EVAL.read_original_benchmark_items(manifest)
+
 
 class SelectionTests(unittest.TestCase):
     def reports(self):
@@ -402,6 +472,7 @@ class AuditCacheGateTests(unittest.TestCase):
                     mock.patch.object(EVAL, "verify_selection", return_value=50), \
                     mock.patch.object(EVAL, "ensure_prior_policy", return_value={}), \
                     mock.patch.object(EVAL, "check_phase_cache_inputs", side_effect=check_cache), \
+                    mock.patch.object(EVAL, "read_original_benchmark_items", return_value=(set(), {})), \
                     mock.patch.object(EVAL, "read_phase_labels", side_effect=read_labels):
                 with self.assertRaisesRegex(RuntimeError, "proven label opening"):
                     EVAL.main(argv)
@@ -452,6 +523,14 @@ class StreamingFixtureTests(unittest.TestCase):
             self.assertTrue(all("s150_hits" not in x for x in rows))
             self.assertEqual(model.max_consumed, [50, 50])
             self.assertEqual(EVAL.summarize(rows, 50)["full_truth"]["reranker"]["text_macro_recall_at_50"], 0.375)
+            controlled = EVAL.score_cache(path, {"feature_names": features}, groups,
+                {"model": Model()}, (50,), batch_size=2, original_benchmark_ids={C, "d" * 16})
+            differently_batched = EVAL.score_cache(path, {"feature_names": features}, groups,
+                {"model": Model()}, (50,), batch_size=3, original_benchmark_ids={C, "d" * 16})
+            self.assertEqual(controlled, differently_batched)
+            self.assertEqual([x["train_source_only_pool_size"] for x in controlled], [0, 1, 0, 1])
+            self.assertEqual([x["s50_train_source_only_hits"] for x in controlled], [0, 1, 0, 1])
+            self.assertTrue(all("s150_train_source_only_hits" not in x for x in controlled))
 
 
 @unittest.skipUnless(importlib.util.find_spec("pyarrow"), "Tiny training provenance fixture requires project pyarrow")
