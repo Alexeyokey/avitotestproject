@@ -52,4 +52,11 @@ EVAL=(
 "$PYTHON" scripts/evaluate_fresh_validation.py "${EVAL[@]}" --phase audit \
   > "$ROOT/evaluate-audit.log" 2>&1
 
+"$PYTHON" scripts/publish_fresh_reranker.py \
+  --protocol-dir "$ROOT/protocol" --evaluation-dir "$ROOT/evaluation" \
+  --model "$ROOT/hgb150-corrected.joblib" \
+  --train-data "$ROOT/train-corrected.parquet" \
+  --output "$ROOT/hgb-selected.joblib" \
+  > "$ROOT/publication.log" 2>&1
+
 echo 'Fresh tune selection and single sealed audit completed.'
