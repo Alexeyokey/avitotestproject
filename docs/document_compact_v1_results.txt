@@ -1,0 +1,99 @@
+COMPACT DOCUMENT INPUT V1 — COMPLETE SCREEN AND FULL-TUNE FOLLOW-UP
+2026-10-13
+
+Declared experiment and execution
+---------------------------------
+The document hypotheses were declared before any compact outcomes:
+scripts/document_hypotheses_v1.json and its compact-only five-variant subset.
+The frozen encoder, sampled200000-item inventory,128-token maximum, original
+query/layout control, ef_search1000 and description449+dense449+geo100 quotas
+were held fixed. A separately named compact index was built; the original
+document index and queued current-document V8 training were not changed.
+The producer finished naturally:200000 documents +12103 query-context groups,
+3011.8 seconds(~50.2 minutes) total, with a complete SHA-bound companion file.
+No second document index or new training was launched by this subtask.
+
+Screen on2000 hash-selected Tune texts /3902 context groups
+----------------------------------------------------------
+Available-target metrics use988 texts /1515 groups. Full denominators retain
+all2000 texts, including zero-availability contexts. The same label-blind text
+salt and complete GT policy as earlier screens were used.
+
+Variant                    Candidate Recall   Mean pool   New GT / lost GT
+Original document/current       0.88972190       823.6871        0 /0
+Compact/current                 0.89282702       819.2781       32 /27
+Compact/plain                   0.87227323       821.1448       34 /63
+Compact/values                  0.87760146       823.4987       27 /43
+Compact/no_category             0.89071838       819.0215       32 /29
+
+All comparisons use fixed route quotas; their realized unique unions differ.
+The declared primary metric chose COMPACT/CURRENT for the full follow-up.
+No tie override was needed. Removing query fields did not improve this screen.
+
+Screen paired95% candidate-Recall intervals vs original document/current:
+  compact/current:+0.00310512,[-0.00782726,+0.01462551]
+  compact/plain:-0.01744867,[-0.03113794,-0.00350395]
+  compact/values:-0.01212045,[-0.02434211,+0.00116397]
+  compact/no_category:+0.00099648,[-0.01005278,+0.01236746]
+These are exploratory intervals after trying a declared four-layout grid.
+
+Full Tune: selected compact/current vs its original-document control
+-------------------------------------------------------------------
+artifacts/microcategory-research-2026-10-13/document-compact-full-tune.json
+SHA256:cb0a9aa1f7f396cc72b2547fdaa910e319d2f77a53683405c315e4e99d70023f
+
+All6111 texts /12103 context groups are included. Available-target metrics
+use3069 texts /4750 groups and4871 of12800 full pairs(38.055%).
+
+Metric                                    Original      Compact/current
+Conditional text-macro candidate Recall    0.88864498      0.89051592
+Conditional group-macro candidate Recall   0.89231579      0.89557895
+Full-truth text-macro candidate Recall     0.33542679      0.33565348
+Average unique pool                         821.3533        816.7730
+Maximum unique pool                             997             997
+Added / lost positive pairs                    0 /0         103 /86
+
+Primary delta:+0.00187094(~0.187 percentage points).
+Paired95% interval:[-0.00502174,+0.00864870]. Bootstrap uses3069 normalized-text
+clusters,2000 replicates,seed20261013. Full Tune includes the screened texts;
+this is not an independent confirmation of the selected layout.
+
+One-word available slice:152 texts /289 contexts,0.73054511→0.75474624.
+This is descriptive after selection, not a separately confirmed subgroup gain.
+
+Quality decision
+----------------
+There is no clear evidence to replace the original document representation:
+the effect is small, the exploratory interval spans losses and gains, and
+compact trades103 newly found positive pairs for86 lost ones. A smaller
+average pool does not by itself establish higher final ranking quality.
+The original document format/current query remains the current production
+reference. The V8 pipeline continues to use that original format.
+
+The token-retention profile provided a plausible MECHANISM HYPOTHESIS for
+compression, not an improvement guarantee. Actual candidate metrics did not
+show a convincing direct replacement gain. These results also do not prove
+that full descriptions or longer tokens are beneficial; length stayed128.
+
+Newly found pairs suggest possible complementary information, but a protected
+addition/ensemble would be a DIFFERENT hypothesis with its own capped allocation,
+not the replacement measured here. No such extra test, second index, raw-score
+feature update or reranker training was silently added to this experiment.
+
+Scope and reproducibility
+-------------------------
+Candidate Recall is a pool upper bound; no compact-pool reranker Recall@50,
+official hidden score or independent generalization improvement was measured.
+All statistics belong to the sampled cold research catalog. The completed
+Audit labels/report were never opened or used to choose the layout.
+Only new configs/reports were written; frozen producer/evaluator/helper/dense
+and token-profile source bytes were preserved.
+
+Artifacts:
+  document-compact-screen-2000.json
+  document-compact-full-followup-v1.json(control+selected compact/current)
+  document-compact-full-tune.json
+Source follow-up config:scripts/document_compact_followup_v1.json
+The CPU-only evaluator used --batch-size 8192, OMP_NUM_THREADS=2 and explicit
+--text-limit 2000 for screen /0 for full Tune. Query-variants and compact
+candidate files plus their SHA-bound sidecars were reused without new encoding.

@@ -194,7 +194,9 @@ class FeatureBuilder:
         self.location_counts = Counter(str(item.get("item_location_id", ""))
                                        for item in items)
 
-    @lru_cache(maxsize=50_000)
+    # Token sets dominate memory on the 8 GB WSL host. Capacity affects only
+    # recomputation: the text/feature function and its output stay identical.
+    @lru_cache(maxsize=10_000)
     def _item_text(self, item_id):
         item = self.items[item_id]
         title = normalize(item.get("item_title_raw", ""))

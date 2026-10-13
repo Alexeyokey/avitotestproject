@@ -33,7 +33,8 @@ COMMON=(
   --microcategory-top-categories 3 --microcategory-weight 0.25
   --supplemental-fill micro-typed-dense-v1 --rescore-dense-union
 )
-# Every fit group below the 30k ceiling is used; there are 26,753 eligible groups.
+# Hash-order sampling selects up to 30,000 eligible fit groups. The previous
+# pool yielded training rows for 26,753 of its 30,000 sampled groups.
 # Both geography and the learned microcategory signal exclude the current text.
 "$PYTHON" -m avito_candidates.cli prepare-reranker "${COMMON[@]}" \
   --reranker-feature-version 8 --reranker-crossfit-geography \

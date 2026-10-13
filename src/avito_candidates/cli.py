@@ -41,10 +41,56 @@ def microcategory_fit_texts(path, *, split, fraction, seed, batch_size=32768):
     return texts
 
 
-def load_microcategory_channel(args, items, bm25):
+def saved_microcategory_classifier(args, items, reranker):
+    """Reuse verified inference priors, retaining source/config/content guards."""
+    from .microcategory import SOFT_MICROCATEGORY_SCHEMA, _sha_file, _text_digest
+    from .reranker import Reranker, check_retrieval_identity, corpus_fingerprint, retrieval_config
+    if not isinstance(reranker, Reranker) or args.command not in {"evaluate", "predict"}:
+        raise ValueError("Saved classifier override requires an evaluate/predict Reranker")
+    metadata = reranker.metadata
+    classifier = getattr(reranker.builder, "microcategory_classifier", None)
+    snapshot = metadata.get("microcategory_classifier_metadata")
+    if (metadata.get("feature_version") not in {7, 8} or classifier is None
+            or classifier.metadata != snapshot
+            or metadata.get("split") not in {"queries", "all"}
+            or metadata.get("training_prior_policy", {}).get("microcategory_classifier") != "grouped-out-of-fold"):
+        raise ValueError("Saved classifier override requires matching V7/V8 inference priors")
+    check_retrieval_identity(metadata, retrieval_config(args))
+    fingerprint = corpus_fingerprint(items, feature_version=4)
+    if metadata.get("corpus_fingerprint") != fingerprint or snapshot.get("corpus_fingerprint") != fingerprint:
+        raise ValueError("Saved classifier override corpus differs from training")
+    observed = classifier.model.fitted_texts
+    if (snapshot.get("schema") != SOFT_MICROCATEGORY_SCHEMA
+            or snapshot.get("crossfit_folds", 0) < 2
+            or set(classifier.crossfit_models) != set(range(snapshot.get("crossfit_folds", 0)))
+            or _text_digest(observed) != snapshot.get("observed_fit_texts_sha256")
+            or len(observed) != snapshot.get("fit_texts_count")
+            or snapshot.get("allowed_fit_texts_count", 0) < len(observed)
+            or snapshot.get("seed") != metadata.get("seed")
+            or snapshot.get("fit_split", metadata["split"]) != metadata["split"]):
+        raise ValueError("Saved classifier fit-text inventory or OOF provenance differs")
+    if args.command == "evaluate" and (
+            args.split != metadata["split"] or args.seed != metadata["seed"]
+            or (args.split == "queries" and args.validation_fraction != metadata["validation_fraction"])):
+        raise ValueError("Evaluate saved classifier only on its original query split")
+    # One streaming digest preserves the standalone loader's changed-source
+    # rejection. No Parquet column scan or second coefficient object is needed.
+    if _sha_file(args.data_dir / "train.parquet") != snapshot.get("source_sha256"):
+        raise ValueError("Saved classifier training source differs from current train.parquet")
+    return classifier
+
+
+def load_microcategory_channel(args, items, bm25, *, saved_reranker_override=None):
     """Verify saved model/source/allowlist; prediction never refits its history."""
     from .microcategory import MicrocategoryChannel, SoftMicrocategoryClassifier, _sha_file
     from .reranker import corpus_fingerprint
+    if saved_reranker_override is not None:
+        classifier = saved_microcategory_classifier(args, items, saved_reranker_override)
+        indexes = {"title": bm25.title_index, "params": bm25.params_index,
+                   "description": bm25.description_index}
+        return MicrocategoryChannel(classifier, items, indexes=indexes,
+            field_weights={"title": 2.0, "params": 1.0, "description": .5},
+            top_categories=args.microcategory_top_categories)
     model_path = Path(args.microcategory_model)
     envelope = json.loads(model_path.with_suffix(model_path.suffix + ".json").read_text(encoding="utf-8"))
     metadata = envelope["metadata"]
@@ -280,11 +326,22 @@ def read_validation(path, corpus_ids, *, mode, fraction, seed, batch_size):
     return truth, representatives, fit_rows, heldout_rows, heldout_in_corpus
 
 
-def build_retriever(args, items, *, geo_associations_override=None):
+def build_retriever(args, items, *, geo_associations_override=None, saved_reranker_override=None):
     from .baseline import Baseline
     micro_enabled = getattr(args, "microcategory_candidate_k", 0) > 0
     if micro_enabled and (args.method != "hybrid" or getattr(args, "microcategory_model", None) is None):
         raise ValueError("Microcategory candidates require hybrid and a saved classifier")
+    if saved_reranker_override is not None:
+        from .reranker import Reranker
+        if (not isinstance(saved_reranker_override, Reranker)
+                or not micro_enabled or args.command not in {"evaluate", "predict"}):
+            raise ValueError("Saved inference override requires active microcategory evaluate/predict")
+        saved_geography = saved_reranker_override.builder.geo_associations
+        if geo_associations_override is not None and geo_associations_override is not saved_geography:
+            raise ValueError("Geography override differs from the saved reranker history")
+        if args.geo_candidate_k > 0 and saved_geography is None:
+            raise ValueError("Saved reranker lacks geography history required by its retrieval configuration")
+        geo_associations_override = saved_geography
 
     # Cold-split rerankers must retrieve with the same saved geography history
     # used by their feature builder. Prediction must not silently refit all rows.
@@ -338,7 +395,8 @@ def build_retriever(args, items, *, geo_associations_override=None):
     bm25 = Baseline(items, **bm25_kwargs) if micro_enabled else None
     micro_channel = None
     if micro_enabled:
-        micro_channel = load_microcategory_channel(args, items, bm25)
+        micro_channel = load_microcategory_channel(args, items, bm25,
+            saved_reranker_override=saved_reranker_override)
 
     from .dense import DenseRetriever
 
@@ -663,7 +721,8 @@ def main():
         # объявлений, которые есть в benchmark_items. Это полезно для
         # сравнения настроек, но не измеряет качество по всему train.
         model = build_retriever(args, items,
-            geo_associations_override=(reranker.builder.geo_associations if reranker else None))
+            geo_associations_override=(reranker.builder.geo_associations if reranker else None),
+            saved_reranker_override=(reranker if reranker and reranker.metadata.get("feature_version") in {7, 8} else None))
         retrieval_diagnostics = {}
         geo_extra_count = geo_extra_recall = geo_new_positive_queries = 0
 
@@ -870,7 +929,8 @@ def main():
                              selected_iteration=args.reranker_selected_iteration)
                     if args.reranker_model else None)
         model = build_retriever(args, items,
-            geo_associations_override=(reranker.builder.geo_associations if reranker else None))
+            geo_associations_override=(reranker.builder.geo_associations if reranker else None),
+            saved_reranker_override=(reranker if reranker and reranker.metadata.get("feature_version") in {7, 8} else None))
         rows = []
         prediction_started = last_prediction_progress = time.monotonic()
 

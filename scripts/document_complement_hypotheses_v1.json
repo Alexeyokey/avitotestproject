@@ -1,0 +1,106 @@
+{
+  "experiment_version": 1,
+  "phase": "tune",
+  "purpose": "Posthoc exploratory complementary-document study, specified after compact replacement outcomes and before this new comparison",
+  "declaration": {
+    "status": "posthoc_followup_not_overall_preregistration",
+    "basis": "Compact replacement found103 positivepairs andlost86 onfullTune; hypotheses are informed by those already observed results",
+    "new_contrast_outcomes_observed": false,
+    "audit_used": false
+  },
+  "candidate_budget": 998,
+  "frozen": {
+    "protocol": "fresh-validation-2026-10-13/protocol",
+    "corpus_size": 200000,
+    "encoder": "octen-lora-128-full-mb16-s42/model",
+    "max_length": 128,
+    "ef_search": 1000,
+    "protected_description_k": 449,
+    "protected_current_dense_k": 449,
+    "protected_geo_k": 100,
+    "location_bonus": 0.02,
+    "preserve_every_protected_id": true,
+    "positive_insertion": false,
+    "source_helpers": "unchanged frozen evaluator/producer/helper/dense/profile",
+    "additional_indices_or_training": false
+  },
+  "novelty_policy": {
+    "rank_constant": 60,
+    "route_weights": "equal1",
+    "rank_origin": "original raw list ranks before skipping protected IDs",
+    "tie_rule": "descending novel RRF then ascending item_id",
+    "free_capacity": "998 minus protected unique pool size",
+    "final_reranker_score": "not evaluated or specified by this candidate-only contrast"
+  },
+  "screening": {
+    "text_limit": 2000,
+    "text_selection_salt": "retrieval-hypotheses-tune-texts-v1",
+    "selection_metric": "conditional_available_text_macro_candidate_recall",
+    "contexts": "all contexts for selected normalized texts, including zero-availability"
+  },
+  "full_tune_followup": {
+    "text_limit": 0,
+    "maximum_non_control_variants": 1,
+    "control": "F_hybrid_routes",
+    "selection_rule": "Best noncontrol conditional-available text-macro candidate Recall; ties within1e-12 smaller average realized pool then lexicographic name; keep control and report a losing winner as losing",
+    "scope": "Exploratory fullTune follow-up includes screened texts; not independent confirmation",
+    "audit_rule": "Never parse or score completed Audit for choosing routes/settings"
+  },
+  "controls": {
+    "budget": "allvariants same998 upper cap; Fcompactonly and replacement may underfill",
+    "causality": "actual unique pool sizes and overlap must be reported; no independent document-format causality claim"
+  },
+  "bootstrap": {
+    "unit": "normalized query text",
+    "replicates": 2000,
+    "seed": 20261013,
+    "scope": "paired vs Fhybrid and original protectedpool; exploratory/uncorrected after prior hypothesis screens"
+  },
+  "variants": [
+    {
+      "name": "F_hybrid_routes",
+      "mode": "fill",
+      "channels": {
+        "lexical_title_values": 1,
+        "lexical_params_values": 1,
+        "micro_combined_top3": 1,
+        "dense_current": 1
+      },
+      "addition_quota": null
+    },
+    {
+      "name": "F_compact_only",
+      "mode": "fill",
+      "channels": {
+        "dense_compact_current": 1
+      },
+      "addition_quota": null,
+      "comparison_reference": "F_hybrid_routes"
+    },
+    {
+      "name": "F_compact_instead_depth",
+      "mode": "fill",
+      "channels": {
+        "lexical_title_values": 1,
+        "lexical_params_values": 1,
+        "micro_combined_top3": 1,
+        "dense_compact_current": 1
+      },
+      "addition_quota": null,
+      "comparison_reference": "F_hybrid_routes"
+    },
+    {
+      "name": "F_five_views",
+      "mode": "fill",
+      "channels": {
+        "lexical_title_values": 1,
+        "lexical_params_values": 1,
+        "micro_combined_top3": 1,
+        "dense_current": 1,
+        "dense_compact_current": 1
+      },
+      "addition_quota": null,
+      "comparison_reference": "F_hybrid_routes"
+    }
+  ]
+}
