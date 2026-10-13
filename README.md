@@ -726,3 +726,203 @@ Recall@50 сначала считается отдельно для каждог
 
 Проект использует pandas, PyArrow, NumPy и scikit-learn. Все вычисления
 выполняются локально.
+
+## Новая проверка на холодных текстах — 13 октября 2026
+
+**Статус: результаты ожидаются.** Новый корпус и обучающие признаки подготовлены,
+обучена исследовательская HGB; сейчас формируется полный tune-кэш. Новый Recall
+ещё не вычислен, закрытая часть audit не открыта. Эта проверка дополняет
+исторические опыты выше; их результаты и инструкции выпуска сохранены.
+
+### Зачем нужен отдельный протокол
+
+Исторические 5 157 групп уже много раз участвовали в выборе параметров.
+Их последующее разделение не создаёт независимый тест. Замороженная LoRA
+не видела 14 733 текста seed42-heldout; после исключения 2 431 исторического
+проверочного текста остаются 12 302 ранее не оценивавшихся холодных текста.
+Все их известные положительные `item_id` отсутствуют в исходном
+`benchmark_items.parquet`. Новый случайный seed на прежнем корпусе эту
+проблему не решает и может включить в validation тексты, на которых LoRA обучалась.
+
+Исследовательский каталог выбирается до анализа запросов и их разметки:
+из объединения metadata всех уникальных train-объявлений и benchmark-объявлений
+(515 895 `item_id`) берутся ровно 200 000 по SHA256 фиксированной соли и
+`item_id`. Правильные ответы специально не вставляются. При одинаковом
+`item_id` metadata benchmark имеют приоритет. Каталог ограничен из-за памяти WSL;
+он отличается от корпуса итоговой отправки.
+
+Все варианты одного нормализованного текста находятся в одной части:
+
+| Часть | Текстов | Полных контекстных групп | Текстов с доступной положительной целью |
+| --- | ---: | ---: | ---: |
+| Tune | 6 111 | 12 103 | 3 069 |
+| Audit | 6 191 | 12 649 | 3 153 |
+
+Fit сохраняет исходный seed42 и исключает все его heldout-тексты. Внутри новой
+холодной части arm-seed=20261013 делит тексты пополам. Manifest фиксирует
+исходные файлы, encoder, каталог, группы и SHA256. Все GT сохраняются в
+отдельных `labels-fit.json`, `labels-tune.json`, `labels-audit.json`, включая
+недоступные в каталоге объявления. Эти файлы и идентификаторы групп не являются
+признаками модели. Audit-разметка читается только после проверки tune selection seal.
+
+### Что именно обучается и измеряется
+
+Сохранены encoder Octen/LoRA и длина 128 токенов. Пул содержит до 449 кандидатов
+BM25 по описанию, 449 dense и 100 географических кандидатов, то есть не больше
+998 до удаления повторов. `ef-search=1000`, location bonus=0.02, RRF=60,
+channel quota=0. Географические и микрокатегорийные priors построены по fit;
+обучающие признаки исключают все контексты собственного текста.
+
+Подготовлены 30 000 fit-групп, из которых 26 753 имеют положительное объявление
+в пуле: 1 743 258 строк, 31 066 положительных и 1 712 192 неразмеченных.
+Фактически они представляют 11 208 разных нормализованных текстов, а не
+30 000 разных текстов. Полный разрешённый источник содержит 59 140 fit-текстов.
+Веса по-прежнему нормированы по контекстной группе: сумма 1 для положительных
+и 1 для неразмеченных строк. Поэтому текст с несколькими контекстами имеет
+больший обучающий вес; новая TextMacro-метрика этого веса при обучении не меняет.
+Text-balanced обучение остаётся отдельным, пока не проведённым опытом.
+
+Исправлена неизвестная категория `search_category=0`: у неё `category_match`
+и `category_known` должны быть нулевыми. Длительная подготовка загрузила старый
+код до исправления, поэтому из её таблицы выведен новый `train-corrected.parquet`.
+Это затронуло 3 группы и 195 строк: изменились 195 значений `category_known`,
+а `category_match` уже был равен нулю. Другие значения, labels, weights,
+порядок, группы и байты priors сохранены; происхождение записано в metadata.
+При подготовке новым кодом преобразователь допустим и как документированный
+проход без изменения значений. Индекс заново для этого исправления не строится.
+
+HGB обучается до 150 итераций. Только tune сравнивает заранее заданные префиксы
+25, 50, 75, 100, 150 по условному **text-macro Recall@50**, при равенстве выбирая
+меньшее число итераций. После фиксации выбора audit сравнивает только этот
+префикс и исходный RRF на том же пуле. Парные интервалы рассчитываются по
+кластерам нормализованных текстов. Train log loss не является процентом ошибок.
+
+В обоих отчётах нужно читать метрики вместе:
+
+- Условный Recall использует известные положительные цели, доступные каталогу;
+  группы без таких целей исключены только из этой условной метрики.
+- Полный Recall сохраняет весь GT, включая недоступные цели и нулевые группы;
+  его потери включают ограничение каталога, а не только ошибки модели.
+- Group macro усредняет контекстные группы; text macro сначала усредняет
+  контексты одного текста, затем тексты. Представитель — один контекст на текст,
+  выбранный хешем независимо от GT и доступности, без замены на удобный контекст.
+- Coverage, Recall пула и его размер показывают, где потеря возникает до выбора 50.
+
+Дополнительный source-controlled отчёт был зафиксирован до первого tune scoring.
+Он сравнивает тот же выбранный префикс и RRF после удаления из уже найденного
+пула `item_id` исходного benchmark-корпуса. Все новые GT находятся вне этого
+исходного корпуса; положительные попадания сохраняются, замены удалённым
+кандидатам не ищутся. Это **контрфактический меньший пул**, иногда с менее чем
+50 ответами: он не доказывает причинность source-shortcut, не выбирает модель
+и не заменяет первичную оценку на полном пуле.
+
+### Локальное воспроизведение
+
+Нужны исходные `train.parquet` и `benchmark_items.parquet`, совместимое Python
+окружение с зависимостями проекта, CUDA для encoder и локальный checkpoint
+с его `data_stats.json`. Веса базовой Octen должны уже находиться в локальном
+Hugging Face cache. После этого все шаги выполняются без внешнего API и скачивания.
+Новый каталог требует своего HNSW-индекса; существующий индекс отправки
+для другого каталога не подходит. В Git большие данные, веса и индексы не входят.
+
+Ниже пути действующего WSL. На другом компьютере задайте свои `PYTHON`,
+`DATA`, `ENCODER` и **новый** `ROOT`. Не запускайте эти команды повторно
+для уже идущего опыта. Builder, correction и publisher запрещают перезапись;
+completed evaluation также не перезаписывается. Cache может повторно использовать
+только полностью готовые файлы с совпадающими SHA256 и параметрами.
+
+```bash
+cd /home/alex/avitotestproject-reranker-new-octen
+export PYTHONPATH=src:scripts HF_HUB_OFFLINE=1 OMP_NUM_THREADS=4
+PYTHON=/home/alex/avitotestproject/.venv/bin/python
+DATA=dataset
+ROOT=artifacts/fresh-validation-2026-10-13
+ENCODER=/home/alex/avitotestproject/artifacts/octen-lora-128-full-mb16-s42/model
+
+"$PYTHON" scripts/build_fresh_validation_protocol.py \
+  --data-dir "$DATA" --output-dir "$ROOT/protocol" --encoder "$ENCODER" \
+  --expected-encoder-sha256 801f5ded60069d9094b52f690efe97ea3f67d1a8aa40aa20708280bd891001f6 \
+  --corpus-size 200000 --query-seed 42 --query-fraction 0.2 \
+  --arm-seed 20261013 --arm-fraction 0.5
+
+COMMON=(
+  --data-dir "$ROOT/protocol/dataset" --split queries --seed 42
+  --method hybrid --device cuda --embedding-model "$ENCODER"
+  --embedding-batch-size 64 --embedding-max-length 128
+  --embedding-params-words 40 --embedding-description-words 48
+  --candidate-k 449 --ef-search 1000 --rrf-k 60
+  --title-weight 0 --params-weight 0 --description-weight 0.5
+  --stem-title-weight 0 --stem-params-weight 0
+  --location-bonus 0.02 --channel-quota 0
+  --geo-candidate-k 100 --geo-top-locations 3 --geo-min-history 20 --geo-weight 0.25
+  --dense-cache "$ROOT/dense"
+)
+"$PYTHON" -m avito_candidates.cli prepare-reranker "${COMMON[@]}" \
+  --reranker-feature-version 4 --reranker-crossfit-geography \
+  --max-train-queries 30000 --reranker-negatives-per-query 64 \
+  --reranker-data "$ROOT/train.parquet"
+
+"$PYTHON" scripts/fix_reranker_category_sentinel.py \
+  --source "$ROOT/train.parquet" --target "$ROOT/train-corrected.parquet"
+"$PYTHON" -m avito_candidates.cli fit-reranker \
+  --reranker-data "$ROOT/train-corrected.parquet" \
+  --reranker-model "$ROOT/hgb150-corrected.joblib" \
+  --reranker-estimator histgb --reranker-max-iter 150
+```
+
+После подготовки и обучения выполняйте стадии последовательно:
+
+```bash
+CACHE=(
+  --protocol-dir "$ROOT/protocol" --model "$ROOT/hgb150-corrected.joblib"
+  --train-data "$ROOT/train-corrected.parquet" --output-dir "$ROOT/cache"
+  --batch-size 64 --device cuda --dense-cache "$ROOT/dense"
+)
+EVAL=(
+  --protocol-dir "$ROOT/protocol" --cache-dir "$ROOT/cache"
+  --model "$ROOT/hgb150-corrected.joblib" --train-data "$ROOT/train-corrected.parquet"
+  --output-dir "$ROOT/evaluation"
+)
+"$PYTHON" scripts/cache_fresh_validation.py "${CACHE[@]}" --phase tune
+"$PYTHON" scripts/evaluate_fresh_validation.py "${EVAL[@]}" --phase tune
+"$PYTHON" scripts/cache_fresh_validation.py "${CACHE[@]}" --phase audit \
+  --selection "$ROOT/evaluation/selection.json"
+"$PYTHON" scripts/evaluate_fresh_validation.py "${EVAL[@]}" --phase audit
+"$PYTHON" scripts/publish_fresh_reranker.py \
+  --protocol-dir "$ROOT/protocol" --evaluation-dir "$ROOT/evaluation" \
+  --model "$ROOT/hgb150-corrected.joblib" --train-data "$ROOT/train-corrected.parquet" \
+  --output "$ROOT/hgb-selected.joblib"
+```
+
+`scripts/run_fresh_validation.sh` объединяет исправление, повторное обучение,
+tune, sealed audit и публикацию для текущих локальных путей. Он ожидает
+завершённую первоначальную подготовку и её `hgb150.joblib`; перед переносом
+на другую машину адаптируйте пути в начале файла. Для нового воспроизведения
+без промежуточной старой модели можно использовать прямые CLI-шаги выше.
+
+Результат публикации сохраняет все обученные деревья и priors, записывая
+`selected_iteration`; runtime `Reranker` использует выбранный префикс.
+Файл сопровождается SHA256 selection/report/scores/model/train и статусом
+`selected-on-fresh-tune; sealed-audit-complete`, который сам по себе не означает
+прирост качества. **Эта модель привязана к исследовательскому каталогу;
+применять её к исходному официальному benchmark-корпусу нельзя.** Его
+fingerprint отличается. Инструкции и готовый пакет прежнего выпуска выше
+остаются самостоятельным вариантом для отправки.
+
+Для этого протокола прошли **64 целевые проверки: 63 fixture/protocol теста
+и один тест FeatureBuilder на sentinel категории**. Они проверяют сохранение
+GT и нулевых групп, независимый выбор каталога/представителя, fit-only
+provenance, закрытие audit до seal, целостность полного пула, неизменность
+источников и priors, source-controlled diagnostic и runtime выбранного префикса.
+Основные команды gate:
+
+```bash
+"$PYTHON" -m unittest discover -s scripts -p 'test_*fresh*.py' -q
+"$PYTHON" -m unittest discover -s scripts -p 'test_fix_reranker_category_sentinel.py' -q
+PYTHONPATH=src:tests "$PYTHON" -m unittest \
+  test_reranker.RerankerTest.test_unspecified_zero_category_has_same_features_as_missing_category -q
+```
+
+После получения audit в этот раздел добавляются фактические отчёты, выбранная
+ёмкость, парный интервал и ограничения переноса. До этого утверждений об
+улучшении или отсутствии переобучения новой модели здесь нет.
