@@ -1,0 +1,157 @@
+{
+  "protocol_version": 1,
+  "complete": true,
+  "sealed_audit": true,
+  "audit_access_policy": "Open labels-audit.json only after the tuning selection is sealed",
+  "sources": {
+    "train": {
+      "path": "/home/alex/avitotestproject/dataset/train.parquet",
+      "sha256": "e150ab7a5c98769f643b95ee3a02dc0f664b647facd69a7d280ec6d48ca554a7",
+      "rows": 497673,
+      "schema": "search_query: string\nsearch_location_id: int64\nsearch_is_delivery_search: int32\nsearch_infm_params_text: string\nsearch_category: int64\nitem_title_raw: string\nitem_rating_reviews_count: double\nitem_rating: double\nitem_price: decimal128(27, 15)\nitem_microcat_id: int64\nitem_longitude: decimal128(18, 15)\nitem_location_id: int64\nitem_latitude: decimal128(17, 15)\nitem_is_phone_hidden: bool\nitem_is_message_forbidden: bool\nitem_infm_params_text: string\nitem_id: string\nitem_description_raw: string\nitem_category_id: int64"
+    },
+    "benchmark_items": {
+      "path": "/home/alex/avitotestproject/dataset/benchmark_items.parquet",
+      "sha256": "193b3a3961464620cbf8d8797152b7f90cae1826ca749fb7817a210984a09899",
+      "rows": 189212,
+      "schema": "item_title_raw: string\nitem_rating_reviews_count: double\nitem_rating: double\nitem_price: decimal128(27, 15)\nitem_microcat_id: int64\nitem_longitude: decimal128(18, 15)\nitem_location_id: int64\nitem_latitude: decimal128(17, 15)\nitem_is_phone_hidden: bool\nitem_is_message_forbidden: bool\nitem_infm_params_text: string\nitem_id: string\nitem_description_raw: string\nitem_category_id: int64"
+    }
+  },
+  "encoder": {
+    "path": "/home/alex/avitotestproject/artifacts/octen-lora-128-full-mb16-s42/model",
+    "content_sha256": "801f5ded60069d9094b52f690efe97ea3f67d1a8aa40aa20708280bd891001f6",
+    "data_stats": {
+      "fit_rows": 404057,
+      "fit_query_texts": 59140,
+      "training_pairs": 59140,
+      "validation_query_texts_excluded": 14733,
+      "seed": 42
+    },
+    "data_stats_sha256": "2142a70f37c21535f2bdcfe5ae5f99740f9fbf6e369fb7cc8e423f80cdfcaffa"
+  },
+  "split": {
+    "query_seed": 42,
+    "query_fraction": 0.2,
+    "arm_seed": 20261013,
+    "arm_fraction": 0.5,
+    "normalization": "avito_candidates.core.normalize",
+    "grouping": "normalized search_query",
+    "representative_rule": "min SHA256([representative_salt,query_key_json]) per text",
+    "representative_salt": "fresh-validation-representative-v1",
+    "historical_excluded_texts": 2431
+  },
+  "corpus": {
+    "size": 200000,
+    "union_size": 515895,
+    "selection_rule": "lowest SHA256([salt,item_id]), item_id tie break",
+    "salt": "fresh-validation-catalog-v1",
+    "selected_ids_sha256": "6c84ebad7a0893125ae2e1fd9b4eccf09f661a6858b5d85fe1cf39c75f15e148",
+    "selection_sha256": "fcca46afcfdef49e7fe832ee4a3629da2f96a9cfd66dbc1bd0e0ad464c356fc0",
+    "metadata_only": true,
+    "forced_relevant_items": false,
+    "metadata_rule": "benchmark authoritative; otherwise first original train row"
+  },
+  "stats": {
+    "fit": {
+      "rows": 404057,
+      "texts": 59140,
+      "groups": 285933,
+      "unique_relevant_pairs": 379087,
+      "available_relevant_pairs": 146962,
+      "groups_with_available_positive": 124740,
+      "texts_with_available_positive": 32605,
+      "representative_groups": 59140,
+      "representative_groups_with_available_positive": 23602,
+      "positive_pair_availability": 0.38767354195738707,
+      "texts_sha256": "807eaaa42ace8a44ec7add90bee7e0e7a598e396cb7c6ea3c072597250156fc8"
+    },
+    "tune": {
+      "rows": 13346,
+      "texts": 6111,
+      "groups": 12103,
+      "unique_relevant_pairs": 12800,
+      "available_relevant_pairs": 4871,
+      "groups_with_available_positive": 4750,
+      "texts_with_available_positive": 3069,
+      "representative_groups": 6111,
+      "representative_groups_with_available_positive": 2366,
+      "positive_pair_availability": 0.380546875,
+      "texts_sha256": "eaec4e072cf2ba503c8d93fba28f39e1ac5273918e735e719623022a9636ac29"
+    },
+    "audit": {
+      "rows": 13998,
+      "texts": 6191,
+      "groups": 12649,
+      "unique_relevant_pairs": 13540,
+      "available_relevant_pairs": 5253,
+      "groups_with_available_positive": 5092,
+      "texts_with_available_positive": 3153,
+      "representative_groups": 6191,
+      "representative_groups_with_available_positive": 2491,
+      "positive_pair_availability": 0.3879615952732644,
+      "texts_sha256": "f88c52d3894b04f23e523c437a23b55d35ea13cb9fab7c50ce0e015c8b10027a"
+    }
+  },
+  "files": {
+    "train": {
+      "path": "dataset/train.parquet",
+      "sha256": "27a0061fd6b4589b470bdf90cadbcf4d9414022121cc31381f7fde711e54a74e"
+    },
+    "benchmark_items": {
+      "path": "dataset/benchmark_items.parquet",
+      "sha256": "2ccb0b47a2ba3f41cd83a0ec4799d2a4dcde7b0628c54dd5442fcbcc92965734"
+    },
+    "benchmark_queries": {
+      "path": "dataset/benchmark_queries.parquet",
+      "sha256": "5d3b9a52a197b7c5e116de48b4ec2a4ff37ef0d978e0959760b885f216122b78"
+    },
+    "historical_excluded_texts": {
+      "path": "historical-excluded-texts.json",
+      "sha256": "de70f5a85d92dbe44405834f6d23467bb1ea1a1e5b67316c303b3b130d9ab5c9"
+    },
+    "catalog_item_ids": {
+      "path": "catalog-item-ids.json",
+      "sha256": "1922341c6712255a4644dbe3a7940b5f7ccdd930f9cd4f9d87a605469e7ff185"
+    },
+    "fit_texts": {
+      "path": "fit-texts.json",
+      "sha256": "6cf21e9382f0ae16733b887a3482a7d07af64ba65ec6c9a9c810bd011172a032"
+    },
+    "labels_fit": {
+      "path": "labels-fit.json",
+      "sha256": "dc3c9a0fc7b96fef063bc807e15c77be8d770324b25f286537a5f0aeccd2746f"
+    },
+    "tune_texts": {
+      "path": "tune-texts.json",
+      "sha256": "7b275af3e33e33d4f1c8a9967a0668f1c4b17bdd3dc6ad023b7a0415a38bfd08"
+    },
+    "labels_tune": {
+      "path": "labels-tune.json",
+      "sha256": "872a34bf98ba21aabfe46772a79ec8385b51a918bfaee44bac917c4b25975325"
+    },
+    "audit_texts": {
+      "path": "audit-texts.json",
+      "sha256": "9e99d06dd0eb2b34411e42c7ee9222e04a428fc0aa43bbfd0c6925380790da67"
+    },
+    "labels_audit": {
+      "path": "labels-audit.json",
+      "sha256": "1cf61fc426888ef5fa85eb83c997bac2482746c50d78af4d1d2241254717b74b"
+    }
+  },
+  "metrics_policy": {
+    "selection": "tune text-macro conditional on available positive",
+    "additional": [
+      "group-macro conditional",
+      "representative conditional",
+      "full-truth recall including unavailable positives",
+      "availability"
+    ],
+    "identifier_features": false
+  },
+  "limitations": [
+    "Cold texts are selected by absence from the historical benchmark-positive holdout",
+    "Sampled catalog differs from the submission catalog; scores are not directly comparable",
+    "Query text normalization does not guarantee unseen semantic intent",
+    "The audit seal is an access protocol, not label encryption"
+  ]
+}

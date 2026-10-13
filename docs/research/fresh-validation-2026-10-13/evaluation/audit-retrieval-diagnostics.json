@@ -1,0 +1,353 @@
+{
+  "diagnostic_version": 1,
+  "created_utc": "2026-10-13T14:00:19.220261+00:00",
+  "phase": "audit",
+  "type": "posthoc_descriptive_retrieval_routes",
+  "completed_report_sha256": "321240de3160aa18545b114b8948bffb923af99c0aeea1fe7956dc5b62415c17",
+  "completed_group_scores_sha256": "f2c08fb3c5799ae4bff7a22e14f5d94ae6c0095e9e6d32c31bbd69dd7345211f",
+  "selection_sha256": "07f36ba3b5ca08f9a7b7da2971c8bb28fed77bb1a3407724bf1f8913bd082e90",
+  "protocol_sha256": "c421cf47a61b1d7a1687079f31146d34cd17ec2743fd16841ceda15f030ef58e",
+  "model_sha256": "f19f86df4ac76b3f8721768f3b3e048a9a97382bb970bb7ea40572b2ef910363",
+  "cache_sha256": {
+    "parquet": "ecce83b689c2c4338bfbca6cf2f7ef8ba59e2e04e75362c1e8db66dfb6cc9cca",
+    "metadata": "1b3196821513567846299072dca4fa722a6a2e8ad2e4e89c161b55649872965a"
+  },
+  "route_columns": [
+    "present_description",
+    "present_dense",
+    "geo_channel_count"
+  ],
+  "candidate_recall": {
+    "description": {
+      "conditional_available": {
+        "groups": 5092,
+        "texts": 3153,
+        "representative_groups": 2491,
+        "text_macro_candidate_recall": 0.5219638068703458,
+        "group_macro_candidate_recall": 0.5156487300340403,
+        "representative_macro_candidate_recall": 0.5264953833801687,
+        "micro_candidate_recall": 0.514372739387017
+      },
+      "full_truth": {
+        "groups": 12649,
+        "texts": 6191,
+        "representative_groups": 6191,
+        "text_macro_candidate_recall": 0.20489165131052933,
+        "group_macro_candidate_recall": 0.19939596203727755,
+        "representative_macro_candidate_recall": 0.20703632769534885,
+        "micro_candidate_recall": 0.1995568685376662
+      },
+      "candidate_count": {
+        "groups_with_defined_value": 12649,
+        "undefined_groups": 0,
+        "texts_with_defined_value": 6191,
+        "group_mean": 426.11724246976047,
+        "text_macro_mean": 429.62493942820225
+      }
+    },
+    "dense": {
+      "conditional_available": {
+        "groups": 5092,
+        "texts": 3153,
+        "representative_groups": 2491,
+        "text_macro_candidate_recall": 0.6993627357242118,
+        "group_macro_candidate_recall": 0.708490442524221,
+        "representative_macro_candidate_recall": 0.6981801150809581,
+        "micro_candidate_recall": 0.7096897011231678
+      },
+      "full_truth": {
+        "groups": 12649,
+        "texts": 6191,
+        "representative_groups": 6191,
+        "text_macro_candidate_recall": 0.2706343064861347,
+        "group_macro_candidate_recall": 0.2732843552473563,
+        "representative_macro_candidate_recall": 0.27420372122358877,
+        "micro_candidate_recall": 0.2753323485967504
+      },
+      "candidate_count": {
+        "groups_with_defined_value": 12649,
+        "undefined_groups": 0,
+        "texts_with_defined_value": 6191,
+        "group_mean": 449.0,
+        "text_macro_mean": 449.0
+      }
+    },
+    "geo": {
+      "conditional_available": {
+        "groups": 5092,
+        "texts": 3153,
+        "representative_groups": 2491,
+        "text_macro_candidate_recall": 0.6469327960121433,
+        "group_macro_candidate_recall": 0.6465370515841843,
+        "representative_macro_candidate_recall": 0.6488023551451894,
+        "micro_candidate_recall": 0.6472491909385113
+      },
+      "full_truth": {
+        "groups": 12649,
+        "texts": 6191,
+        "representative_groups": 6191,
+        "text_macro_candidate_recall": 0.2512060303207433,
+        "group_macro_candidate_recall": 0.2507111422322111,
+        "representative_macro_candidate_recall": 0.2558475821276661,
+        "micro_candidate_recall": 0.2511078286558346
+      },
+      "candidate_count": {
+        "groups_with_defined_value": 12649,
+        "undefined_groups": 0,
+        "texts_with_defined_value": 6191,
+        "group_mean": 66.70084591667326,
+        "text_macro_mean": 70.11642192380566
+      }
+    },
+    "description_or_dense": {
+      "conditional_available": {
+        "groups": 5092,
+        "texts": 3153,
+        "representative_groups": 2491,
+        "text_macro_candidate_recall": 0.8042363392216173,
+        "group_macro_candidate_recall": 0.807573972244043,
+        "representative_macro_candidate_recall": 0.807774655426201,
+        "micro_candidate_recall": 0.8081096516276414
+      },
+      "full_truth": {
+        "groups": 12649,
+        "texts": 6191,
+        "representative_groups": 6191,
+        "text_macro_candidate_recall": 0.31234727870397927,
+        "group_macro_candidate_recall": 0.3119863606759804,
+        "representative_macro_candidate_recall": 0.31738468283452936,
+        "micro_candidate_recall": 0.3135155096011817
+      },
+      "candidate_count": {
+        "groups_with_defined_value": 12649,
+        "undefined_groups": 0,
+        "texts_with_defined_value": 6191,
+        "group_mean": 766.8077318365088,
+        "text_macro_mean": 772.9150279423836
+      }
+    },
+    "description_and_dense": {
+      "conditional_available": {
+        "groups": 5092,
+        "texts": 3153,
+        "representative_groups": 2491,
+        "text_macro_candidate_recall": 0.41709020337294034,
+        "group_macro_candidate_recall": 0.4165652003142184,
+        "representative_macro_candidate_recall": 0.41690084303492575,
+        "micro_candidate_recall": 0.41595278888254333
+      },
+      "full_truth": {
+        "groups": 12649,
+        "texts": 6191,
+        "representative_groups": 6191,
+        "text_macro_candidate_recall": 0.16317867909268477,
+        "group_macro_candidate_recall": 0.16069395660865343,
+        "representative_macro_candidate_recall": 0.16385536608440823,
+        "micro_candidate_recall": 0.16137370753323485
+      },
+      "candidate_count": {
+        "groups_with_defined_value": 12649,
+        "undefined_groups": 0,
+        "texts_with_defined_value": 6191,
+        "group_mean": 108.30951063325163,
+        "text_macro_mean": 105.70991148581865
+      }
+    },
+    "description_only": {
+      "conditional_available": {
+        "groups": 5092,
+        "texts": 3153,
+        "representative_groups": 2491,
+        "text_macro_candidate_recall": 0.10487360349740547,
+        "group_macro_candidate_recall": 0.09908352971982194,
+        "representative_macro_candidate_recall": 0.10959454034524288,
+        "micro_candidate_recall": 0.09841995050447364
+      },
+      "full_truth": {
+        "groups": 12649,
+        "texts": 6191,
+        "representative_groups": 6191,
+        "text_macro_candidate_recall": 0.04171297221784456,
+        "group_macro_candidate_recall": 0.038702005428624134,
+        "representative_macro_candidate_recall": 0.04318096161094061,
+        "micro_candidate_recall": 0.03818316100443132
+      },
+      "candidate_count": {
+        "groups_with_defined_value": 12649,
+        "undefined_groups": 0,
+        "texts_with_defined_value": 6191,
+        "group_mean": 317.8077318365088,
+        "text_macro_mean": 323.9150279423836
+      }
+    },
+    "dense_only": {
+      "conditional_available": {
+        "groups": 5092,
+        "texts": 3153,
+        "representative_groups": 2491,
+        "text_macro_candidate_recall": 0.2822725323512714,
+        "group_macro_candidate_recall": 0.2919252422100026,
+        "representative_macro_candidate_recall": 0.28127927204603237,
+        "micro_candidate_recall": 0.2937369122406244
+      },
+      "full_truth": {
+        "groups": 12649,
+        "texts": 6191,
+        "representative_groups": 6191,
+        "text_macro_candidate_recall": 0.10745562739344988,
+        "group_macro_candidate_recall": 0.11259039863870285,
+        "representative_macro_candidate_recall": 0.11034835513918052,
+        "micro_candidate_recall": 0.11395864106351551
+      },
+      "candidate_count": {
+        "groups_with_defined_value": 12649,
+        "undefined_groups": 0,
+        "texts_with_defined_value": 6191,
+        "group_mean": 340.69048936674835,
+        "text_macro_mean": 343.2900885141814
+      }
+    },
+    "geo_unique_additions": {
+      "conditional_available": {
+        "groups": 5092,
+        "texts": 3153,
+        "representative_groups": 2491,
+        "text_macro_candidate_recall": 0.08153683594953379,
+        "group_macro_candidate_recall": 0.07855459544383346,
+        "representative_macro_candidate_recall": 0.0835006021678041,
+        "micro_candidate_recall": 0.07919284218541786
+      },
+      "full_truth": {
+        "groups": 12649,
+        "texts": 6191,
+        "representative_groups": 6191,
+        "text_macro_candidate_recall": 0.031700746894842945,
+        "group_macro_candidate_recall": 0.030922828456230306,
+        "representative_macro_candidate_recall": 0.033247186776503526,
+        "micro_candidate_recall": 0.03072378138847858
+      },
+      "candidate_count": {
+        "groups_with_defined_value": 12649,
+        "undefined_groups": 0,
+        "texts_with_defined_value": 6191,
+        "group_mean": 51.3141750335995,
+        "text_macro_mean": 51.36456389652397
+      }
+    },
+    "other_routes": {
+      "conditional_available": {
+        "groups": 5092,
+        "texts": 3153,
+        "representative_groups": 2491,
+        "text_macro_candidate_recall": 0.0,
+        "group_macro_candidate_recall": 0.0,
+        "representative_macro_candidate_recall": 0.0,
+        "micro_candidate_recall": 0.0
+      },
+      "full_truth": {
+        "groups": 12649,
+        "texts": 6191,
+        "representative_groups": 6191,
+        "text_macro_candidate_recall": 0.0,
+        "group_macro_candidate_recall": 0.0,
+        "representative_macro_candidate_recall": 0.0,
+        "micro_candidate_recall": 0.0
+      },
+      "candidate_count": {
+        "groups_with_defined_value": 12649,
+        "undefined_groups": 0,
+        "texts_with_defined_value": 6191,
+        "group_mean": 0.0,
+        "text_macro_mean": 0.0
+      }
+    },
+    "full_pool": {
+      "conditional_available": {
+        "groups": 5092,
+        "texts": 3153,
+        "representative_groups": 2491,
+        "text_macro_candidate_recall": 0.8857731751711511,
+        "group_macro_candidate_recall": 0.8861285676878765,
+        "representative_macro_candidate_recall": 0.891275257594005,
+        "micro_candidate_recall": 0.8873024938130593
+      },
+      "full_truth": {
+        "groups": 12649,
+        "texts": 6191,
+        "representative_groups": 6191,
+        "text_macro_candidate_recall": 0.3440480255988222,
+        "group_macro_candidate_recall": 0.3429091891322107,
+        "representative_macro_candidate_recall": 0.3506318696110329,
+        "micro_candidate_recall": 0.3442392909896603
+      },
+      "candidate_count": {
+        "groups_with_defined_value": 12649,
+        "undefined_groups": 0,
+        "texts_with_defined_value": 6191,
+        "group_mean": 818.1219068701083,
+        "text_macro_mean": 824.2795918389075
+      }
+    }
+  },
+  "recall_scope": "Coverage at each saved channel's candidate depth, not final Recall@50",
+  "description_dense_overlap": {
+    "definitions": {
+      "intersection_count": "number of candidates present in both channels",
+      "jaccard": "intersection / description-dense union",
+      "description_overlap_fraction": "intersection / description candidates",
+      "dense_overlap_fraction": "intersection / dense candidates",
+      "overlap_coefficient": "intersection / min(description,dense)",
+      "undefined": "zero denominators are null; empty pools remain in counts"
+    },
+    "intersection_count": {
+      "groups_with_defined_value": 12649,
+      "undefined_groups": 0,
+      "texts_with_defined_value": 6191,
+      "group_mean": 108.30951063325163,
+      "text_macro_mean": 105.70991148581865
+    },
+    "jaccard": {
+      "groups_with_defined_value": 12649,
+      "undefined_groups": 0,
+      "texts_with_defined_value": 6191,
+      "group_mean": 0.14769809258455277,
+      "text_macro_mean": 0.14339705133652034
+    },
+    "description_overlap_fraction": {
+      "groups_with_defined_value": 12622,
+      "undefined_groups": 27,
+      "texts_with_defined_value": 6169,
+      "group_mean": 0.25760428256739076,
+      "text_macro_mean": 0.24630365268814142
+    },
+    "dense_overlap_fraction": {
+      "groups_with_defined_value": 12649,
+      "undefined_groups": 0,
+      "texts_with_defined_value": 6191,
+      "group_mean": 0.24122385441704153,
+      "text_macro_mean": 0.23543410130471862
+    },
+    "overlap_coefficient": {
+      "groups_with_defined_value": 12622,
+      "undefined_groups": 27,
+      "texts_with_defined_value": 6169,
+      "group_mean": 0.25760428256739076,
+      "text_macro_mean": 0.24630365268814142
+    }
+  },
+  "cohort": {
+    "groups": 12649,
+    "texts": 6191,
+    "empty_pools": 0,
+    "groups_without_available_gt": 7557,
+    "full_relevant_pairs": 13540,
+    "available_relevant_pairs": 5253
+  },
+  "interpretation": "Candidate recall uses complete sealed GT denominators, never positives found in a pool. Geo unique additions exclude description/dense union; other routes are reported explicitly.",
+  "limitations": [
+    "No model rescoring, new retrieval, capacity selection or pipeline change.",
+    "Candidate recall differs from final top-50 Recall.",
+    "Fresh inventory/tail cohort differs from the official benchmark.",
+    "These posthoc descriptions do not confirm an optimization; tuning from them would consume the heldout evidence."
+  ]
+}
