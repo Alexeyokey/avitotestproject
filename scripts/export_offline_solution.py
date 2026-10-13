@@ -21,6 +21,7 @@ from pathlib import Path
 import re
 import shutil
 import sys
+from types import SimpleNamespace
 
 
 OCTEN_REVISION = "d715b32ee68f057b54dff09fc93c23485bc403d3"
@@ -101,7 +102,22 @@ def project_contract(project_root):
     return {"checkpoint_fingerprint": dense.local_checkpoint_content_fingerprint,
             "base_reference": dense.offline_adapter_base_reference,
             "check_identity": reranker.check_retrieval_identity,
-            "validate_iteration": reranker.validate_selected_iteration}
+            "validate_iteration": reranker.validate_selected_iteration,
+            "fitted_fingerprint_contract": lambda: microcategory_fingerprint_contract(project_root)}
+
+
+def microcategory_fingerprint_contract(project_root):
+    """Use the shared semantic fingerprint from the supplied inference source."""
+    source = Path(project_root).resolve() / "src"
+    sys.path.insert(0, str(source))
+    fingerprint = importlib.import_module("avito_candidates.fitted_fingerprint")
+    if not Path(fingerprint.__file__).resolve().is_relative_to(source):
+        raise ValueError("Fitted fingerprint package differs from the supplied export source")
+    if fingerprint.FITTED_FINGERPRINT_VERSION != 2:
+        raise ValueError("Unsupported fitted fingerprint version for microcategory export")
+    return {"model": fingerprint.fitted_estimator_fingerprint,
+            "classifier": fingerprint.classifier_semantic_fingerprint,
+            "version": fingerprint.FITTED_FINGERPRINT_VERSION}
 
 
 def _safe_file_name(path):
@@ -245,7 +261,18 @@ def _text_inventory_digest(texts):
     return hashlib.sha256(serialized.encode("utf-8")).hexdigest()
 
 
-def verify_microcategory_artifact(artifact, project_root, *, joblib_module):
+def inference_priors_fingerprint(artifact, fingerprint):
+    """Preserve saved history and fitted classifier semantics across export."""
+    priors = artifact.get("priors", {})
+    contents = {name: (fingerprint["classifier"](prior) if name == "microcategory_classifier"
+                       else fingerprint["model"](prior)) for name, prior in sorted(priors.items())}
+    serialized = json.dumps({"fingerprint_version": fingerprint["version"],
+        "priors": contents, "disable_microcategory_prior": artifact.get("disable_microcategory_prior", False)},
+        ensure_ascii=False, sort_keys=True, separators=(",", ":"), allow_nan=False)
+    return hashlib.sha256(serialized.encode("utf-8")).hexdigest()
+
+
+def verify_microcategory_artifact(artifact, project_root, *, joblib_module, fingerprint_contract=None):
     """Bind the external file to the embedded immutable TF-IDF/SGD/OOF models.
 
     Only trusted local joblib files may be loaded. Estimator content hashes are
@@ -314,19 +341,34 @@ def verify_microcategory_artifact(artifact, project_root, *, joblib_module):
                        separators=(",", ":")).encode("utf-8")).digest()[:8], "big") % folds != fold)
         if frozenset(model.fitted_texts) != expected:
             raise ValueError("Microcategory cross-fit model contains an incorrect training-text inventory")
+    fingerprint = (fingerprint_contract() if fingerprint_contract is not None
+                   else microcategory_fingerprint_contract(project_root))
+    if fingerprint.get("version") != 2:
+        raise ValueError("Unsupported fitted fingerprint version for microcategory export")
     content = {}
     for name, embedded, external in [("global", classifier.model, payload.get("model")),
             *((f"fold-{fold}", classifier.crossfit_models[fold], payload["crossfit_models"][fold])
               for fold in range(folds))]:
-        digest = joblib_module.hash(embedded, hash_name="sha1")
-        if external is None or joblib_module.hash(external, hash_name="sha1") != digest:
+        # Canonical fitted sets and the vectorizer's transient pointer cache
+        # must not make equal fitted models differ after pickle or inference.
+        digest = fingerprint["model"](embedded)
+        if external is None or fingerprint["model"](external) != digest:
             raise ValueError(f"Embedded and external immutable microcategory model differs: {name}")
         content[name] = digest
+    external_classifier = SimpleNamespace(model=payload["model"],
+        crossfit_models=payload["crossfit_models"], metadata=payload["metadata"])
+    semantic_sha = fingerprint["classifier"](classifier)
+    if fingerprint["classifier"](external_classifier) != semantic_sha:
+        raise ValueError("Embedded and external semantic microcategory classifier differs")
     # Prediction caches are transient; clearing one never changes fitted state.
     classifier._prediction_cache.clear()
     return {"source": source, "sidecar": sidecar, "model_sha256": model_sha,
             "sidecar_sha256": sidecar_sha, "metadata": dict(snapshot),
-            "immutable_model_hashes": content, "immutable_hash_algorithm": "joblib-sha1"}
+            "immutable_model_hashes": content,
+            "immutable_hash_algorithm": "canonical-fitted-state-v2-sha256",
+            "classifier_semantic_sha256": semantic_sha, "fitted_fingerprint_version": fingerprint["version"],
+            "inference_priors_semantic_sha256": inference_priors_fingerprint(artifact, fingerprint),
+            "fingerprint_contract": fingerprint}
 
 
 def copy_project(project_root, target):
@@ -483,7 +525,8 @@ def export_bundle(project_root, reranker_path, checkpoint, hub_cache, output_dir
         artifact["offline_export_attestation"] = attestation
     config = dict(metadata["retrieval_config"])
     portable_config_args(config, checkpoint=checkpoint)  # validate before writing
-    microcategory = verify_microcategory_artifact(artifact, root, joblib_module=joblib)
+    microcategory = verify_microcategory_artifact(artifact, root, joblib_module=joblib,
+        fingerprint_contract=contract.get("fitted_fingerprint_contract"))
     with temporary_environment(HF_HUB_CACHE=hub_cache, HF_HUB_OFFLINE="1"):
         contract["check_identity"](metadata, {**config, "embedding_model": str(checkpoint)})
     output.mkdir(parents=True, exist_ok=False)
@@ -513,6 +556,9 @@ def export_bundle(project_root, reranker_path, checkpoint, hub_cache, output_dir
             "microcategory_sidecar_sha256": microcategory["sidecar_sha256"],
             "immutable_model_hashes": microcategory["immutable_model_hashes"],
             "immutable_hash_algorithm": microcategory["immutable_hash_algorithm"],
+            "classifier_semantic_sha256": microcategory["classifier_semantic_sha256"],
+            "fitted_fingerprint_version": microcategory["fitted_fingerprint_version"],
+            "inference_priors_semantic_sha256": microcategory["inference_priors_semantic_sha256"],
             "microcategory_metadata": microcategory["metadata"],
             "integrity_only_not_a_signature": True,
             "training_identity_proven_by_export": False,
@@ -537,6 +583,12 @@ def export_bundle(project_root, reranker_path, checkpoint, hub_cache, output_dir
             raise ValueError("Exported adapter base cannot resolve offline")
         contract["check_identity"](metadata, relocated)
     joblib.dump(artifact, output / "models" / "reranker.joblib")
+    if microcategory is not None:
+        exported = joblib.load(output / "models" / "reranker.joblib")
+        if (inference_priors_fingerprint(exported, microcategory["fingerprint_contract"])
+                != microcategory["inference_priors_semantic_sha256"]):
+            raise ValueError("Exported saved inference priors differ after serialization")
+        del exported
     if requirements is not None:
         shutil.copy2(requirements, output / "requirements-runtime.txt")
     if answer is not None:

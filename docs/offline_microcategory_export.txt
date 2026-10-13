@@ -13,10 +13,16 @@ and its .joblib.json sidecar. The sidecar and payload metadata must exactly matc
 the embedded saved classifier snapshot. The corpus fingerprint, train source SHA,
 normalized fit-text digest/count, classes, query split/seed/fraction and grouped OOF
 training policy are retained. Each OOF model's fitted-text inventory must exclude
-its held-out text fold. joblib SHA1 content hashes of the immutable global model
-and every OOF model must match between external and embedded classifier objects;
-this covers fitted vocabulary, coefficients, classes and estimator configuration.
+its held-out text fold. Shared fitted_fingerprint.py version2 SHA256 fingerprints
+of the immutable global model and every OOF model must match between external and
+embedded objects. Sets/frozensets are canonicalized; only the exact sklearn
+Count/TfidfVectorizer transient _stop_words_id runtime cache is excluded. Fitted
+vocabulary, IDF, coefficients, classes, estimator parameters and all other fitted
+attributes remain bound. The whole-classifier fingerprint also binds metadata.
 Disposable prediction caches are cleared only in the exported artifact.
+The exporter records a semantic fingerprint for all saved inference priors and
+checks it again after reading the written reranker, preserving fitted geography
+and token histories without relying on pickle container ordering.
 
 The exact microcategory_model string '../models/microcategory.joblib' is recorded
 in the exported reranker metadata and passed unchanged to the CLI, with subprocess
@@ -51,12 +57,14 @@ different train source remains rejected; the export is not a submission-ready cl
 
 Verification scope
 ------------------
-Eight new tiny fixture tests cover V7/V8 copy integrity, immutable coefficient and
+Ten tiny fixture tests cover V7/V8 copy integrity, immutable coefficient/IDF and
 vocabulary mismatches, OOF self-exclusion, metadata/source/corpus/split mismatch,
 derived-key guards, actual config reconstruction, relocation of the generated
-wrapper and manifest rejection of a changed MCC file. Together with eleven existing
-export tests: 19 tests run, 18 passed, one optional Hugging Face cache-reader test
-skipped on the host. Tests passed with actual joblib/cloudpickle copied from the
-existing WSL environment and with a standard-library pickle joblib double. No
+wrapper, manifest rejection of a changed MCC file, independent frozenset pickle
+roundtrips, runtime-vectorizer cache changes and different PYTHONHASHSEED values.
+Together with eleven existing export tests: 21 tests run, 20 passed, one optional
+Hugging Face cache-reader test skipped on the host. Tests passed with actual
+joblib/cloudpickle copied from the existing WSL environment. The initial nineteen
+tests also passed with a standard-library pickle joblib double before the v2 fix. No
 Torch/sklearn imports, GPU use, fitted research models or large copies were used.
 The actual saved model export remains a separate action after model selection.

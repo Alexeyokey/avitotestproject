@@ -14,6 +14,8 @@ from pathlib import Path
 
 from avito_candidates.core import SEARCH_FIELDS, held_out, normalize
 from avito_candidates.reranker import Reranker, FEATURE_SCHEMAS, corpus_fingerprint
+from avito_candidates.fitted_fingerprint import (fitted_estimator_fingerprint,
+    classifier_semantic_fingerprint, FITTED_FINGERPRINT_VERSION)
 from cache_reranker_audit import ITEM_COLUMNS, build_cache, digest, query_order
 from produce_document_hypotheses import (iter_catalog_records, check_encoder_base,
                                          require_offline_environment)
@@ -26,21 +28,17 @@ RESEARCH_POLICY = {"microcategory": "leave-query-text-out",
 
 
 def research_prior_policy(artifact):
-    """Extend, rather than bypass, the old aggregate-prior identity checks."""
-    import joblib
+    """Extend, rather than bypass, aggregate priors with stable fitted semantics."""
     classifier = artifact.get("priors", {}).get("microcategory_classifier")
     if classifier is None:
         raise ValueError("V7 inference requires its saved microcategory classifier")
-    payload = {"model": classifier.model, "crossfit_models": classifier.crossfit_models,
-               "metadata": classifier.metadata}
-    # Prediction caches are disposable; fitted estimators and their OOF
-    # counterparts are included. Joblib hashes numpy buffers without making
-    # another complete serialized classifier in memory.
-    classifier_hash = joblib.hash(payload, hash_name="sha1")
+    classifier_hash = classifier_semantic_fingerprint(classifier)
     legacy = artifact_prior_policy(artifact)
-    return {**legacy, "research_classifier_joblib_sha1": classifier_hash,
+    return {**legacy, "research_classifier_fingerprint_version": FITTED_FINGERPRINT_VERSION,
+            "research_classifier_semantic_sha256": classifier_hash,
             "research_priors_sha256": EVAL.canonical_sha256({**legacy,
-                "classifier_joblib_sha1": classifier_hash})}
+                "classifier_fingerprint_version": FITTED_FINGERPRINT_VERSION,
+                "classifier_semantic_sha256": classifier_hash})}
 
 
 def validate_research_artifact(artifact, fit_texts, manifest):
@@ -139,7 +137,7 @@ def source_snapshot():
              root / "scripts/produce_document_hypotheses.py"]
     paths.extend(root / "src/avito_candidates" / name for name in (
         "reranker.py", "baseline.py", "hybrid.py", "dense.py", "microcategory.py",
-        "embedding_formats.py", "geography.py"))
+        "embedding_formats.py", "geography.py", "fitted_fingerprint.py"))
     return {str(path.resolve()): digest(path) for path in paths}
 
 

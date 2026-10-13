@@ -18,6 +18,19 @@ BASE = importlib.util.module_from_spec(SPEC)
 sys.modules[SPEC.name] = BASE
 SPEC.loader.exec_module(BASE)
 EXPORT = BASE.EXPORT
+FINGERPRINT_PATH = Path(__file__).resolve().parents[1] / "src/avito_candidates/fitted_fingerprint.py"
+if not FINGERPRINT_PATH.is_file():
+    FINGERPRINT_PATH = Path(__file__).with_name("fitted_fingerprint.py")
+FP_SPEC = importlib.util.spec_from_file_location("export_fitted_fingerprint", FINGERPRINT_PATH)
+FINGERPRINT = importlib.util.module_from_spec(FP_SPEC)
+sys.modules[FP_SPEC.name] = FINGERPRINT
+FP_SPEC.loader.exec_module(FINGERPRINT)
+
+
+def fingerprint_contract():
+    return {"model": FINGERPRINT.fitted_estimator_fingerprint,
+            "classifier": FINGERPRINT.classifier_semantic_fingerprint,
+            "version": FINGERPRINT.FITTED_FINGERPRINT_VERSION}
 
 
 def fold_for(text, folds=3, seed=42):
@@ -29,7 +42,7 @@ class FixtureClassifier:
     def __init__(self, metadata):
         texts = frozenset("query " + str(index) for index in range(12))
         self.model = SimpleNamespace(fitted_texts=texts, classes=("101", "202"),
-                                     vocabulary={"typed": 0}, coefficients=(.1, -.2))
+                                     vocabulary={"typed": 0}, idf=(1.5, 2.), coefficients=(.1, -.2))
         self.crossfit_models = {fold: SimpleNamespace(
             fitted_texts=frozenset(text for text in texts if fold_for(text) != fold),
             classes=("101", "202"), vocabulary={"fold": fold}, coefficients=(.3 + fold,))
@@ -90,7 +103,7 @@ class MicrocategoryExportTests(unittest.TestCase):
 
     def export(self, fixture):
         return EXPORT.export_bundle(*fixture[:5], requirements=fixture[5], answer=fixture[6],
-                                    contract=BASE.fixture_contract())
+            contract={**BASE.fixture_contract(), "fitted_fingerprint_contract": fingerprint_contract})
 
     def test_v7_and_v8_copy_bound_classifier_keep_original_config_and_priors(self):
         for version in (7, 8):
@@ -115,6 +128,16 @@ class MicrocategoryExportTests(unittest.TestCase):
                 self.assertEqual(set(attest["immutable_model_hashes"]), {"global", "fold-0", "fold-1", "fold-2"})
                 self.assertTrue(attest["integrity_only_not_a_signature"])
                 self.assertFalse(attest["training_identity_proven_by_export"])
+                self.assertEqual(attest["fitted_fingerprint_version"], 2)
+                self.assertEqual(attest["immutable_hash_algorithm"], "canonical-fitted-state-v2-sha256")
+                self.assertEqual(attest["classifier_semantic_sha256"],
+                    FINGERPRINT.classifier_semantic_fingerprint(original["priors"]["microcategory_classifier"]))
+                self.assertEqual(attest["classifier_semantic_sha256"],
+                    FINGERPRINT.classifier_semantic_fingerprint(exported["priors"]["microcategory_classifier"]))
+                self.assertEqual(attest["inference_priors_semantic_sha256"],
+                    EXPORT.inference_priors_fingerprint(original, fingerprint_contract()))
+                self.assertEqual(attest["inference_priors_semantic_sha256"],
+                    EXPORT.inference_priors_fingerprint(exported, fingerprint_contract()))
                 self.assertEqual(exported["metadata"]["corpus_fingerprint"], "a" * 64)
                 self.assertEqual(exported["metadata"]["microcategory_classifier_metadata"]["source_sha256"],
                                  original["metadata"]["microcategory_classifier_metadata"]["source_sha256"])
@@ -156,13 +179,14 @@ class MicrocategoryExportTests(unittest.TestCase):
                 self.assertFalse(fixture[4].exists())
 
     def test_changed_embedded_fitted_state_or_fold_inventory_rejected(self):
-        for mode in ("coefficients", "vocabulary", "fold_coefficients", "fold_inventory", "classes", "texts", "missing"):
+        for mode in ("coefficients", "vocabulary", "idf", "fold_coefficients", "fold_inventory", "classes", "texts", "missing"):
             with self.subTest(mode=mode), TemporaryDirectory() as directory:
                 fixture, _ = self.fixture(directory)
                 artifact = joblib.load(fixture[1])
                 classifier = artifact["priors"]["microcategory_classifier"]
                 if mode == "coefficients": classifier.model.coefficients = (.7,)
                 elif mode == "vocabulary": classifier.model.vocabulary = {"changed": 99}
+                elif mode == "idf": classifier.model.idf = (99.,)
                 elif mode == "fold_coefficients": classifier.crossfit_models[1].coefficients = (.99,)
                 elif mode == "fold_inventory": classifier.crossfit_models[1].fitted_texts = classifier.model.fitted_texts
                 elif mode == "classes": classifier.model.classes = ("999",)
@@ -171,6 +195,77 @@ class MicrocategoryExportTests(unittest.TestCase):
                 joblib.dump(artifact, fixture[1])
                 with self.assertRaises(ValueError): self.export(fixture)
                 self.assertFalse(fixture[4].exists())
+
+    def test_frozenset_roundtrip_and_runtime_vectorizer_pointer_preserve_fitted_semantics(self):
+        with TemporaryDirectory() as directory:
+            fixture, source = self.fixture(directory)
+            artifact = joblib.load(fixture[1])
+            classifier = artifact["priors"]["microcategory_classifier"]
+            # A larger membership inventory reproduces serialization ordering
+            # changes without any fitted model or ML dependency.
+            texts = frozenset("normalized training query " + str(index) for index in range(1024))
+            classifier.model.fitted_texts = texts
+            for fold, model in classifier.crossfit_models.items():
+                model.fitted_texts = frozenset(text for text in texts if fold_for(text) != fold)
+            snapshot = classifier.metadata
+            snapshot.update(fit_texts_count=len(texts), allowed_fit_texts_count=len(texts) + 1,
+                            observed_fit_texts_sha256=EXPORT._text_inventory_digest(texts))
+            external_payload = dict(model=classifier.model, crossfit_models=classifier.crossfit_models,
+                                    metadata=snapshot)
+            joblib.dump(external_payload, source)
+            # The embedded and standalone classifier take independent pickle
+            # paths, exactly as prepare -> fit and MCC.save do in production.
+            embedded_path = Path(directory) / "embedded-roundtrip.joblib"
+            joblib.dump(classifier, embedded_path)
+            artifact["priors"]["microcategory_classifier"] = joblib.load(embedded_path)
+            artifact["metadata"]["microcategory_classifier_metadata"] = copy.deepcopy(snapshot)
+            artifact["metadata"]["retrieval_config"]["microcategory_model_sha256"] = EXPORT.sha256(source)
+            source.with_suffix(".joblib.json").write_text(json.dumps({
+                "metadata": snapshot, "model_sha256": EXPORT.sha256(source)}))
+            joblib.dump(artifact, fixture[1])
+            self.assertEqual(artifact["priors"]["microcategory_classifier"].model.fitted_texts, texts)
+            manifest = self.export(fixture)
+            loaded = joblib.load(fixture[4] / "models/reranker.joblib")
+            expected = FINGERPRINT.classifier_semantic_fingerprint(classifier)
+            self.assertEqual(manifest["microcategory_export_attestation"]["classifier_semantic_sha256"], expected)
+            self.assertEqual(FINGERPRINT.classifier_semantic_fingerprint(
+                loaded["priors"]["microcategory_classifier"]), expected)
+            prior_sha = EXPORT.inference_priors_fingerprint(loaded, fingerprint_contract())
+            self.assertEqual(prior_sha, manifest["microcategory_export_attestation"]["inference_priors_semantic_sha256"])
+            loaded["priors"]["geo_associations"]["saved"] = "different history"
+            self.assertNotEqual(EXPORT.inference_priors_fingerprint(loaded, fingerprint_contract()), prior_sha)
+            # Mimic the exact sklearn runtime cache field without importing
+            # sklearn. Only the helper's exact vectorizer type exemption applies.
+            Vectorizer = type("TfidfVectorizer", (), {})
+            Vectorizer.__module__ = "sklearn.feature_extraction.text"
+            vectorizer = Vectorizer()
+            vectorizer.vocabulary_ = {"typed": 0}
+            vectorizer.idf_ = (1.5,)
+            vectorizer._stop_words_id = 123
+            before = FINGERPRINT.fitted_estimator_fingerprint(vectorizer)
+            vectorizer._stop_words_id = 987654
+            self.assertEqual(FINGERPRINT.fitted_estimator_fingerprint(vectorizer), before)
+            vectorizer.idf_ = (9.,)
+            self.assertNotEqual(FINGERPRINT.fitted_estimator_fingerprint(vectorizer), before)
+
+    def test_export_uses_shared_fingerprint_under_different_python_hash_seeds(self):
+        program = '''import hashlib, importlib.util, json, sys
+from types import SimpleNamespace
+spec = importlib.util.spec_from_file_location("fingerprint", sys.argv[1])
+helper = importlib.util.module_from_spec(spec); spec.loader.exec_module(helper)
+texts = frozenset("query " + str(x) for x in range(256))
+model = SimpleNamespace(fitted_texts=texts, vocabulary={"alpha":0,"beta":1}, idf=(1.2,2.3), coefficients=(.1,-.2))
+classifier = SimpleNamespace(model=model, crossfit_models={0:model}, metadata={"seed":42,"classes":["a","b"]})
+print(helper.classifier_semantic_fingerprint(classifier))
+'''
+        outputs = []
+        import os
+        for seed in ("1", "719"):
+            result = subprocess.run([sys.executable, "-c", program, str(FINGERPRINT_PATH)],
+                capture_output=True, text=True, env={**os.environ, "PYTHONHASHSEED": seed})
+            self.assertEqual(result.returncode, 0, result.stderr)
+            outputs.append(result.stdout.strip())
+        self.assertEqual(outputs[0], outputs[1])
 
     def test_corpus_source_split_schema_snapshot_and_v8_measurement_fail_closed(self):
         changes = [("corpus_fingerprint", "c" * 64), ("source_sha256", "not-a-sha"),

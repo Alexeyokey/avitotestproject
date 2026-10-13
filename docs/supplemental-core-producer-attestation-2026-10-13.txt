@@ -1,0 +1,27 @@
+Подтверждение неизменности core.py и supplemental.py
+Дата UTC: 2026-10-13T20:51:20.307200+00:00
+Исходный коммит: 89e09da03a232147785128b8c3ec407cdd882eb2
+Текущий HEAD: ba529db0dc938c7c32ffa9f6a164eec70b9768a4
+
+src/avito_candidates/core.py
+  SHA256 точных байтов Git blob и текущего файла: eccd72b79531b414098d231e09cf6a26456c0eb024fc8a9962cf06b1c20c6a27
+  Git blob: 8ab2b983c52d85957b5784202e93488ae5060471
+  Точные байты совпадают; изменений рабочего дерева нет.
+src/avito_candidates/supplemental.py
+  SHA256 точных байтов Git blob и текущего файла: 50dd609ce422318d7e1888593e039d45c732d5b9ce228468a8b25cf4e1189754
+  Git blob: 011c1af82ba2cf0805e8aaa17efac1e51dbf4d38
+  Точные байты совпадают; изменений рабочего дерева нет.
+
+Ранее сохранённая проверка селектора: /home/alex/avitotestproject/artifacts/microcategory-research-2026-10-13/cached-supplemental-production-parity-32.json
+SHA256 проверки: 6e3ab753fc7c3b2f1212d26bf101a7a645ea66f73e8406f4f83a96357d666cab
+SHA256 helper в проверке: 50dd609ce422318d7e1888593e039d45c732d5b9ce228468a8b25cf4e1189754
+Совпали порядок и состав 32 пулов; максимум 998 кандидатов.
+Проверка использовала условные численные баллы; она не проверяла эмбеддинги или признаки модели.
+
+Core: совпадение с исходным рабочим checkout: True
+Старый Tune metadata сохраняет SHA256 producer entry point, но не содержит прямого хеша core.py.
+Не является криптографическим доказательством, доверенной отметкой времени или автоматическим снимком при старте процесса.
+Файлы исходников, cache/scoring/freeze не изменены; Audit targets не читались.
+Перед фиксацией и после Audit root должен повторно сверить эти SHA256. Автоматического применения этого документа в коде нет.
+
+JSON payload SHA256: 699d22e1dc076e36e2fe3094d5c1033f7c4cf3bcf33fdd501f5a87000a6ec693

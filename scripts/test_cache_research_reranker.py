@@ -1,6 +1,9 @@
 import copy
 import json
+import os
 from pathlib import Path
+import subprocess
+import sys
 import tempfile
 from types import SimpleNamespace
 import unittest
@@ -14,6 +17,7 @@ from cache_research_reranker import (RESEARCH_POLICY, research_prior_policy,
     validate_research_artifact, check_cold_groups, check_sources, build_saved_retriever)
 from cache_research_reranker import check_training_prior_file
 from cache_research_reranker import check_supplemental_config
+from cache_research_reranker import fitted_estimator_fingerprint
 from cache_reranker_audit import digest
 
 
@@ -110,6 +114,46 @@ class CacheGuardTest(unittest.TestCase):
             self.assertEqual(first, research_prior_policy(artifact))
             classifier.model.coef[0] += .1
             self.assertNotEqual(first["research_priors_sha256"], research_prior_policy(artifact)["research_priors_sha256"])
+
+    def test_classifier_fingerprint_survives_joblib_roundtrip_and_binds_oof_membership_metadata(self):
+        import joblib
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            artifact, _texts, _manifest = self.fixture(root)
+            classifier = artifact["priors"]["microcategory_classifier"]
+            # A sizeable unordered membership set exposes non-semantic pickle
+            # iteration differences without loading or training a real model.
+            classifier.model.fitted_texts = frozenset("query" + str(i) for i in range(1000))
+            before = research_prior_policy(artifact)
+            path = root / "roundtrip.joblib"
+            joblib.dump(artifact, path, compress=3)
+            loaded = joblib.load(path)
+            self.assertEqual(before, research_prior_policy(loaded))
+            self.assertEqual(before["research_classifier_fingerprint_version"], 2)
+            fold = next(iter(loaded["priors"]["microcategory_classifier"].crossfit_models))
+            loaded["priors"]["microcategory_classifier"].crossfit_models[fold].fitted_texts |= {"changed-membership"}
+            self.assertNotEqual(before, research_prior_policy(loaded))
+            loaded = joblib.load(path)
+            loaded["priors"]["microcategory_classifier"].metadata["seed"] += 1
+            self.assertNotEqual(before, research_prior_policy(loaded))
+            loaded = joblib.load(path)
+            loaded["priors"]["microcategory_classifier"].crossfit_models[fold].coef[0] += .01
+            self.assertNotEqual(before, research_prior_policy(loaded))
+
+    def test_fitted_text_fingerprint_is_independent_of_process_hash_seed(self):
+        code = """from types import SimpleNamespace
+import numpy as np
+from cache_research_reranker import fitted_estimator_fingerprint
+model = SimpleNamespace(fitted_texts=frozenset('query'+str(i) for i in range(1000)), coef=np.array([.1,.2]))
+print(fitted_estimator_fingerprint(model))
+"""
+        hashes = []
+        for seed in ("1", "2"):
+            result = subprocess.run([sys.executable, "-c", code], check=True,
+                capture_output=True, text=True, env={**os.environ, "PYTHONHASHSEED": seed})
+            hashes.append(result.stdout.strip())
+        self.assertEqual(hashes[0], hashes[1])
+        self.assertEqual(len(hashes[0]), 64)
 
     def test_cold_group_check_keeps_contexts_together_and_rejects_fit(self):
         cold = next("query" + str(i) for i in range(100) if held_out("query" + str(i), .2, 42))
