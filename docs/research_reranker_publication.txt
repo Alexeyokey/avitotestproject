@@ -1,0 +1,76 @@
+Publish a research-selected V8 runtime candidate
+==============================================
+
+scripts/publish_research_reranker.py records the prefix selected by the completed
+Tune seal only after the frozen regression has finished. It does not deploy a
+winner or change any earlier model. The raw HGB150 retains all fitted trees;
+the new artifact changes selected_iteration and selection_status and attaches
+the publication evidence. Saved priors, metadata and training provenance remain
+unchanged. The training_configuration receives only the chosen runtime prefix
+and its status, leaving fitted iterations and training parameters intact.
+
+Usage after completion (paths below are placeholders):
+
+PYTHONPATH=src:scripts /home/alex/avitotestproject/.venv/bin/python scripts/publish_research_reranker.py \
+  --protocol-dir /path/to/frozen/protocol \
+  --selection /path/to/Tune-sealed-selection.json \
+  --regression-dir /path/to/frozen-regression-evaluation \
+  --output /path/to/a-new-selected-v8.joblib
+
+The script expects the evaluator's actual output filenames:
+  frozen-regression-report.json
+  frozen-regression-group-scores.jsonl
+It derives new/old model and training paths and the selected stage from the seal;
+there is no --stage, --best, --deploy or Audit-based capacity selection option.
+
+Required evidence
+-----------------
+verify_frozen_selection checks the full Tune seal, all material byte hashes,
+the old byte-identical HGB150 reference, the completed dense index, the producer
+source closure and the recorded Tune report/score identities. The publisher also
+checks the exact protocol, report/score files, completed new/old Audit metadata
+and cache hashes, fixed regression flags, retrieval config, semantic saved-prior
+policy, encoder checkpoint/base and model training identities.
+
+Every protocol Audit context must be present, including groups without an
+available target. Canonical group IDs must be unique, equal the SHA of each five-
+field query key and match both completed cache inventories. Local group IDs are
+contiguous and retained separately for each pipeline. Full/available denominators
+and representative flags agree across pipelines. The sealed Audit text inventory
+and label-blind representative hash rule are checked without opening target IDs.
+
+Group scores may contain only the selected new prefix and old150. Recorded new
+and old named_summary values are recomputed from the complete scored rows. Each
+pipeline's original local-group order is restored before aggregation, since the
+evaluator wrote paired rows in canonical-identity order after summarizing them.
+No model prediction, target loading or extra parameter search is performed.
+The full seal and regression source-file bytes are rechecked before publication.
+
+publish_fresh_reranker.publish_new writes complete bytes atomically using a
+same-directory temporary file and a no-overwrite hard link. Existing output and
+race-created outputs are preserved. The raw model and earlier selected artifacts
+cannot be publication targets.
+
+Interpretation
+--------------
+research_selection records candidate-only publication, official benchmark not
+validated, Audit not independent and no automatic deployment selection. Audit
+had already been observed for the old baseline, so this remains a frozen
+regression diagnostic. It cannot become a new independent confidence claim.
+The artifact remains bound to the protocol's sampled catalog, not the original
+benchmark catalog. A worse regression does not trigger a different prefix or a
+claim of improvement; deciding which tested model to use is a separate action.
+
+Verification performed
+----------------------
+Nine tiny host tests passed using actual joblib, with synthetic seals, metadata,
+paired score rows and small inert HGB fixtures. Tests use the actual pure seal,
+named_summary and atomic-publication function ASTs; dependency spies replace
+Parquet/encoder/prior loaders. Covered: full trees/priors/provenance preservation,
+publication of the Tune-sealed prefix even after worse regression, checksum/
+source/model/index changes, wrong or missing completed reports, extra/unselected
+stages, duplicate/unknown/omitted contexts, zero-availability retention, metadata
+and prior/config changes, float accumulation order, mid-check changes, existing
+outputs and atomic races. The real publisher/reports/model were not executed or
+read during development. No real Audit labels, fitted research model, partial
+new cache, GPU job or frozen source/helper/evaluator was touched.
