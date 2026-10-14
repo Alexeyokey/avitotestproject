@@ -1,0 +1,2295 @@
+{
+  "audit_dirs": [
+    "artifacts/research-2026-10-12/matched-ablation/baseline-curves",
+    "artifacts/research-2026-10-12/matched-ablation/v4-curves",
+    "artifacts/research-2026-10-12/matched-ablation/v6-curves"
+  ],
+  "reference": {
+    "name": "hgb",
+    "stage": 50,
+    "model_sha256": "a57d2e753df5fa53e59d188697aa52b64dcb3dc671a70a6be2105f8879a8382a"
+  },
+  "bootstrap_replicates": 1000,
+  "seed": 20261012,
+  "allow_rescore_only_config_difference": true,
+  "historical_validation_reused": true,
+  "fresh_confirmation_holdout": false,
+  "selection_method": "Select each prefix and then the model solely on tune macro Recall@50. Ties prefer fewer prefix iterations, then the model name.",
+  "tune_selected_model": "v6-lambdarank",
+  "selections": {
+    "hgb": {
+      "stage": 50,
+      "tune_recall": 0.8505867671608733,
+      "model_class": "HistGradientBoostingClassifier",
+      "report_path": "artifacts/research-2026-10-12/matched-ablation/baseline-curves/hgb-report.json",
+      "score_path": "artifacts/research-2026-10-12/matched-ablation/baseline-curves/hgb-validation-scores.parquet"
+    },
+    "v4-histgb": {
+      "stage": 25,
+      "tune_recall": 0.8537106824680584,
+      "model_class": "HistGradientBoostingClassifier",
+      "report_path": "artifacts/research-2026-10-12/matched-ablation/v4-curves/v4-histgb-report.json",
+      "score_path": "artifacts/research-2026-10-12/matched-ablation/v4-curves/v4-histgb-validation-scores.parquet"
+    },
+    "v4-lambdarank": {
+      "stage": 100,
+      "tune_recall": 0.8577573097965322,
+      "model_class": "LGBMRanker",
+      "report_path": "artifacts/research-2026-10-12/matched-ablation/v4-curves/v4-lambdarank-report.json",
+      "score_path": "artifacts/research-2026-10-12/matched-ablation/v4-curves/v4-lambdarank-validation-scores.parquet"
+    },
+    "v6-histgb": {
+      "stage": 50,
+      "tune_recall": 0.8556949471909555,
+      "model_class": "HistGradientBoostingClassifier",
+      "report_path": "artifacts/research-2026-10-12/matched-ablation/v6-curves/v6-histgb-report.json",
+      "score_path": "artifacts/research-2026-10-12/matched-ablation/v6-curves/v6-histgb-validation-scores.parquet"
+    },
+    "v6-lambdarank": {
+      "stage": 100,
+      "tune_recall": 0.8605399084312656,
+      "model_class": "LGBMRanker",
+      "report_path": "artifacts/research-2026-10-12/matched-ablation/v6-curves/v6-lambdarank-report.json",
+      "score_path": "artifacts/research-2026-10-12/matched-ablation/v6-curves/v6-lambdarank-validation-scores.parquet"
+    }
+  },
+  "selected_model_confirmation_evidence": "uncertain_interval_includes_zero",
+  "automatic_winner_declared": false,
+  "reference_vs_baseline": {
+    "all_validation": {
+      "query_groups": 5157,
+      "query_text_clusters": 2431,
+      "candidate_recall": 0.8500175443456419,
+      "reference_recall": 0.8033269619657054,
+      "delta": 0.04669058237993666,
+      "delta_ci95": [
+        0.036799520884730964,
+        0.056364957334985845
+      ],
+      "bootstrap_replicates": 1000,
+      "seed": 20261012,
+      "evidence": "positive_paired_evidence",
+      "method": "Paired bootstrap of normalized query-text clusters; macro average remains over query groups.",
+      "benchmark_query_mix": {
+        "candidate_recall": 0.8491945062607981,
+        "reference_recall": 0.8043749051104865,
+        "delta": 0.0448196011503115,
+        "delta_ci95": [
+          0.03175041701097665,
+          0.05717146955867503
+        ],
+        "covered_target_fraction": 1.0,
+        "target_queries": 2452,
+        "covered_target_queries": 2452,
+        "valid_bootstrap_replicates": 1000,
+        "requested_bootstrap_replicates": 1000,
+        "seed": 20261012,
+        "evidence": "positive_paired_evidence",
+        "method": "Paired query-text cluster bootstrap with fixed benchmark stratum weights.",
+        "coverage_note": "Target strata absent from this partition are excluded; replicates missing a covered stratum are discarded."
+      }
+    },
+    "tune": {
+      "query_groups": 2881,
+      "query_text_clusters": 1237,
+      "candidate_recall": 0.8505867671608733,
+      "reference_recall": 0.8051395844696781,
+      "delta": 0.04544718269119519,
+      "delta_ci95": [
+        0.03139425503579804,
+        0.05780744435892483
+      ],
+      "bootstrap_replicates": 1000,
+      "seed": 20261012,
+      "evidence": "positive_paired_evidence",
+      "method": "Paired bootstrap of normalized query-text clusters; macro average remains over query groups.",
+      "benchmark_query_mix": {
+        "candidate_recall": 0.8513491210909645,
+        "reference_recall": 0.811784748517491,
+        "delta": 0.03956437257347339,
+        "delta_ci95": [
+          0.020957536061500578,
+          0.05760473266433349
+        ],
+        "covered_target_fraction": 1.0,
+        "target_queries": 2452,
+        "covered_target_queries": 2452,
+        "valid_bootstrap_replicates": 1000,
+        "requested_bootstrap_replicates": 1000,
+        "seed": 20261012,
+        "evidence": "positive_paired_evidence",
+        "method": "Paired query-text cluster bootstrap with fixed benchmark stratum weights.",
+        "coverage_note": "Target strata absent from this partition are excluded; replicates missing a covered stratum are discarded."
+      }
+    },
+    "confirmation": {
+      "query_groups": 2276,
+      "query_text_clusters": 1194,
+      "candidate_recall": 0.8492970123022847,
+      "reference_recall": 0.8010325131810194,
+      "delta": 0.04826449912126538,
+      "delta_ci95": [
+        0.03400910157406019,
+        0.06197725758956987
+      ],
+      "bootstrap_replicates": 1000,
+      "seed": 20261012,
+      "evidence": "positive_paired_evidence",
+      "method": "Paired bootstrap of normalized query-text clusters; macro average remains over query groups.",
+      "benchmark_query_mix": {
+        "candidate_recall": 0.8470650405729346,
+        "reference_recall": 0.7974521235579208,
+        "delta": 0.049612917015013754,
+        "delta_ci95": [
+          0.031594654338439505,
+          0.0673042322069714
+        ],
+        "covered_target_fraction": 1.0,
+        "target_queries": 2452,
+        "covered_target_queries": 2452,
+        "valid_bootstrap_replicates": 1000,
+        "requested_bootstrap_replicates": 1000,
+        "seed": 20261012,
+        "evidence": "positive_paired_evidence",
+        "method": "Paired query-text cluster bootstrap with fixed benchmark stratum weights.",
+        "coverage_note": "Target strata absent from this partition are excluded; replicates missing a covered stratum are discarded."
+      }
+    }
+  },
+  "models": {
+    "hgb": {
+      "selected_stage": 50,
+      "comparison_compatibility": {
+        "mode": "strict_config_match",
+        "inference_policy_compared": true
+      },
+      "selected_stage_vs_reference": {
+        "all_validation": {
+          "query_groups": 5157,
+          "query_text_clusters": 2431,
+          "candidate_recall": 0.8500175443456419,
+          "reference_recall": 0.8500175443456419,
+          "delta": 0.0,
+          "delta_ci95": [
+            0.0,
+            0.0
+          ],
+          "bootstrap_replicates": 1000,
+          "seed": 20261012,
+          "evidence": "uncertain_interval_includes_zero",
+          "method": "Paired bootstrap of normalized query-text clusters; macro average remains over query groups.",
+          "benchmark_query_mix": {
+            "candidate_recall": 0.8491945062607981,
+            "reference_recall": 0.8491945062607981,
+            "delta": 0.0,
+            "delta_ci95": [
+              0.0,
+              0.0
+            ],
+            "covered_target_fraction": 1.0,
+            "target_queries": 2452,
+            "covered_target_queries": 2452,
+            "valid_bootstrap_replicates": 1000,
+            "requested_bootstrap_replicates": 1000,
+            "seed": 20261012,
+            "evidence": "uncertain_interval_includes_zero",
+            "method": "Paired query-text cluster bootstrap with fixed benchmark stratum weights.",
+            "coverage_note": "Target strata absent from this partition are excluded; replicates missing a covered stratum are discarded."
+          }
+        },
+        "tune": {
+          "query_groups": 2881,
+          "query_text_clusters": 1237,
+          "candidate_recall": 0.8505867671608733,
+          "reference_recall": 0.8505867671608733,
+          "delta": 0.0,
+          "delta_ci95": [
+            0.0,
+            0.0
+          ],
+          "bootstrap_replicates": 1000,
+          "seed": 20261012,
+          "evidence": "uncertain_interval_includes_zero",
+          "method": "Paired bootstrap of normalized query-text clusters; macro average remains over query groups.",
+          "benchmark_query_mix": {
+            "candidate_recall": 0.8513491210909645,
+            "reference_recall": 0.8513491210909645,
+            "delta": 0.0,
+            "delta_ci95": [
+              0.0,
+              0.0
+            ],
+            "covered_target_fraction": 1.0,
+            "target_queries": 2452,
+            "covered_target_queries": 2452,
+            "valid_bootstrap_replicates": 1000,
+            "requested_bootstrap_replicates": 1000,
+            "seed": 20261012,
+            "evidence": "uncertain_interval_includes_zero",
+            "method": "Paired query-text cluster bootstrap with fixed benchmark stratum weights.",
+            "coverage_note": "Target strata absent from this partition are excluded; replicates missing a covered stratum are discarded."
+          }
+        },
+        "confirmation": {
+          "query_groups": 2276,
+          "query_text_clusters": 1194,
+          "candidate_recall": 0.8492970123022847,
+          "reference_recall": 0.8492970123022847,
+          "delta": 0.0,
+          "delta_ci95": [
+            0.0,
+            0.0
+          ],
+          "bootstrap_replicates": 1000,
+          "seed": 20261012,
+          "evidence": "uncertain_interval_includes_zero",
+          "method": "Paired bootstrap of normalized query-text clusters; macro average remains over query groups.",
+          "benchmark_query_mix": {
+            "candidate_recall": 0.8470650405729346,
+            "reference_recall": 0.8470650405729346,
+            "delta": 0.0,
+            "delta_ci95": [
+              0.0,
+              0.0
+            ],
+            "covered_target_fraction": 1.0,
+            "target_queries": 2452,
+            "covered_target_queries": 2452,
+            "valid_bootstrap_replicates": 1000,
+            "requested_bootstrap_replicates": 1000,
+            "seed": 20261012,
+            "evidence": "uncertain_interval_includes_zero",
+            "method": "Paired query-text cluster bootstrap with fixed benchmark stratum weights.",
+            "coverage_note": "Target strata absent from this partition are excluded; replicates missing a covered stratum are discarded."
+          }
+        }
+      },
+      "selected_stage_vs_hgb50": {
+        "all_validation": {
+          "query_groups": 5157,
+          "query_text_clusters": 2431,
+          "candidate_recall": 0.8500175443456419,
+          "reference_recall": 0.8500175443456419,
+          "delta": 0.0,
+          "delta_ci95": [
+            0.0,
+            0.0
+          ],
+          "bootstrap_replicates": 1000,
+          "seed": 20261012,
+          "evidence": "uncertain_interval_includes_zero",
+          "method": "Paired bootstrap of normalized query-text clusters; macro average remains over query groups.",
+          "benchmark_query_mix": {
+            "candidate_recall": 0.8491945062607981,
+            "reference_recall": 0.8491945062607981,
+            "delta": 0.0,
+            "delta_ci95": [
+              0.0,
+              0.0
+            ],
+            "covered_target_fraction": 1.0,
+            "target_queries": 2452,
+            "covered_target_queries": 2452,
+            "valid_bootstrap_replicates": 1000,
+            "requested_bootstrap_replicates": 1000,
+            "seed": 20261012,
+            "evidence": "uncertain_interval_includes_zero",
+            "method": "Paired query-text cluster bootstrap with fixed benchmark stratum weights.",
+            "coverage_note": "Target strata absent from this partition are excluded; replicates missing a covered stratum are discarded."
+          }
+        },
+        "tune": {
+          "query_groups": 2881,
+          "query_text_clusters": 1237,
+          "candidate_recall": 0.8505867671608733,
+          "reference_recall": 0.8505867671608733,
+          "delta": 0.0,
+          "delta_ci95": [
+            0.0,
+            0.0
+          ],
+          "bootstrap_replicates": 1000,
+          "seed": 20261012,
+          "evidence": "uncertain_interval_includes_zero",
+          "method": "Paired bootstrap of normalized query-text clusters; macro average remains over query groups.",
+          "benchmark_query_mix": {
+            "candidate_recall": 0.8513491210909645,
+            "reference_recall": 0.8513491210909645,
+            "delta": 0.0,
+            "delta_ci95": [
+              0.0,
+              0.0
+            ],
+            "covered_target_fraction": 1.0,
+            "target_queries": 2452,
+            "covered_target_queries": 2452,
+            "valid_bootstrap_replicates": 1000,
+            "requested_bootstrap_replicates": 1000,
+            "seed": 20261012,
+            "evidence": "uncertain_interval_includes_zero",
+            "method": "Paired query-text cluster bootstrap with fixed benchmark stratum weights.",
+            "coverage_note": "Target strata absent from this partition are excluded; replicates missing a covered stratum are discarded."
+          }
+        },
+        "confirmation": {
+          "query_groups": 2276,
+          "query_text_clusters": 1194,
+          "candidate_recall": 0.8492970123022847,
+          "reference_recall": 0.8492970123022847,
+          "delta": 0.0,
+          "delta_ci95": [
+            0.0,
+            0.0
+          ],
+          "bootstrap_replicates": 1000,
+          "seed": 20261012,
+          "evidence": "uncertain_interval_includes_zero",
+          "method": "Paired bootstrap of normalized query-text clusters; macro average remains over query groups.",
+          "benchmark_query_mix": {
+            "candidate_recall": 0.8470650405729346,
+            "reference_recall": 0.8470650405729346,
+            "delta": 0.0,
+            "delta_ci95": [
+              0.0,
+              0.0
+            ],
+            "covered_target_fraction": 1.0,
+            "target_queries": 2452,
+            "covered_target_queries": 2452,
+            "valid_bootstrap_replicates": 1000,
+            "requested_bootstrap_replicates": 1000,
+            "seed": 20261012,
+            "evidence": "uncertain_interval_includes_zero",
+            "method": "Paired query-text cluster bootstrap with fixed benchmark stratum weights.",
+            "coverage_note": "Target strata absent from this partition are excluded; replicates missing a covered stratum are discarded."
+          }
+        }
+      },
+      "selected_stage_vs_baseline": {
+        "all_validation": {
+          "query_groups": 5157,
+          "query_text_clusters": 2431,
+          "candidate_recall": 0.8500175443456419,
+          "reference_recall": 0.8033269619657054,
+          "delta": 0.04669058237993666,
+          "delta_ci95": [
+            0.036799520884730964,
+            0.056364957334985845
+          ],
+          "bootstrap_replicates": 1000,
+          "seed": 20261012,
+          "evidence": "positive_paired_evidence",
+          "method": "Paired bootstrap of normalized query-text clusters; macro average remains over query groups.",
+          "benchmark_query_mix": {
+            "candidate_recall": 0.8491945062607981,
+            "reference_recall": 0.8043749051104865,
+            "delta": 0.0448196011503115,
+            "delta_ci95": [
+              0.03175041701097665,
+              0.05717146955867503
+            ],
+            "covered_target_fraction": 1.0,
+            "target_queries": 2452,
+            "covered_target_queries": 2452,
+            "valid_bootstrap_replicates": 1000,
+            "requested_bootstrap_replicates": 1000,
+            "seed": 20261012,
+            "evidence": "positive_paired_evidence",
+            "method": "Paired query-text cluster bootstrap with fixed benchmark stratum weights.",
+            "coverage_note": "Target strata absent from this partition are excluded; replicates missing a covered stratum are discarded."
+          }
+        },
+        "tune": {
+          "query_groups": 2881,
+          "query_text_clusters": 1237,
+          "candidate_recall": 0.8505867671608733,
+          "reference_recall": 0.8051395844696781,
+          "delta": 0.04544718269119519,
+          "delta_ci95": [
+            0.03139425503579804,
+            0.05780744435892483
+          ],
+          "bootstrap_replicates": 1000,
+          "seed": 20261012,
+          "evidence": "positive_paired_evidence",
+          "method": "Paired bootstrap of normalized query-text clusters; macro average remains over query groups.",
+          "benchmark_query_mix": {
+            "candidate_recall": 0.8513491210909645,
+            "reference_recall": 0.811784748517491,
+            "delta": 0.03956437257347339,
+            "delta_ci95": [
+              0.020957536061500578,
+              0.05760473266433349
+            ],
+            "covered_target_fraction": 1.0,
+            "target_queries": 2452,
+            "covered_target_queries": 2452,
+            "valid_bootstrap_replicates": 1000,
+            "requested_bootstrap_replicates": 1000,
+            "seed": 20261012,
+            "evidence": "positive_paired_evidence",
+            "method": "Paired query-text cluster bootstrap with fixed benchmark stratum weights.",
+            "coverage_note": "Target strata absent from this partition are excluded; replicates missing a covered stratum are discarded."
+          }
+        },
+        "confirmation": {
+          "query_groups": 2276,
+          "query_text_clusters": 1194,
+          "candidate_recall": 0.8492970123022847,
+          "reference_recall": 0.8010325131810194,
+          "delta": 0.04826449912126538,
+          "delta_ci95": [
+            0.03400910157406019,
+            0.06197725758956987
+          ],
+          "bootstrap_replicates": 1000,
+          "seed": 20261012,
+          "evidence": "positive_paired_evidence",
+          "method": "Paired bootstrap of normalized query-text clusters; macro average remains over query groups.",
+          "benchmark_query_mix": {
+            "candidate_recall": 0.8470650405729346,
+            "reference_recall": 0.7974521235579208,
+            "delta": 0.049612917015013754,
+            "delta_ci95": [
+              0.031594654338439505,
+              0.0673042322069714
+            ],
+            "covered_target_fraction": 1.0,
+            "target_queries": 2452,
+            "covered_target_queries": 2452,
+            "valid_bootstrap_replicates": 1000,
+            "requested_bootstrap_replicates": 1000,
+            "seed": 20261012,
+            "evidence": "positive_paired_evidence",
+            "method": "Paired query-text cluster bootstrap with fixed benchmark stratum weights.",
+            "coverage_note": "Target strata absent from this partition are excluded; replicates missing a covered stratum are discarded."
+          }
+        }
+      },
+      "overfit_prefix_evidence": {
+        "selected_stage": 50,
+        "final_stage": 150,
+        "final_minus_selected_stage": {
+          "all_validation": {
+            "query_groups": 5157,
+            "query_text_clusters": 2431,
+            "candidate_recall": 0.8446995299962141,
+            "reference_recall": 0.8500175443456419,
+            "delta": -0.0053180143494279625,
+            "delta_ci95": [
+              -0.009086464869069617,
+              -0.001495929842717679
+            ],
+            "bootstrap_replicates": 1000,
+            "seed": 20261012,
+            "evidence": "negative_paired_evidence",
+            "method": "Paired bootstrap of normalized query-text clusters; macro average remains over query groups.",
+            "benchmark_query_mix": {
+              "candidate_recall": 0.8468171968807453,
+              "reference_recall": 0.8491945062607981,
+              "delta": -0.0023773093800527442,
+              "delta_ci95": [
+                -0.006811610664801664,
+                0.0024396270009119096
+              ],
+              "covered_target_fraction": 1.0,
+              "target_queries": 2452,
+              "covered_target_queries": 2452,
+              "valid_bootstrap_replicates": 1000,
+              "requested_bootstrap_replicates": 1000,
+              "seed": 20261012,
+              "evidence": "uncertain_interval_includes_zero",
+              "method": "Paired query-text cluster bootstrap with fixed benchmark stratum weights.",
+              "coverage_note": "Target strata absent from this partition are excluded; replicates missing a covered stratum are discarded."
+            }
+          },
+          "tune": {
+            "query_groups": 2881,
+            "query_text_clusters": 1237,
+            "candidate_recall": 0.8469277367316242,
+            "reference_recall": 0.8505867671608733,
+            "delta": -0.003659030429249104,
+            "delta_ci95": [
+              -0.00784973776730878,
+              0.0005260064276716587
+            ],
+            "bootstrap_replicates": 1000,
+            "seed": 20261012,
+            "evidence": "uncertain_interval_includes_zero",
+            "method": "Paired bootstrap of normalized query-text clusters; macro average remains over query groups.",
+            "benchmark_query_mix": {
+              "candidate_recall": 0.8503953092748427,
+              "reference_recall": 0.8513491210909645,
+              "delta": -0.0009538118161217889,
+              "delta_ci95": [
+                -0.006303690136854849,
+                0.004723589568817962
+              ],
+              "covered_target_fraction": 1.0,
+              "target_queries": 2452,
+              "covered_target_queries": 2452,
+              "valid_bootstrap_replicates": 1000,
+              "requested_bootstrap_replicates": 1000,
+              "seed": 20261012,
+              "evidence": "uncertain_interval_includes_zero",
+              "method": "Paired query-text cluster bootstrap with fixed benchmark stratum weights.",
+              "coverage_note": "Target strata absent from this partition are excluded; replicates missing a covered stratum are discarded."
+            }
+          },
+          "confirmation": {
+            "query_groups": 2276,
+            "query_text_clusters": 1194,
+            "candidate_recall": 0.8418790275336849,
+            "reference_recall": 0.8492970123022847,
+            "delta": -0.007417984768599882,
+            "delta_ci95": [
+              -0.014138009139582705,
+              -0.000845042013295981
+            ],
+            "bootstrap_replicates": 1000,
+            "seed": 20261012,
+            "evidence": "negative_paired_evidence",
+            "method": "Paired bootstrap of normalized query-text clusters; macro average remains over query groups.",
+            "benchmark_query_mix": {
+              "candidate_recall": 0.8426375479615793,
+              "reference_recall": 0.8470650405729346,
+              "delta": -0.004427492611355242,
+              "delta_ci95": [
+                -0.011254223257706765,
+                0.0026923292143653313
+              ],
+              "covered_target_fraction": 1.0,
+              "target_queries": 2452,
+              "covered_target_queries": 2452,
+              "valid_bootstrap_replicates": 1000,
+              "requested_bootstrap_replicates": 1000,
+              "seed": 20261012,
+              "evidence": "uncertain_interval_includes_zero",
+              "method": "Paired query-text cluster bootstrap with fixed benchmark stratum weights.",
+              "coverage_note": "Target strata absent from this partition are excluded; replicates missing a covered stratum are discarded."
+            }
+          }
+        },
+        "possible_excess_trees_on_confirmation": true,
+        "selected_stage_weighted_training_log_loss": 0.25097105881352894,
+        "final_stage_weighted_training_log_loss": 0.22651775921621453,
+        "training_log_loss_decreased": true,
+        "selected_stage_train_minus_validation_recall_gap": 0.01671912232102457,
+        "final_stage_train_minus_validation_recall_gap": 0.025620470003785978,
+        "interpretation": "More trees hurt confirmation Recall with an interval below zero; possible overfitting or excess capacity on this reused holdout.",
+        "caveat": "Training loss or a train/validation gap alone is not proof of overfitting; confirmation is historical validation already used in earlier work."
+      }
+    },
+    "v4-histgb": {
+      "selected_stage": 25,
+      "comparison_compatibility": {
+        "mode": "strict_config_match",
+        "inference_policy_compared": true
+      },
+      "selected_stage_vs_reference": {
+        "all_validation": {
+          "query_groups": 5157,
+          "query_text_clusters": 2431,
+          "candidate_recall": 0.8518338458129033,
+          "reference_recall": 0.8500175443456419,
+          "delta": 0.0018163014672613277,
+          "delta_ci95": [
+            -0.0014530883492016294,
+            0.005082202597270363
+          ],
+          "bootstrap_replicates": 1000,
+          "seed": 20261012,
+          "evidence": "uncertain_interval_includes_zero",
+          "method": "Paired bootstrap of normalized query-text clusters; macro average remains over query groups.",
+          "benchmark_query_mix": {
+            "candidate_recall": 0.8514117532184429,
+            "reference_recall": 0.8491945062607981,
+            "delta": 0.002217246957644793,
+            "delta_ci95": [
+              -0.0025124397556700825,
+              0.007036199547413277
+            ],
+            "covered_target_fraction": 1.0,
+            "target_queries": 2452,
+            "covered_target_queries": 2452,
+            "valid_bootstrap_replicates": 1000,
+            "requested_bootstrap_replicates": 1000,
+            "seed": 20261012,
+            "evidence": "uncertain_interval_includes_zero",
+            "method": "Paired query-text cluster bootstrap with fixed benchmark stratum weights.",
+            "coverage_note": "Target strata absent from this partition are excluded; replicates missing a covered stratum are discarded."
+          }
+        },
+        "tune": {
+          "query_groups": 2881,
+          "query_text_clusters": 1237,
+          "candidate_recall": 0.8537106824680585,
+          "reference_recall": 0.8505867671608733,
+          "delta": 0.0031239153071850045,
+          "delta_ci95": [
+            -0.0008818653643803765,
+            0.007064872115215888
+          ],
+          "bootstrap_replicates": 1000,
+          "seed": 20261012,
+          "evidence": "uncertain_interval_includes_zero",
+          "method": "Paired bootstrap of normalized query-text clusters; macro average remains over query groups.",
+          "benchmark_query_mix": {
+            "candidate_recall": 0.8559484912429497,
+            "reference_recall": 0.8513491210909645,
+            "delta": 0.004599370151985141,
+            "delta_ci95": [
+              -0.002069772339118138,
+              0.01110020300558384
+            ],
+            "covered_target_fraction": 1.0,
+            "target_queries": 2452,
+            "covered_target_queries": 2452,
+            "valid_bootstrap_replicates": 1000,
+            "requested_bootstrap_replicates": 1000,
+            "seed": 20261012,
+            "evidence": "uncertain_interval_includes_zero",
+            "method": "Paired query-text cluster bootstrap with fixed benchmark stratum weights.",
+            "coverage_note": "Target strata absent from this partition are excluded; replicates missing a covered stratum are discarded."
+          }
+        },
+        "confirmation": {
+          "query_groups": 2276,
+          "query_text_clusters": 1194,
+          "candidate_recall": 0.8494581136496778,
+          "reference_recall": 0.8492970123022847,
+          "delta": 0.0001611013473930872,
+          "delta_ci95": [
+            -0.004961522199185264,
+            0.005252026358008834
+          ],
+          "bootstrap_replicates": 1000,
+          "seed": 20261012,
+          "evidence": "uncertain_interval_includes_zero",
+          "method": "Paired bootstrap of normalized query-text clusters; macro average remains over query groups.",
+          "benchmark_query_mix": {
+            "candidate_recall": 0.8468119215436279,
+            "reference_recall": 0.8470650405729346,
+            "delta": -0.0002531190293064912,
+            "delta_ci95": [
+              -0.006471544114162558,
+              0.0066715291092173295
+            ],
+            "covered_target_fraction": 1.0,
+            "target_queries": 2452,
+            "covered_target_queries": 2452,
+            "valid_bootstrap_replicates": 1000,
+            "requested_bootstrap_replicates": 1000,
+            "seed": 20261012,
+            "evidence": "uncertain_interval_includes_zero",
+            "method": "Paired query-text cluster bootstrap with fixed benchmark stratum weights.",
+            "coverage_note": "Target strata absent from this partition are excluded; replicates missing a covered stratum are discarded."
+          }
+        }
+      },
+      "selected_stage_vs_hgb50": {
+        "all_validation": {
+          "query_groups": 5157,
+          "query_text_clusters": 2431,
+          "candidate_recall": 0.8518338458129033,
+          "reference_recall": 0.8500175443456419,
+          "delta": 0.0018163014672613277,
+          "delta_ci95": [
+            -0.0014530883492016294,
+            0.005082202597270363
+          ],
+          "bootstrap_replicates": 1000,
+          "seed": 20261012,
+          "evidence": "uncertain_interval_includes_zero",
+          "method": "Paired bootstrap of normalized query-text clusters; macro average remains over query groups.",
+          "benchmark_query_mix": {
+            "candidate_recall": 0.8514117532184429,
+            "reference_recall": 0.8491945062607981,
+            "delta": 0.002217246957644793,
+            "delta_ci95": [
+              -0.0025124397556700825,
+              0.007036199547413277
+            ],
+            "covered_target_fraction": 1.0,
+            "target_queries": 2452,
+            "covered_target_queries": 2452,
+            "valid_bootstrap_replicates": 1000,
+            "requested_bootstrap_replicates": 1000,
+            "seed": 20261012,
+            "evidence": "uncertain_interval_includes_zero",
+            "method": "Paired query-text cluster bootstrap with fixed benchmark stratum weights.",
+            "coverage_note": "Target strata absent from this partition are excluded; replicates missing a covered stratum are discarded."
+          }
+        },
+        "tune": {
+          "query_groups": 2881,
+          "query_text_clusters": 1237,
+          "candidate_recall": 0.8537106824680585,
+          "reference_recall": 0.8505867671608733,
+          "delta": 0.0031239153071850045,
+          "delta_ci95": [
+            -0.0008818653643803765,
+            0.007064872115215888
+          ],
+          "bootstrap_replicates": 1000,
+          "seed": 20261012,
+          "evidence": "uncertain_interval_includes_zero",
+          "method": "Paired bootstrap of normalized query-text clusters; macro average remains over query groups.",
+          "benchmark_query_mix": {
+            "candidate_recall": 0.8559484912429497,
+            "reference_recall": 0.8513491210909645,
+            "delta": 0.004599370151985141,
+            "delta_ci95": [
+              -0.002069772339118138,
+              0.01110020300558384
+            ],
+            "covered_target_fraction": 1.0,
+            "target_queries": 2452,
+            "covered_target_queries": 2452,
+            "valid_bootstrap_replicates": 1000,
+            "requested_bootstrap_replicates": 1000,
+            "seed": 20261012,
+            "evidence": "uncertain_interval_includes_zero",
+            "method": "Paired query-text cluster bootstrap with fixed benchmark stratum weights.",
+            "coverage_note": "Target strata absent from this partition are excluded; replicates missing a covered stratum are discarded."
+          }
+        },
+        "confirmation": {
+          "query_groups": 2276,
+          "query_text_clusters": 1194,
+          "candidate_recall": 0.8494581136496778,
+          "reference_recall": 0.8492970123022847,
+          "delta": 0.0001611013473930872,
+          "delta_ci95": [
+            -0.004961522199185264,
+            0.005252026358008834
+          ],
+          "bootstrap_replicates": 1000,
+          "seed": 20261012,
+          "evidence": "uncertain_interval_includes_zero",
+          "method": "Paired bootstrap of normalized query-text clusters; macro average remains over query groups.",
+          "benchmark_query_mix": {
+            "candidate_recall": 0.8468119215436279,
+            "reference_recall": 0.8470650405729346,
+            "delta": -0.0002531190293064912,
+            "delta_ci95": [
+              -0.006471544114162558,
+              0.0066715291092173295
+            ],
+            "covered_target_fraction": 1.0,
+            "target_queries": 2452,
+            "covered_target_queries": 2452,
+            "valid_bootstrap_replicates": 1000,
+            "requested_bootstrap_replicates": 1000,
+            "seed": 20261012,
+            "evidence": "uncertain_interval_includes_zero",
+            "method": "Paired query-text cluster bootstrap with fixed benchmark stratum weights.",
+            "coverage_note": "Target strata absent from this partition are excluded; replicates missing a covered stratum are discarded."
+          }
+        }
+      },
+      "selected_stage_vs_baseline": {
+        "all_validation": {
+          "query_groups": 5157,
+          "query_text_clusters": 2431,
+          "candidate_recall": 0.8518338458129033,
+          "reference_recall": 0.8033269619657054,
+          "delta": 0.048506883847197986,
+          "delta_ci95": [
+            0.0388457563192722,
+            0.05790392382183297
+          ],
+          "bootstrap_replicates": 1000,
+          "seed": 20261012,
+          "evidence": "positive_paired_evidence",
+          "method": "Paired bootstrap of normalized query-text clusters; macro average remains over query groups.",
+          "benchmark_query_mix": {
+            "candidate_recall": 0.8514117532184429,
+            "reference_recall": 0.8043749051104865,
+            "delta": 0.047036848107956296,
+            "delta_ci95": [
+              0.034533440679766145,
+              0.05883092253048019
+            ],
+            "covered_target_fraction": 1.0,
+            "target_queries": 2452,
+            "covered_target_queries": 2452,
+            "valid_bootstrap_replicates": 1000,
+            "requested_bootstrap_replicates": 1000,
+            "seed": 20261012,
+            "evidence": "positive_paired_evidence",
+            "method": "Paired query-text cluster bootstrap with fixed benchmark stratum weights.",
+            "coverage_note": "Target strata absent from this partition are excluded; replicates missing a covered stratum are discarded."
+          }
+        },
+        "tune": {
+          "query_groups": 2881,
+          "query_text_clusters": 1237,
+          "candidate_recall": 0.8537106824680585,
+          "reference_recall": 0.8051395844696781,
+          "delta": 0.04857109799838019,
+          "delta_ci95": [
+            0.033996270682754424,
+            0.06034162137202649
+          ],
+          "bootstrap_replicates": 1000,
+          "seed": 20261012,
+          "evidence": "positive_paired_evidence",
+          "method": "Paired bootstrap of normalized query-text clusters; macro average remains over query groups.",
+          "benchmark_query_mix": {
+            "candidate_recall": 0.8559484912429497,
+            "reference_recall": 0.811784748517491,
+            "delta": 0.04416374272545853,
+            "delta_ci95": [
+              0.02621946368941412,
+              0.06141774687698895
+            ],
+            "covered_target_fraction": 1.0,
+            "target_queries": 2452,
+            "covered_target_queries": 2452,
+            "valid_bootstrap_replicates": 1000,
+            "requested_bootstrap_replicates": 1000,
+            "seed": 20261012,
+            "evidence": "positive_paired_evidence",
+            "method": "Paired query-text cluster bootstrap with fixed benchmark stratum weights.",
+            "coverage_note": "Target strata absent from this partition are excluded; replicates missing a covered stratum are discarded."
+          }
+        },
+        "confirmation": {
+          "query_groups": 2276,
+          "query_text_clusters": 1194,
+          "candidate_recall": 0.8494581136496778,
+          "reference_recall": 0.8010325131810194,
+          "delta": 0.048425600468658465,
+          "delta_ci95": [
+            0.03448458938645441,
+            0.06243338452562484
+          ],
+          "bootstrap_replicates": 1000,
+          "seed": 20261012,
+          "evidence": "positive_paired_evidence",
+          "method": "Paired bootstrap of normalized query-text clusters; macro average remains over query groups.",
+          "benchmark_query_mix": {
+            "candidate_recall": 0.8468119215436279,
+            "reference_recall": 0.7974521235579208,
+            "delta": 0.04935979798570726,
+            "delta_ci95": [
+              0.03078713559987123,
+              0.0661064144034165
+            ],
+            "covered_target_fraction": 1.0,
+            "target_queries": 2452,
+            "covered_target_queries": 2452,
+            "valid_bootstrap_replicates": 1000,
+            "requested_bootstrap_replicates": 1000,
+            "seed": 20261012,
+            "evidence": "positive_paired_evidence",
+            "method": "Paired query-text cluster bootstrap with fixed benchmark stratum weights.",
+            "coverage_note": "Target strata absent from this partition are excluded; replicates missing a covered stratum are discarded."
+          }
+        }
+      },
+      "overfit_prefix_evidence": {
+        "selected_stage": 25,
+        "final_stage": 150,
+        "final_minus_selected_stage": {
+          "all_validation": {
+            "query_groups": 5157,
+            "query_text_clusters": 2431,
+            "candidate_recall": 0.8466370259563978,
+            "reference_recall": 0.8518338458129033,
+            "delta": -0.00519681985650572,
+            "delta_ci95": [
+              -0.010179229977587046,
+              -0.00041952169541025825
+            ],
+            "bootstrap_replicates": 1000,
+            "seed": 20261012,
+            "evidence": "negative_paired_evidence",
+            "method": "Paired bootstrap of normalized query-text clusters; macro average remains over query groups.",
+            "benchmark_query_mix": {
+              "candidate_recall": 0.8477925320596452,
+              "reference_recall": 0.8514117532184429,
+              "delta": -0.0036192211587977134,
+              "delta_ci95": [
+                -0.009695576590859983,
+                0.0024194504705172325
+              ],
+              "covered_target_fraction": 1.0,
+              "target_queries": 2452,
+              "covered_target_queries": 2452,
+              "valid_bootstrap_replicates": 1000,
+              "requested_bootstrap_replicates": 1000,
+              "seed": 20261012,
+              "evidence": "uncertain_interval_includes_zero",
+              "method": "Paired query-text cluster bootstrap with fixed benchmark stratum weights.",
+              "coverage_note": "Target strata absent from this partition are excluded; replicates missing a covered stratum are discarded."
+            }
+          },
+          "tune": {
+            "query_groups": 2881,
+            "query_text_clusters": 1237,
+            "candidate_recall": 0.848157055255285,
+            "reference_recall": 0.8537106824680585,
+            "delta": -0.005553627212773342,
+            "delta_ci95": [
+              -0.011436273366998742,
+              -2.9490982710134307e-05
+            ],
+            "bootstrap_replicates": 1000,
+            "seed": 20261012,
+            "evidence": "negative_paired_evidence",
+            "method": "Paired bootstrap of normalized query-text clusters; macro average remains over query groups.",
+            "benchmark_query_mix": {
+              "candidate_recall": 0.8505721902274922,
+              "reference_recall": 0.8559484912429497,
+              "delta": -0.0053763010154576005,
+              "delta_ci95": [
+                -0.013681288892957003,
+                0.0026853547690541893
+              ],
+              "covered_target_fraction": 1.0,
+              "target_queries": 2452,
+              "covered_target_queries": 2452,
+              "valid_bootstrap_replicates": 1000,
+              "requested_bootstrap_replicates": 1000,
+              "seed": 20261012,
+              "evidence": "uncertain_interval_includes_zero",
+              "method": "Paired query-text cluster bootstrap with fixed benchmark stratum weights.",
+              "coverage_note": "Target strata absent from this partition are excluded; replicates missing a covered stratum are discarded."
+            }
+          },
+          "confirmation": {
+            "query_groups": 2276,
+            "query_text_clusters": 1194,
+            "candidate_recall": 0.8447129466900996,
+            "reference_recall": 0.8494581136496778,
+            "delta": -0.004745166959578208,
+            "delta_ci95": [
+              -0.012664735305845961,
+              0.003928738937256659
+            ],
+            "bootstrap_replicates": 1000,
+            "seed": 20261012,
+            "evidence": "uncertain_interval_includes_zero",
+            "method": "Paired bootstrap of normalized query-text clusters; macro average remains over query groups.",
+            "benchmark_query_mix": {
+              "candidate_recall": 0.8445928147187886,
+              "reference_recall": 0.8468119215436279,
+              "delta": -0.002219106824839319,
+              "delta_ci95": [
+                -0.011572400783577547,
+                0.007181372559550762
+              ],
+              "covered_target_fraction": 1.0,
+              "target_queries": 2452,
+              "covered_target_queries": 2452,
+              "valid_bootstrap_replicates": 1000,
+              "requested_bootstrap_replicates": 1000,
+              "seed": 20261012,
+              "evidence": "uncertain_interval_includes_zero",
+              "method": "Paired query-text cluster bootstrap with fixed benchmark stratum weights.",
+              "coverage_note": "Target strata absent from this partition are excluded; replicates missing a covered stratum are discarded."
+            }
+          }
+        },
+        "possible_excess_trees_on_confirmation": false,
+        "selected_stage_weighted_training_log_loss": 0.29009577461169644,
+        "final_stage_weighted_training_log_loss": 0.2367063303266641,
+        "training_log_loss_decreased": true,
+        "selected_stage_train_minus_validation_recall_gap": null,
+        "final_stage_train_minus_validation_recall_gap": null,
+        "interpretation": "These prefix comparisons do not establish overfitting; inspect paired confirmation intervals and the training curve.",
+        "caveat": "Training loss or a train/validation gap alone is not proof of overfitting; confirmation is historical validation already used in earlier work."
+      }
+    },
+    "v4-lambdarank": {
+      "selected_stage": 100,
+      "comparison_compatibility": {
+        "mode": "strict_config_match",
+        "inference_policy_compared": true
+      },
+      "selected_stage_vs_reference": {
+        "all_validation": {
+          "query_groups": 5157,
+          "query_text_clusters": 2431,
+          "candidate_recall": 0.8540395855840881,
+          "reference_recall": 0.8500175443456419,
+          "delta": 0.004022041238446125,
+          "delta_ci95": [
+            -0.0004984963005009009,
+            0.008280319654356525
+          ],
+          "bootstrap_replicates": 1000,
+          "seed": 20261012,
+          "evidence": "uncertain_interval_includes_zero",
+          "method": "Paired bootstrap of normalized query-text clusters; macro average remains over query groups.",
+          "benchmark_query_mix": {
+            "candidate_recall": 0.8564492247421192,
+            "reference_recall": 0.8491945062607981,
+            "delta": 0.007254718481321193,
+            "delta_ci95": [
+              0.001229563182903448,
+              0.013462479441168788
+            ],
+            "covered_target_fraction": 1.0,
+            "target_queries": 2452,
+            "covered_target_queries": 2452,
+            "valid_bootstrap_replicates": 1000,
+            "requested_bootstrap_replicates": 1000,
+            "seed": 20261012,
+            "evidence": "positive_paired_evidence",
+            "method": "Paired query-text cluster bootstrap with fixed benchmark stratum weights.",
+            "coverage_note": "Target strata absent from this partition are excluded; replicates missing a covered stratum are discarded."
+          }
+        },
+        "tune": {
+          "query_groups": 2881,
+          "query_text_clusters": 1237,
+          "candidate_recall": 0.8577573097965322,
+          "reference_recall": 0.8505867671608733,
+          "delta": 0.0071705426356589155,
+          "delta_ci95": [
+            0.0015214734218387093,
+            0.013103225612726576
+          ],
+          "bootstrap_replicates": 1000,
+          "seed": 20261012,
+          "evidence": "positive_paired_evidence",
+          "method": "Paired bootstrap of normalized query-text clusters; macro average remains over query groups.",
+          "benchmark_query_mix": {
+            "candidate_recall": 0.86254853530832,
+            "reference_recall": 0.8513491210909645,
+            "delta": 0.011199414217355453,
+            "delta_ci95": [
+              0.004035190767227092,
+              0.019316359354414222
+            ],
+            "covered_target_fraction": 1.0,
+            "target_queries": 2452,
+            "covered_target_queries": 2452,
+            "valid_bootstrap_replicates": 1000,
+            "requested_bootstrap_replicates": 1000,
+            "seed": 20261012,
+            "evidence": "positive_paired_evidence",
+            "method": "Paired query-text cluster bootstrap with fixed benchmark stratum weights.",
+            "coverage_note": "Target strata absent from this partition are excluded; replicates missing a covered stratum are discarded."
+          }
+        },
+        "confirmation": {
+          "query_groups": 2276,
+          "query_text_clusters": 1194,
+          "candidate_recall": 0.849333626244874,
+          "reference_recall": 0.8492970123022847,
+          "delta": 3.661394258933809e-05,
+          "delta_ci95": [
+            -0.006578211938807167,
+            0.006997275244442359
+          ],
+          "bootstrap_replicates": 1000,
+          "seed": 20261012,
+          "evidence": "uncertain_interval_includes_zero",
+          "method": "Paired bootstrap of normalized query-text clusters; macro average remains over query groups.",
+          "benchmark_query_mix": {
+            "candidate_recall": 0.8498755245487497,
+            "reference_recall": 0.8470650405729346,
+            "delta": 0.0028104839758150727,
+            "delta_ci95": [
+              -0.006593845700650756,
+              0.012257979692525907
+            ],
+            "covered_target_fraction": 1.0,
+            "target_queries": 2452,
+            "covered_target_queries": 2452,
+            "valid_bootstrap_replicates": 1000,
+            "requested_bootstrap_replicates": 1000,
+            "seed": 20261012,
+            "evidence": "uncertain_interval_includes_zero",
+            "method": "Paired query-text cluster bootstrap with fixed benchmark stratum weights.",
+            "coverage_note": "Target strata absent from this partition are excluded; replicates missing a covered stratum are discarded."
+          }
+        }
+      },
+      "selected_stage_vs_hgb50": {
+        "all_validation": {
+          "query_groups": 5157,
+          "query_text_clusters": 2431,
+          "candidate_recall": 0.8540395855840881,
+          "reference_recall": 0.8500175443456419,
+          "delta": 0.004022041238446125,
+          "delta_ci95": [
+            -0.0004984963005009009,
+            0.008280319654356525
+          ],
+          "bootstrap_replicates": 1000,
+          "seed": 20261012,
+          "evidence": "uncertain_interval_includes_zero",
+          "method": "Paired bootstrap of normalized query-text clusters; macro average remains over query groups.",
+          "benchmark_query_mix": {
+            "candidate_recall": 0.8564492247421192,
+            "reference_recall": 0.8491945062607981,
+            "delta": 0.007254718481321193,
+            "delta_ci95": [
+              0.001229563182903448,
+              0.013462479441168788
+            ],
+            "covered_target_fraction": 1.0,
+            "target_queries": 2452,
+            "covered_target_queries": 2452,
+            "valid_bootstrap_replicates": 1000,
+            "requested_bootstrap_replicates": 1000,
+            "seed": 20261012,
+            "evidence": "positive_paired_evidence",
+            "method": "Paired query-text cluster bootstrap with fixed benchmark stratum weights.",
+            "coverage_note": "Target strata absent from this partition are excluded; replicates missing a covered stratum are discarded."
+          }
+        },
+        "tune": {
+          "query_groups": 2881,
+          "query_text_clusters": 1237,
+          "candidate_recall": 0.8577573097965322,
+          "reference_recall": 0.8505867671608733,
+          "delta": 0.0071705426356589155,
+          "delta_ci95": [
+            0.0015214734218387093,
+            0.013103225612726576
+          ],
+          "bootstrap_replicates": 1000,
+          "seed": 20261012,
+          "evidence": "positive_paired_evidence",
+          "method": "Paired bootstrap of normalized query-text clusters; macro average remains over query groups.",
+          "benchmark_query_mix": {
+            "candidate_recall": 0.86254853530832,
+            "reference_recall": 0.8513491210909645,
+            "delta": 0.011199414217355453,
+            "delta_ci95": [
+              0.004035190767227092,
+              0.019316359354414222
+            ],
+            "covered_target_fraction": 1.0,
+            "target_queries": 2452,
+            "covered_target_queries": 2452,
+            "valid_bootstrap_replicates": 1000,
+            "requested_bootstrap_replicates": 1000,
+            "seed": 20261012,
+            "evidence": "positive_paired_evidence",
+            "method": "Paired query-text cluster bootstrap with fixed benchmark stratum weights.",
+            "coverage_note": "Target strata absent from this partition are excluded; replicates missing a covered stratum are discarded."
+          }
+        },
+        "confirmation": {
+          "query_groups": 2276,
+          "query_text_clusters": 1194,
+          "candidate_recall": 0.849333626244874,
+          "reference_recall": 0.8492970123022847,
+          "delta": 3.661394258933809e-05,
+          "delta_ci95": [
+            -0.006578211938807167,
+            0.006997275244442359
+          ],
+          "bootstrap_replicates": 1000,
+          "seed": 20261012,
+          "evidence": "uncertain_interval_includes_zero",
+          "method": "Paired bootstrap of normalized query-text clusters; macro average remains over query groups.",
+          "benchmark_query_mix": {
+            "candidate_recall": 0.8498755245487497,
+            "reference_recall": 0.8470650405729346,
+            "delta": 0.0028104839758150727,
+            "delta_ci95": [
+              -0.006593845700650756,
+              0.012257979692525907
+            ],
+            "covered_target_fraction": 1.0,
+            "target_queries": 2452,
+            "covered_target_queries": 2452,
+            "valid_bootstrap_replicates": 1000,
+            "requested_bootstrap_replicates": 1000,
+            "seed": 20261012,
+            "evidence": "uncertain_interval_includes_zero",
+            "method": "Paired query-text cluster bootstrap with fixed benchmark stratum weights.",
+            "coverage_note": "Target strata absent from this partition are excluded; replicates missing a covered stratum are discarded."
+          }
+        }
+      },
+      "selected_stage_vs_baseline": {
+        "all_validation": {
+          "query_groups": 5157,
+          "query_text_clusters": 2431,
+          "candidate_recall": 0.8540395855840881,
+          "reference_recall": 0.8033269619657054,
+          "delta": 0.050712623618382774,
+          "delta_ci95": [
+            0.0420145017148039,
+            0.0599252820746807
+          ],
+          "bootstrap_replicates": 1000,
+          "seed": 20261012,
+          "evidence": "positive_paired_evidence",
+          "method": "Paired bootstrap of normalized query-text clusters; macro average remains over query groups.",
+          "benchmark_query_mix": {
+            "candidate_recall": 0.8564492247421192,
+            "reference_recall": 0.8043749051104865,
+            "delta": 0.05207431963163269,
+            "delta_ci95": [
+              0.039895843617468035,
+              0.0633223039260582
+            ],
+            "covered_target_fraction": 1.0,
+            "target_queries": 2452,
+            "covered_target_queries": 2452,
+            "valid_bootstrap_replicates": 1000,
+            "requested_bootstrap_replicates": 1000,
+            "seed": 20261012,
+            "evidence": "positive_paired_evidence",
+            "method": "Paired query-text cluster bootstrap with fixed benchmark stratum weights.",
+            "coverage_note": "Target strata absent from this partition are excluded; replicates missing a covered stratum are discarded."
+          }
+        },
+        "tune": {
+          "query_groups": 2881,
+          "query_text_clusters": 1237,
+          "candidate_recall": 0.8577573097965322,
+          "reference_recall": 0.8051395844696781,
+          "delta": 0.0526177253268541,
+          "delta_ci95": [
+            0.040015247360103354,
+            0.06528687481219325
+          ],
+          "bootstrap_replicates": 1000,
+          "seed": 20261012,
+          "evidence": "positive_paired_evidence",
+          "method": "Paired bootstrap of normalized query-text clusters; macro average remains over query groups.",
+          "benchmark_query_mix": {
+            "candidate_recall": 0.86254853530832,
+            "reference_recall": 0.811784748517491,
+            "delta": 0.05076378679082884,
+            "delta_ci95": [
+              0.03408125713728312,
+              0.06789474790514759
+            ],
+            "covered_target_fraction": 1.0,
+            "target_queries": 2452,
+            "covered_target_queries": 2452,
+            "valid_bootstrap_replicates": 1000,
+            "requested_bootstrap_replicates": 1000,
+            "seed": 20261012,
+            "evidence": "positive_paired_evidence",
+            "method": "Paired query-text cluster bootstrap with fixed benchmark stratum weights.",
+            "coverage_note": "Target strata absent from this partition are excluded; replicates missing a covered stratum are discarded."
+          }
+        },
+        "confirmation": {
+          "query_groups": 2276,
+          "query_text_clusters": 1194,
+          "candidate_recall": 0.849333626244874,
+          "reference_recall": 0.8010325131810194,
+          "delta": 0.04830111306385472,
+          "delta_ci95": [
+            0.03564445496836179,
+            0.061994421373423245
+          ],
+          "bootstrap_replicates": 1000,
+          "seed": 20261012,
+          "evidence": "positive_paired_evidence",
+          "method": "Paired bootstrap of normalized query-text clusters; macro average remains over query groups.",
+          "benchmark_query_mix": {
+            "candidate_recall": 0.8498755245487497,
+            "reference_recall": 0.7974521235579208,
+            "delta": 0.05242340099082883,
+            "delta_ci95": [
+              0.035308252531055635,
+              0.06868000476831844
+            ],
+            "covered_target_fraction": 1.0,
+            "target_queries": 2452,
+            "covered_target_queries": 2452,
+            "valid_bootstrap_replicates": 1000,
+            "requested_bootstrap_replicates": 1000,
+            "seed": 20261012,
+            "evidence": "positive_paired_evidence",
+            "method": "Paired query-text cluster bootstrap with fixed benchmark stratum weights.",
+            "coverage_note": "Target strata absent from this partition are excluded; replicates missing a covered stratum are discarded."
+          }
+        }
+      },
+      "overfit_prefix_evidence": {
+        "selected_stage": 100,
+        "final_stage": 400,
+        "final_minus_selected_stage": {
+          "all_validation": {
+            "query_groups": 5157,
+            "query_text_clusters": 2431,
+            "candidate_recall": 0.8521004736973322,
+            "reference_recall": 0.8540395855840881,
+            "delta": -0.0019391118867558659,
+            "delta_ci95": [
+              -0.0053630512307736335,
+              0.0016918657492961985
+            ],
+            "bootstrap_replicates": 1000,
+            "seed": 20261012,
+            "evidence": "uncertain_interval_includes_zero",
+            "method": "Paired bootstrap of normalized query-text clusters; macro average remains over query groups.",
+            "benchmark_query_mix": {
+              "candidate_recall": 0.853787077757367,
+              "reference_recall": 0.8564492247421192,
+              "delta": -0.0026621469847521954,
+              "delta_ci95": [
+                -0.007634587313944655,
+                0.0028846319546274885
+              ],
+              "covered_target_fraction": 1.0,
+              "target_queries": 2452,
+              "covered_target_queries": 2452,
+              "valid_bootstrap_replicates": 1000,
+              "requested_bootstrap_replicates": 1000,
+              "seed": 20261012,
+              "evidence": "uncertain_interval_includes_zero",
+              "method": "Paired query-text cluster bootstrap with fixed benchmark stratum weights.",
+              "coverage_note": "Target strata absent from this partition are excluded; replicates missing a covered stratum are discarded."
+            }
+          },
+          "tune": {
+            "query_groups": 2881,
+            "query_text_clusters": 1237,
+            "candidate_recall": 0.8545755442058808,
+            "reference_recall": 0.8577573097965322,
+            "delta": -0.0031817655906513946,
+            "delta_ci95": [
+              -0.007311200467382337,
+              0.0017269283654018414
+            ],
+            "bootstrap_replicates": 1000,
+            "seed": 20261012,
+            "evidence": "uncertain_interval_includes_zero",
+            "method": "Paired bootstrap of normalized query-text clusters; macro average remains over query groups.",
+            "benchmark_query_mix": {
+              "candidate_recall": 0.8574243507064299,
+              "reference_recall": 0.86254853530832,
+              "delta": -0.0051241846018902385,
+              "delta_ci95": [
+                -0.011766253186277819,
+                0.001638668802981199
+              ],
+              "covered_target_fraction": 1.0,
+              "target_queries": 2452,
+              "covered_target_queries": 2452,
+              "valid_bootstrap_replicates": 1000,
+              "requested_bootstrap_replicates": 1000,
+              "seed": 20261012,
+              "evidence": "uncertain_interval_includes_zero",
+              "method": "Paired query-text cluster bootstrap with fixed benchmark stratum weights.",
+              "coverage_note": "Target strata absent from this partition are excluded; replicates missing a covered stratum are discarded."
+            }
+          },
+          "confirmation": {
+            "query_groups": 2276,
+            "query_text_clusters": 1194,
+            "candidate_recall": 0.8489674868189807,
+            "reference_recall": 0.849333626244874,
+            "delta": -0.00036613942589338005,
+            "delta_ci95": [
+              -0.005620322066298098,
+              0.004915889363623425
+            ],
+            "bootstrap_replicates": 1000,
+            "seed": 20261012,
+            "evidence": "uncertain_interval_includes_zero",
+            "method": "Paired bootstrap of normalized query-text clusters; macro average remains over query groups.",
+            "benchmark_query_mix": {
+              "candidate_recall": 0.849707357897909,
+              "reference_recall": 0.8498755245487497,
+              "delta": -0.0001681666508405646,
+              "delta_ci95": [
+                -0.006965185162977953,
+                0.0071236098543078375
+              ],
+              "covered_target_fraction": 1.0,
+              "target_queries": 2452,
+              "covered_target_queries": 2452,
+              "valid_bootstrap_replicates": 1000,
+              "requested_bootstrap_replicates": 1000,
+              "seed": 20261012,
+              "evidence": "uncertain_interval_includes_zero",
+              "method": "Paired query-text cluster bootstrap with fixed benchmark stratum weights.",
+              "coverage_note": "Target strata absent from this partition are excluded; replicates missing a covered stratum are discarded."
+            }
+          }
+        },
+        "possible_excess_trees_on_confirmation": false,
+        "selected_stage_weighted_training_log_loss": null,
+        "final_stage_weighted_training_log_loss": null,
+        "training_log_loss_decreased": null,
+        "selected_stage_train_minus_validation_recall_gap": null,
+        "final_stage_train_minus_validation_recall_gap": null,
+        "interpretation": "These prefix comparisons do not establish overfitting; inspect paired confirmation intervals and the training curve.",
+        "caveat": "Training loss or a train/validation gap alone is not proof of overfitting; confirmation is historical validation already used in earlier work."
+      }
+    },
+    "v6-histgb": {
+      "selected_stage": 50,
+      "comparison_compatibility": {
+        "mode": "dense_rescore_flag_only_with_immutable_pool",
+        "candidate_pool_digest": "0f7be4d2dce6d4b0ec40ed3083b7cc7411fa06f4fc59cc809973da69ecfcadb2",
+        "inference_prior_policy": {
+          "inference_priors_sha256": "56fa6e43f291a62a5c22caca8f50aada19b9b13bd4e6d4c6dc6b49d2a522870b",
+          "disable_microcategory_prior": false
+        },
+        "reference_rescore_dense_union": false,
+        "candidate_rescore_dense_union": true
+      },
+      "selected_stage_vs_reference": {
+        "all_validation": {
+          "query_groups": 5157,
+          "query_text_clusters": 2431,
+          "candidate_recall": 0.8526515046584855,
+          "reference_recall": 0.8500175443456419,
+          "delta": 0.0026339603128433843,
+          "delta_ci95": [
+            -0.001265274817023776,
+            0.006717782597150481
+          ],
+          "bootstrap_replicates": 1000,
+          "seed": 20261012,
+          "evidence": "uncertain_interval_includes_zero",
+          "method": "Paired bootstrap of normalized query-text clusters; macro average remains over query groups.",
+          "benchmark_query_mix": {
+            "candidate_recall": 0.8551385305524873,
+            "reference_recall": 0.8491945062607981,
+            "delta": 0.005944024291689242,
+            "delta_ci95": [
+              6.877590625492273e-05,
+              0.012119578962679525
+            ],
+            "covered_target_fraction": 1.0,
+            "target_queries": 2452,
+            "covered_target_queries": 2452,
+            "valid_bootstrap_replicates": 1000,
+            "requested_bootstrap_replicates": 1000,
+            "seed": 20261012,
+            "evidence": "positive_paired_evidence",
+            "method": "Paired query-text cluster bootstrap with fixed benchmark stratum weights.",
+            "coverage_note": "Target strata absent from this partition are excluded; replicates missing a covered stratum are discarded."
+          }
+        },
+        "tune": {
+          "query_groups": 2881,
+          "query_text_clusters": 1237,
+          "candidate_recall": 0.8556949471909555,
+          "reference_recall": 0.8505867671608733,
+          "delta": 0.005108180030082147,
+          "delta_ci95": [
+            5.363639733010121e-05,
+            0.009786785610370257
+          ],
+          "bootstrap_replicates": 1000,
+          "seed": 20261012,
+          "evidence": "positive_paired_evidence",
+          "method": "Paired bootstrap of normalized query-text clusters; macro average remains over query groups.",
+          "benchmark_query_mix": {
+            "candidate_recall": 0.8618688260187372,
+            "reference_recall": 0.8513491210909645,
+            "delta": 0.010519704927772586,
+            "delta_ci95": [
+              0.0015127425752485355,
+              0.01959886286740325
+            ],
+            "covered_target_fraction": 1.0,
+            "target_queries": 2452,
+            "covered_target_queries": 2452,
+            "valid_bootstrap_replicates": 1000,
+            "requested_bootstrap_replicates": 1000,
+            "seed": 20261012,
+            "evidence": "positive_paired_evidence",
+            "method": "Paired query-text cluster bootstrap with fixed benchmark stratum weights.",
+            "coverage_note": "Target strata absent from this partition are excluded; replicates missing a covered stratum are discarded."
+          }
+        },
+        "confirmation": {
+          "query_groups": 2276,
+          "query_text_clusters": 1194,
+          "candidate_recall": 0.8487990626830698,
+          "reference_recall": 0.8492970123022847,
+          "delta": -0.0004979496192149967,
+          "delta_ci95": [
+            -0.006228385715433772,
+            0.005920480524035349
+          ],
+          "bootstrap_replicates": 1000,
+          "seed": 20261012,
+          "evidence": "uncertain_interval_includes_zero",
+          "method": "Paired bootstrap of normalized query-text clusters; macro average remains over query groups.",
+          "benchmark_query_mix": {
+            "candidate_recall": 0.8483122962821381,
+            "reference_recall": 0.8470650405729346,
+            "delta": 0.0012472557092036954,
+            "delta_ci95": [
+              -0.005916713190547628,
+              0.008807527047876578
+            ],
+            "covered_target_fraction": 1.0,
+            "target_queries": 2452,
+            "covered_target_queries": 2452,
+            "valid_bootstrap_replicates": 1000,
+            "requested_bootstrap_replicates": 1000,
+            "seed": 20261012,
+            "evidence": "uncertain_interval_includes_zero",
+            "method": "Paired query-text cluster bootstrap with fixed benchmark stratum weights.",
+            "coverage_note": "Target strata absent from this partition are excluded; replicates missing a covered stratum are discarded."
+          }
+        }
+      },
+      "selected_stage_vs_hgb50": {
+        "all_validation": {
+          "query_groups": 5157,
+          "query_text_clusters": 2431,
+          "candidate_recall": 0.8526515046584855,
+          "reference_recall": 0.8500175443456419,
+          "delta": 0.0026339603128433843,
+          "delta_ci95": [
+            -0.001265274817023776,
+            0.006717782597150481
+          ],
+          "bootstrap_replicates": 1000,
+          "seed": 20261012,
+          "evidence": "uncertain_interval_includes_zero",
+          "method": "Paired bootstrap of normalized query-text clusters; macro average remains over query groups.",
+          "benchmark_query_mix": {
+            "candidate_recall": 0.8551385305524873,
+            "reference_recall": 0.8491945062607981,
+            "delta": 0.005944024291689242,
+            "delta_ci95": [
+              6.877590625492273e-05,
+              0.012119578962679525
+            ],
+            "covered_target_fraction": 1.0,
+            "target_queries": 2452,
+            "covered_target_queries": 2452,
+            "valid_bootstrap_replicates": 1000,
+            "requested_bootstrap_replicates": 1000,
+            "seed": 20261012,
+            "evidence": "positive_paired_evidence",
+            "method": "Paired query-text cluster bootstrap with fixed benchmark stratum weights.",
+            "coverage_note": "Target strata absent from this partition are excluded; replicates missing a covered stratum are discarded."
+          }
+        },
+        "tune": {
+          "query_groups": 2881,
+          "query_text_clusters": 1237,
+          "candidate_recall": 0.8556949471909555,
+          "reference_recall": 0.8505867671608733,
+          "delta": 0.005108180030082147,
+          "delta_ci95": [
+            5.363639733010121e-05,
+            0.009786785610370257
+          ],
+          "bootstrap_replicates": 1000,
+          "seed": 20261012,
+          "evidence": "positive_paired_evidence",
+          "method": "Paired bootstrap of normalized query-text clusters; macro average remains over query groups.",
+          "benchmark_query_mix": {
+            "candidate_recall": 0.8618688260187372,
+            "reference_recall": 0.8513491210909645,
+            "delta": 0.010519704927772586,
+            "delta_ci95": [
+              0.0015127425752485355,
+              0.01959886286740325
+            ],
+            "covered_target_fraction": 1.0,
+            "target_queries": 2452,
+            "covered_target_queries": 2452,
+            "valid_bootstrap_replicates": 1000,
+            "requested_bootstrap_replicates": 1000,
+            "seed": 20261012,
+            "evidence": "positive_paired_evidence",
+            "method": "Paired query-text cluster bootstrap with fixed benchmark stratum weights.",
+            "coverage_note": "Target strata absent from this partition are excluded; replicates missing a covered stratum are discarded."
+          }
+        },
+        "confirmation": {
+          "query_groups": 2276,
+          "query_text_clusters": 1194,
+          "candidate_recall": 0.8487990626830698,
+          "reference_recall": 0.8492970123022847,
+          "delta": -0.0004979496192149967,
+          "delta_ci95": [
+            -0.006228385715433772,
+            0.005920480524035349
+          ],
+          "bootstrap_replicates": 1000,
+          "seed": 20261012,
+          "evidence": "uncertain_interval_includes_zero",
+          "method": "Paired bootstrap of normalized query-text clusters; macro average remains over query groups.",
+          "benchmark_query_mix": {
+            "candidate_recall": 0.8483122962821381,
+            "reference_recall": 0.8470650405729346,
+            "delta": 0.0012472557092036954,
+            "delta_ci95": [
+              -0.005916713190547628,
+              0.008807527047876578
+            ],
+            "covered_target_fraction": 1.0,
+            "target_queries": 2452,
+            "covered_target_queries": 2452,
+            "valid_bootstrap_replicates": 1000,
+            "requested_bootstrap_replicates": 1000,
+            "seed": 20261012,
+            "evidence": "uncertain_interval_includes_zero",
+            "method": "Paired query-text cluster bootstrap with fixed benchmark stratum weights.",
+            "coverage_note": "Target strata absent from this partition are excluded; replicates missing a covered stratum are discarded."
+          }
+        }
+      },
+      "selected_stage_vs_baseline": {
+        "all_validation": {
+          "query_groups": 5157,
+          "query_text_clusters": 2431,
+          "candidate_recall": 0.8526515046584855,
+          "reference_recall": 0.8033269619657054,
+          "delta": 0.04932454269278004,
+          "delta_ci95": [
+            0.03944374791898476,
+            0.0589586519468142
+          ],
+          "bootstrap_replicates": 1000,
+          "seed": 20261012,
+          "evidence": "positive_paired_evidence",
+          "method": "Paired bootstrap of normalized query-text clusters; macro average remains over query groups.",
+          "benchmark_query_mix": {
+            "candidate_recall": 0.8551385305524873,
+            "reference_recall": 0.8043749051104865,
+            "delta": 0.05076362544200074,
+            "delta_ci95": [
+              0.03726326652616696,
+              0.06318855200972998
+            ],
+            "covered_target_fraction": 1.0,
+            "target_queries": 2452,
+            "covered_target_queries": 2452,
+            "valid_bootstrap_replicates": 1000,
+            "requested_bootstrap_replicates": 1000,
+            "seed": 20261012,
+            "evidence": "positive_paired_evidence",
+            "method": "Paired query-text cluster bootstrap with fixed benchmark stratum weights.",
+            "coverage_note": "Target strata absent from this partition are excluded; replicates missing a covered stratum are discarded."
+          }
+        },
+        "tune": {
+          "query_groups": 2881,
+          "query_text_clusters": 1237,
+          "candidate_recall": 0.8556949471909555,
+          "reference_recall": 0.8051395844696781,
+          "delta": 0.05055536272127733,
+          "delta_ci95": [
+            0.03708774240070055,
+            0.06351652879905803
+          ],
+          "bootstrap_replicates": 1000,
+          "seed": 20261012,
+          "evidence": "positive_paired_evidence",
+          "method": "Paired bootstrap of normalized query-text clusters; macro average remains over query groups.",
+          "benchmark_query_mix": {
+            "candidate_recall": 0.8618688260187372,
+            "reference_recall": 0.811784748517491,
+            "delta": 0.05008407750124597,
+            "delta_ci95": [
+              0.032579840412206344,
+              0.06849684316405244
+            ],
+            "covered_target_fraction": 1.0,
+            "target_queries": 2452,
+            "covered_target_queries": 2452,
+            "valid_bootstrap_replicates": 1000,
+            "requested_bootstrap_replicates": 1000,
+            "seed": 20261012,
+            "evidence": "positive_paired_evidence",
+            "method": "Paired query-text cluster bootstrap with fixed benchmark stratum weights.",
+            "coverage_note": "Target strata absent from this partition are excluded; replicates missing a covered stratum are discarded."
+          }
+        },
+        "confirmation": {
+          "query_groups": 2276,
+          "query_text_clusters": 1194,
+          "candidate_recall": 0.8487990626830698,
+          "reference_recall": 0.8010325131810194,
+          "delta": 0.04776654950205038,
+          "delta_ci95": [
+            0.034418970236804944,
+            0.0609498430948401
+          ],
+          "bootstrap_replicates": 1000,
+          "seed": 20261012,
+          "evidence": "positive_paired_evidence",
+          "method": "Paired bootstrap of normalized query-text clusters; macro average remains over query groups.",
+          "benchmark_query_mix": {
+            "candidate_recall": 0.8483122962821381,
+            "reference_recall": 0.7974521235579208,
+            "delta": 0.050860172724217445,
+            "delta_ci95": [
+              0.032674980317282054,
+              0.06828680774978117
+            ],
+            "covered_target_fraction": 1.0,
+            "target_queries": 2452,
+            "covered_target_queries": 2452,
+            "valid_bootstrap_replicates": 1000,
+            "requested_bootstrap_replicates": 1000,
+            "seed": 20261012,
+            "evidence": "positive_paired_evidence",
+            "method": "Paired query-text cluster bootstrap with fixed benchmark stratum weights.",
+            "coverage_note": "Target strata absent from this partition are excluded; replicates missing a covered stratum are discarded."
+          }
+        }
+      },
+      "overfit_prefix_evidence": {
+        "selected_stage": 50,
+        "final_stage": 150,
+        "final_minus_selected_stage": {
+          "all_validation": {
+            "query_groups": 5157,
+            "query_text_clusters": 2431,
+            "candidate_recall": 0.8489025550107573,
+            "reference_recall": 0.8526515046584855,
+            "delta": -0.0037489496477280076,
+            "delta_ci95": [
+              -0.007014366430923094,
+              -0.00030488535060140134
+            ],
+            "bootstrap_replicates": 1000,
+            "seed": 20261012,
+            "evidence": "negative_paired_evidence",
+            "method": "Paired bootstrap of normalized query-text clusters; macro average remains over query groups.",
+            "benchmark_query_mix": {
+              "candidate_recall": 0.8515059889176301,
+              "reference_recall": 0.8551385305524873,
+              "delta": -0.0036325416348571235,
+              "delta_ci95": [
+                -0.008322228856879487,
+                0.0012194473576939721
+              ],
+              "covered_target_fraction": 1.0,
+              "target_queries": 2452,
+              "covered_target_queries": 2452,
+              "valid_bootstrap_replicates": 1000,
+              "requested_bootstrap_replicates": 1000,
+              "seed": 20261012,
+              "evidence": "uncertain_interval_includes_zero",
+              "method": "Paired query-text cluster bootstrap with fixed benchmark stratum weights.",
+              "coverage_note": "Target strata absent from this partition are excluded; replicates missing a covered stratum are discarded."
+            }
+          },
+          "tune": {
+            "query_groups": 2881,
+            "query_text_clusters": 1237,
+            "candidate_recall": 0.8513851010727094,
+            "reference_recall": 0.8556949471909555,
+            "delta": -0.00430984611824598,
+            "delta_ci95": [
+              -0.008540073961540082,
+              -0.00015836848122311855
+            ],
+            "bootstrap_replicates": 1000,
+            "seed": 20261012,
+            "evidence": "negative_paired_evidence",
+            "method": "Paired bootstrap of normalized query-text clusters; macro average remains over query groups.",
+            "benchmark_query_mix": {
+              "candidate_recall": 0.8559550379998189,
+              "reference_recall": 0.8618688260187372,
+              "delta": -0.0059137880189184195,
+              "delta_ci95": [
+                -0.01256105634629102,
+                0.0005262605365188344
+              ],
+              "covered_target_fraction": 1.0,
+              "target_queries": 2452,
+              "covered_target_queries": 2452,
+              "valid_bootstrap_replicates": 1000,
+              "requested_bootstrap_replicates": 1000,
+              "seed": 20261012,
+              "evidence": "uncertain_interval_includes_zero",
+              "method": "Paired query-text cluster bootstrap with fixed benchmark stratum weights.",
+              "coverage_note": "Target strata absent from this partition are excluded; replicates missing a covered stratum are discarded."
+            }
+          },
+          "confirmation": {
+            "query_groups": 2276,
+            "query_text_clusters": 1194,
+            "candidate_recall": 0.8457601054481547,
+            "reference_recall": 0.8487990626830698,
+            "delta": -0.003038957234915056,
+            "delta_ci95": [
+              -0.008496441969292648,
+              0.002201329767764326
+            ],
+            "bootstrap_replicates": 1000,
+            "seed": 20261012,
+            "evidence": "uncertain_interval_includes_zero",
+            "method": "Paired bootstrap of normalized query-text clusters; macro average remains over query groups.",
+            "benchmark_query_mix": {
+              "candidate_recall": 0.8464485890461059,
+              "reference_recall": 0.8483122962821381,
+              "delta": -0.0018637072360322264,
+              "delta_ci95": [
+                -0.009063245997298892,
+                0.005037182576532497
+              ],
+              "covered_target_fraction": 1.0,
+              "target_queries": 2452,
+              "covered_target_queries": 2452,
+              "valid_bootstrap_replicates": 1000,
+              "requested_bootstrap_replicates": 1000,
+              "seed": 20261012,
+              "evidence": "uncertain_interval_includes_zero",
+              "method": "Paired query-text cluster bootstrap with fixed benchmark stratum weights.",
+              "coverage_note": "Target strata absent from this partition are excluded; replicates missing a covered stratum are discarded."
+            }
+          }
+        },
+        "possible_excess_trees_on_confirmation": false,
+        "selected_stage_weighted_training_log_loss": 0.25973021049757505,
+        "final_stage_weighted_training_log_loss": 0.23159504549770557,
+        "training_log_loss_decreased": true,
+        "selected_stage_train_minus_validation_recall_gap": null,
+        "final_stage_train_minus_validation_recall_gap": null,
+        "interpretation": "These prefix comparisons do not establish overfitting; inspect paired confirmation intervals and the training curve.",
+        "caveat": "Training loss or a train/validation gap alone is not proof of overfitting; confirmation is historical validation already used in earlier work."
+      }
+    },
+    "v6-lambdarank": {
+      "selected_stage": 100,
+      "comparison_compatibility": {
+        "mode": "dense_rescore_flag_only_with_immutable_pool",
+        "candidate_pool_digest": "0f7be4d2dce6d4b0ec40ed3083b7cc7411fa06f4fc59cc809973da69ecfcadb2",
+        "inference_prior_policy": {
+          "inference_priors_sha256": "56fa6e43f291a62a5c22caca8f50aada19b9b13bd4e6d4c6dc6b49d2a522870b",
+          "disable_microcategory_prior": false
+        },
+        "reference_rescore_dense_union": false,
+        "candidate_rescore_dense_union": true
+      },
+      "selected_stage_vs_reference": {
+        "all_validation": {
+          "query_groups": 5157,
+          "query_text_clusters": 2431,
+          "candidate_recall": 0.8566735458969316,
+          "reference_recall": 0.8500175443456419,
+          "delta": 0.006656001551289509,
+          "delta_ci95": [
+            0.0021048217799682716,
+            0.01183049696832568
+          ],
+          "bootstrap_replicates": 1000,
+          "seed": 20261012,
+          "evidence": "positive_paired_evidence",
+          "method": "Paired bootstrap of normalized query-text clusters; macro average remains over query groups.",
+          "benchmark_query_mix": {
+            "candidate_recall": 0.8630055328713653,
+            "reference_recall": 0.8491945062607981,
+            "delta": 0.013811026610567283,
+            "delta_ci95": [
+              0.007042314476386665,
+              0.020880917462777333
+            ],
+            "covered_target_fraction": 1.0,
+            "target_queries": 2452,
+            "covered_target_queries": 2452,
+            "valid_bootstrap_replicates": 1000,
+            "requested_bootstrap_replicates": 1000,
+            "seed": 20261012,
+            "evidence": "positive_paired_evidence",
+            "method": "Paired query-text cluster bootstrap with fixed benchmark stratum weights.",
+            "coverage_note": "Target strata absent from this partition are excluded; replicates missing a covered stratum are discarded."
+          }
+        },
+        "tune": {
+          "query_groups": 2881,
+          "query_text_clusters": 1237,
+          "candidate_recall": 0.8605399084312655,
+          "reference_recall": 0.8505867671608733,
+          "delta": 0.009953141270392225,
+          "delta_ci95": [
+            0.003755003955319189,
+            0.016733960617487963
+          ],
+          "bootstrap_replicates": 1000,
+          "seed": 20261012,
+          "evidence": "positive_paired_evidence",
+          "method": "Paired bootstrap of normalized query-text clusters; macro average remains over query groups.",
+          "benchmark_query_mix": {
+            "candidate_recall": 0.8698357213444816,
+            "reference_recall": 0.8513491210909645,
+            "delta": 0.01848660025351693,
+            "delta_ci95": [
+              0.009053398242330903,
+              0.028268815649147735
+            ],
+            "covered_target_fraction": 1.0,
+            "target_queries": 2452,
+            "covered_target_queries": 2452,
+            "valid_bootstrap_replicates": 1000,
+            "requested_bootstrap_replicates": 1000,
+            "seed": 20261012,
+            "evidence": "positive_paired_evidence",
+            "method": "Paired query-text cluster bootstrap with fixed benchmark stratum weights.",
+            "coverage_note": "Target strata absent from this partition are excluded; replicates missing a covered stratum are discarded."
+          }
+        },
+        "confirmation": {
+          "query_groups": 2276,
+          "query_text_clusters": 1194,
+          "candidate_recall": 0.8517794376098419,
+          "reference_recall": 0.8492970123022847,
+          "delta": 0.0024824253075571177,
+          "delta_ci95": [
+            -0.00458380238782869,
+            0.009918124674251001
+          ],
+          "bootstrap_replicates": 1000,
+          "seed": 20261012,
+          "evidence": "uncertain_interval_includes_zero",
+          "method": "Paired bootstrap of normalized query-text clusters; macro average remains over query groups.",
+          "benchmark_query_mix": {
+            "candidate_recall": 0.8556955192460023,
+            "reference_recall": 0.8470650405729346,
+            "delta": 0.008630478673067756,
+            "delta_ci95": [
+              -0.00011048726463104566,
+              0.01792875740550442
+            ],
+            "covered_target_fraction": 1.0,
+            "target_queries": 2452,
+            "covered_target_queries": 2452,
+            "valid_bootstrap_replicates": 1000,
+            "requested_bootstrap_replicates": 1000,
+            "seed": 20261012,
+            "evidence": "uncertain_interval_includes_zero",
+            "method": "Paired query-text cluster bootstrap with fixed benchmark stratum weights.",
+            "coverage_note": "Target strata absent from this partition are excluded; replicates missing a covered stratum are discarded."
+          }
+        }
+      },
+      "selected_stage_vs_hgb50": {
+        "all_validation": {
+          "query_groups": 5157,
+          "query_text_clusters": 2431,
+          "candidate_recall": 0.8566735458969316,
+          "reference_recall": 0.8500175443456419,
+          "delta": 0.006656001551289509,
+          "delta_ci95": [
+            0.0021048217799682716,
+            0.01183049696832568
+          ],
+          "bootstrap_replicates": 1000,
+          "seed": 20261012,
+          "evidence": "positive_paired_evidence",
+          "method": "Paired bootstrap of normalized query-text clusters; macro average remains over query groups.",
+          "benchmark_query_mix": {
+            "candidate_recall": 0.8630055328713653,
+            "reference_recall": 0.8491945062607981,
+            "delta": 0.013811026610567283,
+            "delta_ci95": [
+              0.007042314476386665,
+              0.020880917462777333
+            ],
+            "covered_target_fraction": 1.0,
+            "target_queries": 2452,
+            "covered_target_queries": 2452,
+            "valid_bootstrap_replicates": 1000,
+            "requested_bootstrap_replicates": 1000,
+            "seed": 20261012,
+            "evidence": "positive_paired_evidence",
+            "method": "Paired query-text cluster bootstrap with fixed benchmark stratum weights.",
+            "coverage_note": "Target strata absent from this partition are excluded; replicates missing a covered stratum are discarded."
+          }
+        },
+        "tune": {
+          "query_groups": 2881,
+          "query_text_clusters": 1237,
+          "candidate_recall": 0.8605399084312655,
+          "reference_recall": 0.8505867671608733,
+          "delta": 0.009953141270392225,
+          "delta_ci95": [
+            0.003755003955319189,
+            0.016733960617487963
+          ],
+          "bootstrap_replicates": 1000,
+          "seed": 20261012,
+          "evidence": "positive_paired_evidence",
+          "method": "Paired bootstrap of normalized query-text clusters; macro average remains over query groups.",
+          "benchmark_query_mix": {
+            "candidate_recall": 0.8698357213444816,
+            "reference_recall": 0.8513491210909645,
+            "delta": 0.01848660025351693,
+            "delta_ci95": [
+              0.009053398242330903,
+              0.028268815649147735
+            ],
+            "covered_target_fraction": 1.0,
+            "target_queries": 2452,
+            "covered_target_queries": 2452,
+            "valid_bootstrap_replicates": 1000,
+            "requested_bootstrap_replicates": 1000,
+            "seed": 20261012,
+            "evidence": "positive_paired_evidence",
+            "method": "Paired query-text cluster bootstrap with fixed benchmark stratum weights.",
+            "coverage_note": "Target strata absent from this partition are excluded; replicates missing a covered stratum are discarded."
+          }
+        },
+        "confirmation": {
+          "query_groups": 2276,
+          "query_text_clusters": 1194,
+          "candidate_recall": 0.8517794376098419,
+          "reference_recall": 0.8492970123022847,
+          "delta": 0.0024824253075571177,
+          "delta_ci95": [
+            -0.00458380238782869,
+            0.009918124674251001
+          ],
+          "bootstrap_replicates": 1000,
+          "seed": 20261012,
+          "evidence": "uncertain_interval_includes_zero",
+          "method": "Paired bootstrap of normalized query-text clusters; macro average remains over query groups.",
+          "benchmark_query_mix": {
+            "candidate_recall": 0.8556955192460023,
+            "reference_recall": 0.8470650405729346,
+            "delta": 0.008630478673067756,
+            "delta_ci95": [
+              -0.00011048726463104566,
+              0.01792875740550442
+            ],
+            "covered_target_fraction": 1.0,
+            "target_queries": 2452,
+            "covered_target_queries": 2452,
+            "valid_bootstrap_replicates": 1000,
+            "requested_bootstrap_replicates": 1000,
+            "seed": 20261012,
+            "evidence": "uncertain_interval_includes_zero",
+            "method": "Paired query-text cluster bootstrap with fixed benchmark stratum weights.",
+            "coverage_note": "Target strata absent from this partition are excluded; replicates missing a covered stratum are discarded."
+          }
+        }
+      },
+      "selected_stage_vs_baseline": {
+        "all_validation": {
+          "query_groups": 5157,
+          "query_text_clusters": 2431,
+          "candidate_recall": 0.8566735458969316,
+          "reference_recall": 0.8033269619657054,
+          "delta": 0.05334658393122617,
+          "delta_ci95": [
+            0.044384362893013105,
+            0.06265211059580736
+          ],
+          "bootstrap_replicates": 1000,
+          "seed": 20261012,
+          "evidence": "positive_paired_evidence",
+          "method": "Paired bootstrap of normalized query-text clusters; macro average remains over query groups.",
+          "benchmark_query_mix": {
+            "candidate_recall": 0.8630055328713653,
+            "reference_recall": 0.8043749051104865,
+            "delta": 0.05863062776087879,
+            "delta_ci95": [
+              0.046498817596345464,
+              0.069891924525865
+            ],
+            "covered_target_fraction": 1.0,
+            "target_queries": 2452,
+            "covered_target_queries": 2452,
+            "valid_bootstrap_replicates": 1000,
+            "requested_bootstrap_replicates": 1000,
+            "seed": 20261012,
+            "evidence": "positive_paired_evidence",
+            "method": "Paired query-text cluster bootstrap with fixed benchmark stratum weights.",
+            "coverage_note": "Target strata absent from this partition are excluded; replicates missing a covered stratum are discarded."
+          }
+        },
+        "tune": {
+          "query_groups": 2881,
+          "query_text_clusters": 1237,
+          "candidate_recall": 0.8605399084312655,
+          "reference_recall": 0.8051395844696781,
+          "delta": 0.055400323961587415,
+          "delta_ci95": [
+            0.043143283580941126,
+            0.0678444889114794
+          ],
+          "bootstrap_replicates": 1000,
+          "seed": 20261012,
+          "evidence": "positive_paired_evidence",
+          "method": "Paired bootstrap of normalized query-text clusters; macro average remains over query groups.",
+          "benchmark_query_mix": {
+            "candidate_recall": 0.8698357213444816,
+            "reference_recall": 0.811784748517491,
+            "delta": 0.05805097282699031,
+            "delta_ci95": [
+              0.04087897377831497,
+              0.07504028001510601
+            ],
+            "covered_target_fraction": 1.0,
+            "target_queries": 2452,
+            "covered_target_queries": 2452,
+            "valid_bootstrap_replicates": 1000,
+            "requested_bootstrap_replicates": 1000,
+            "seed": 20261012,
+            "evidence": "positive_paired_evidence",
+            "method": "Paired query-text cluster bootstrap with fixed benchmark stratum weights.",
+            "coverage_note": "Target strata absent from this partition are excluded; replicates missing a covered stratum are discarded."
+          }
+        },
+        "confirmation": {
+          "query_groups": 2276,
+          "query_text_clusters": 1194,
+          "candidate_recall": 0.8517794376098419,
+          "reference_recall": 0.8010325131810194,
+          "delta": 0.0507469244288225,
+          "delta_ci95": [
+            0.03787642794956924,
+            0.06413628670330367
+          ],
+          "bootstrap_replicates": 1000,
+          "seed": 20261012,
+          "evidence": "positive_paired_evidence",
+          "method": "Paired bootstrap of normalized query-text clusters; macro average remains over query groups.",
+          "benchmark_query_mix": {
+            "candidate_recall": 0.8556955192460023,
+            "reference_recall": 0.7974521235579208,
+            "delta": 0.05824339568808152,
+            "delta_ci95": [
+              0.04140966256629753,
+              0.07429413113961642
+            ],
+            "covered_target_fraction": 1.0,
+            "target_queries": 2452,
+            "covered_target_queries": 2452,
+            "valid_bootstrap_replicates": 1000,
+            "requested_bootstrap_replicates": 1000,
+            "seed": 20261012,
+            "evidence": "positive_paired_evidence",
+            "method": "Paired query-text cluster bootstrap with fixed benchmark stratum weights.",
+            "coverage_note": "Target strata absent from this partition are excluded; replicates missing a covered stratum are discarded."
+          }
+        }
+      },
+      "overfit_prefix_evidence": {
+        "selected_stage": 100,
+        "final_stage": 400,
+        "final_minus_selected_stage": {
+          "all_validation": {
+            "query_groups": 5157,
+            "query_text_clusters": 2431,
+            "candidate_recall": 0.8550156052337553,
+            "reference_recall": 0.8566735458969316,
+            "delta": -0.001657940663176265,
+            "delta_ci95": [
+              -0.005691528440604008,
+              0.0018499076102870752
+            ],
+            "bootstrap_replicates": 1000,
+            "seed": 20261012,
+            "evidence": "uncertain_interval_includes_zero",
+            "method": "Paired bootstrap of normalized query-text clusters; macro average remains over query groups.",
+            "benchmark_query_mix": {
+              "candidate_recall": 0.8595662292806274,
+              "reference_recall": 0.8630055328713653,
+              "delta": -0.0034393035907379246,
+              "delta_ci95": [
+                -0.009069321787461514,
+                0.002004734516559243
+              ],
+              "covered_target_fraction": 1.0,
+              "target_queries": 2452,
+              "covered_target_queries": 2452,
+              "valid_bootstrap_replicates": 1000,
+              "requested_bootstrap_replicates": 1000,
+              "seed": 20261012,
+              "evidence": "uncertain_interval_includes_zero",
+              "method": "Paired query-text cluster bootstrap with fixed benchmark stratum weights.",
+              "coverage_note": "Target strata absent from this partition are excluded; replicates missing a covered stratum are discarded."
+            }
+          },
+          "tune": {
+            "query_groups": 2881,
+            "query_text_clusters": 1237,
+            "candidate_recall": 0.8574564883225071,
+            "reference_recall": 0.8605399084312655,
+            "delta": -0.0030834201087585333,
+            "delta_ci95": [
+              -0.008093672945862737,
+              0.0015486668949498922
+            ],
+            "bootstrap_replicates": 1000,
+            "seed": 20261012,
+            "evidence": "uncertain_interval_includes_zero",
+            "method": "Paired bootstrap of normalized query-text clusters; macro average remains over query groups.",
+            "benchmark_query_mix": {
+              "candidate_recall": 0.8636388586526073,
+              "reference_recall": 0.8698357213444816,
+              "delta": -0.006196862691874281,
+              "delta_ci95": [
+                -0.014635842394423082,
+                0.0021940681702165583
+              ],
+              "covered_target_fraction": 1.0,
+              "target_queries": 2452,
+              "covered_target_queries": 2452,
+              "valid_bootstrap_replicates": 1000,
+              "requested_bootstrap_replicates": 1000,
+              "seed": 20261012,
+              "evidence": "uncertain_interval_includes_zero",
+              "method": "Paired query-text cluster bootstrap with fixed benchmark stratum weights.",
+              "coverage_note": "Target strata absent from this partition are excluded; replicates missing a covered stratum are discarded."
+            }
+          },
+          "confirmation": {
+            "query_groups": 2276,
+            "query_text_clusters": 1194,
+            "candidate_recall": 0.8519258933801992,
+            "reference_recall": 0.8517794376098419,
+            "delta": 0.00014645577035735213,
+            "delta_ci95": [
+              -0.005525983484661008,
+              0.005688349698468355
+            ],
+            "bootstrap_replicates": 1000,
+            "seed": 20261012,
+            "evidence": "uncertain_interval_includes_zero",
+            "method": "Paired bootstrap of normalized query-text clusters; macro average remains over query groups.",
+            "benchmark_query_mix": {
+              "candidate_recall": 0.8548528341649673,
+              "reference_recall": 0.8556955192460023,
+              "delta": -0.0008426850810350912,
+              "delta_ci95": [
+                -0.007542702748027357,
+                0.006019354514544876
+              ],
+              "covered_target_fraction": 1.0,
+              "target_queries": 2452,
+              "covered_target_queries": 2452,
+              "valid_bootstrap_replicates": 1000,
+              "requested_bootstrap_replicates": 1000,
+              "seed": 20261012,
+              "evidence": "uncertain_interval_includes_zero",
+              "method": "Paired query-text cluster bootstrap with fixed benchmark stratum weights.",
+              "coverage_note": "Target strata absent from this partition are excluded; replicates missing a covered stratum are discarded."
+            }
+          }
+        },
+        "possible_excess_trees_on_confirmation": false,
+        "selected_stage_weighted_training_log_loss": null,
+        "final_stage_weighted_training_log_loss": null,
+        "training_log_loss_decreased": null,
+        "selected_stage_train_minus_validation_recall_gap": null,
+        "final_stage_train_minus_validation_recall_gap": null,
+        "interpretation": "These prefix comparisons do not establish overfitting; inspect paired confirmation intervals and the training curve.",
+        "caveat": "Training loss or a train/validation gap alone is not proof of overfitting; confirmation is historical validation already used in earlier work."
+      }
+    }
+  },
+  "caveats": [
+    "Historical validation queries have already informed prior experiments; this confirmation split is not a new untouched test.",
+    "Tune and all-validation intervals describe selected candidates and are affected by selection. Confirmation estimates are reported separately.",
+    "An interval that includes zero leaves the model improvement uncertain; tuning rank alone does not establish a winner.",
+    "Bootstrap clusters preserve all query groups for the same normalized text and retain macro averaging over query groups.",
+    "Clicked examples are known positives; sampled unobserved examples are not proven irrelevant. Training row loss is not Recall or proof of overfitting."
+  ]
+}

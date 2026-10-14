@@ -1,0 +1,109 @@
+FROZEN REGRESSION WRAPPERS — LOW-RESOURCE CODE REVIEW
+2026-10-13
+
+Scope
+-----
+Reviewed freeze_research_selection.py, cache_frozen_research_audit.py and
+evaluate_frozen_research_audit.py plus their imported denominator, alignment,
+scoring and bootstrap helpers. No actual Audit labels, target cache, model or
+dense index was opened by this review. No Audit evaluation, training, GPU job
+or ML-library import was launched. Existing measured producer/helper source
+files were read, never changed.
+
+Concrete guard gaps fixed in the NEW wrappers only
+-------------------------------------------------
+1. Source closure previously omitted imported scoring/denominator/protocol
+   modules and supplemental.py. A post-freeze change to those files would not
+   have invalidated the selection. The new closure includes every current
+   avito_candidates .py file plus the imported regression/research/fresh
+   evaluation, cache, provenance, protocol and candidate helper modules.
+   Missing required source entries or changed bytes are rejected.
+
+2. A completed HNSW binary was not bound: the legacy cache filename and JSON
+   metadata identified config/model/corpus, but did not checksum the .bin bytes.
+   freeze now requires --dense-cache and selects exactly one completed .bin/.json
+   pair by the existing fingerprint of the actual ordered catalog documents,
+   matching config and saved signature. Unrelated and partial cache entries
+   are not bound. Multiple matching saved signatures fail closed. The producer
+   confirms the fingerprint of its actually restored dense encoder/index before
+   opening Audit targets. The selected pair's exact paths and SHA are checked
+   before and after cache/scoring work and are recorded in the cache/report.
+
+3. Cache producer_sha256 was recorded without requiring equality to the frozen
+   producer snapshot. The regression cache guard now requires that equality
+   and its exact frozen dense-index identity.
+
+4. Regression group metadata accepted 0.0 as group ID zero and called .get on
+   a non-dict group. It now requires explicit integer, non-boolean contiguous
+   IDs and valid dict group records, rejecting malformed input early.
+
+Leakage and metrics review
+-------------------------
+The selected capacity is an explicit 75/100/150 prefix already reported on Tune;
+the Audit evaluator has no stage-sweep CLI. Saved classifier/geography/token
+priors are restored and checked, with fit-only query text and grouped OOF
+provenance. The cache producer uses no target-fitting path or forced-positive
+insertion. Model, training data/metadata/priors, classifier, encoder/base,
+inventory, old reference cache and selected source inputs are hash-bound.
+
+Global public-train membership is constructed from the item_id column before
+Audit targets are parsed. It includes train/benchmark overlap; it is not the
+older diagnostic excluding every original benchmark ID. All full GT must be
+in public train or the diagnostic FAILS. The existing retrieved pool is filtered
+only after scoring, then top 50 are reselected from unchanged scores. Neither
+available nor full GT denominators are restricted to the filtered pool. A known
+positive removed by that predicate is rejected, not silently dropped.
+
+Canonical identities align both pipelines, and query keys, normalized texts,
+representative flags and full/available denominators must match. Conditional
+Recall omits only zero-available contexts; full-truth Recall retains them with
+zero hits. Paired bootstrap averages context Recall differences inside each
+normalized text, then resamples TEXTS, matching the text-macro target metric.
+It does not resample candidate rows or weight repeated contexts as extra texts.
+Synthetic two-context text plus singleton and zero-availability text verified
+conditional delta 0.25 versus full-truth delta 1/6, independent of row ordering.
+
+Known-microcategory GT slices are posthoc descriptive strata based on whether
+the GT item's category is among the fit-only classifier's classes. They do not
+mean the classifier correctly predicted that category in top 3. No selection
+claim is made from these slices.
+
+Verification
+------------
+scripts/test_frozen_research_pure_guards.py: 15 tests PASS, 0.084 seconds.
+These execute actual AST-extracted guard/scoring/bootstrap/fingerprint bodies
+against temporary synthetic files and target dictionaries. They verify no
+sklearn, Torch, transformers, sentence_transformers, lightgbm or peft import.
+No real target or index artifact is involved.
+
+scripts/test_frozen_research_regression.py fixtures were updated for the new
+source/index/producer bindings. Its full integration suite was NOT run by this
+review while the memory-heavy prepare process was healthy; it imports sklearn
+transitively. Root can run it after that job. The low-memory tests are not an
+actual Audit or encoder/HNSW execution test.
+
+Remaining limits and honest claims
+---------------------------------
+Audit targets were previously inspected for the baseline. This is one frozen
+regression check, never a new independent generalization test. Output files are
+exclusive and the selected stage/config cannot change within a valid seal, but
+the scripts do not create a global lock preventing somebody from deliberately
+making a second seal in another directory. The one-use/no-retuning rule remains
+an experiment workflow constraint; do not manufacture another fresh-test claim.
+
+The checksum seal is not a cryptographic signature or proof of how every prior
+artifact was historically produced. Additional source/index bindings capture
+the actual inputs at the regression freeze, not retroactive proof of earlier
+unrecorded scorer/encoder runtime details. Package versions in training
+provenance are recorded; installed package binaries, driver/runtime versions
+and hardware are not checksum-sealed by these wrappers.
+
+Public-train restriction changes candidate competition and preserves frozen
+feature/prior normalization. It is not a clean causal test of source-related
+features, nor an official metric. GT category slices and bootstrap intervals
+on previously observed Audit must not guide another tuning round.
+
+Changes copied to the WSL repo: only the three NEW regression wrappers and
+their synthetic tests. Frozen retrieval, feature, encoder and scoring helpers
+were preserved. Complement reports were also copied to Windows:
+outputs/microcategory-research-2026-10-13/.

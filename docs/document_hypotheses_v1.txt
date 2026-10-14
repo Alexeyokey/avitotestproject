@@ -1,0 +1,128 @@
+DOCUMENT INPUT HYPOTHESES V1 — DECLARED BEFORE DOCUMENT OUTCOMES
+2026-10-13
+
+Purpose and scope
+-----------------
+Query-only alternatives have already been screened. This new block changes
+the corpus-side input layout while preserving the frozen encoder weights,
+the 128-token budget, corpus IDs, BM25/geography candidates and Tune cohort.
+Its declaration precedes outcomes from either new document format. The
+completed Audit arm must not be opened or used to select a format or setting.
+Tune results remain exploratory after a sequence of hypothesis screens.
+
+Frozen inputs and control
+-------------------------
+Use the label-blind 200000-item catalog from fresh-validation-2026-10-13.
+Keep Octen LoRA octen-lora-128-full-mb16-s42/model and max_length128.
+Reuse the earlier query-variants stream's dense_current as the direct control.
+Every comparison uses base description449 + chosen dense449 + base geo100,
+so the sum of quotas is998. Unique pool sizes can differ with route overlap.
+Keep ef_search1000, original RRF location_bonus0.02 and all existing GT
+denominators. The original cached RRF top50 is a separate unchanged reference;
+this experiment evaluates candidate Recall, not a new-pool reranker score.
+
+Document formats (embedding_formats FORMAT_VERSION1)
+----------------------------------------------------
+compact:
+  normalized title + parsed semantic parameter VALUES (at most40 words) +
+  normalized description (at most48 words), separated by '. '. Parameter
+  names/nonsemantic recognized fields are removed by the existing conservative
+  value parser; unknown free text is retained. The encoder still truncates the
+  final combined document to128 tokens.
+
+title_description:
+  normalized title + normalized first400 description characters, separated
+  by '. '. This removes the parameter block entirely; it does not attempt to
+  fit the full description or increase token length.
+
+Within EACH document format, test current/plain/values/no_category query
+layouts. Do not add the already-screened no_prompt alternative to this block.
+Query layout and document layout are distinct factors: build one index per
+document format and reuse it for its four query layouts.
+
+Encoder/index provenance
+------------------------
+The producer must accept and receive:
+  --encoder-base-reference frozen-encoder-base.json
+The reference freezes the same base-model resolution used by the original
+adapter/index, so a later Hub/cache revision cannot masquerade as a document
+layout effect. Record the actual reference path/hash/revision in producer
+metadata. Required index identity includes corpus IDs/order, encoder content,
+resolved base reference, document-format version and token/word limits.
+
+New document texts require separate vector/index artifacts. Preserve the old
+current-document index; do not load or overwrite it under a different format.
+Ranked channel names are:
+  dense_compact_current/plain/values/no_category
+  dense_title_description_current/plain/values/no_category
+The existing control channel is dense_current.
+
+Candidate streams keep every12103 Tune group in the original cache metadata
+order, with canonical64hex group_id and the same five-string query_key.
+The companion is the full candidate filename plus '.json'. Shared metadata
+binds protocol, original cache/corpus, producer code, frozen model and fit
+inventories. No relevant item is inserted or chosen from a positive set.
+Fit/Tune/Audit labels must not determine document text or index membership.
+
+Declared configuration files
+----------------------------
+Source:
+  scripts/document_hypotheses_v1.json
+  scripts/document_hypotheses_compact_v1.json
+  scripts/document_hypotheses_title_description_v1.json
+Research copies:
+  artifacts/microcategory-research-2026-10-13/document-hypotheses-v1.json
+  artifacts/microcategory-research-2026-10-13/document-hypotheses-compact-v1.json
+  artifacts/microcategory-research-2026-10-13/document-hypotheses-title-description-v1.json
+
+The master declares nine variants: original control plus eight alternatives.
+The two predeclared five-variant subsets allow sequential index construction.
+The evaluator fails on a missing route; never replace an unbuilt document
+stream with an empty list or silently remove a selected query to make it run.
+Actual candidate filenames may differ; route names and metadata remain fixed.
+
+Sampling, metrics and follow-up
+------------------------------
+Screen2000 normalized Tune texts using the SAME existing label-blind hash salt:
+  retrieval-hypotheses-tune-texts-v1
+Keep every context of each selected text, including zero-availability groups.
+Primary metric: conditional-available text-macro CANDIDATE Recall. Also report
+full-truth Recall, group/representative/micro averages, available-pair fraction,
+unique pool size and positive additions/losses. Denominators remain the full
+sealed available/full GT sets; they are not the positives found in a pool.
+
+For each built document format, take its single best query layout to full
+Tune together with the ORIGINAL current-document dense_current control.
+Choose by the declared primary candidate metric; ties within1e-12 prefer a
+smaller average unique pool, then lexicographic variant name. Report a losing
+format's best layout as losing if it still trails the control. Full Tune uses
+--text-limit0; it includes the screened texts and is not independent evidence.
+
+Build/evaluate compact first. title_description is a separately declared
+option; record the decision that another document-index experiment is needed
+before starting that producer. This decision can use Tune/compute/bottleneck
+evidence, never the completed Audit outcomes. Do not start an unnecessary
+second index merely to complete all declared optional routes.
+
+Paired bootstrap: normalized-text clusters,2000 replicates,seed20261013,
+percentile95% intervals versus R_dense_current. These are exploratory and
+uncorrected for trying/choosing a hypothesis grid. Do not compare the sampled
+cold catalog's metric directly with historical or official benchmark scores.
+
+Example compact-only screen, after its producer completes
+---------------------------------------------------------
+PYTHONPATH=src:scripts /home/alex/avitotestproject/.venv/bin/python \
+ scripts/evaluate_retrieval_hypotheses.py \
+ --protocol-dir artifacts/fresh-validation-2026-10-13/protocol \
+ --cache-dir artifacts/fresh-validation-2026-10-13/cache \
+ --supplement artifacts/microcategory-research-2026-10-13/query-variants.jsonl.gz \
+ --supplement-metadata artifacts/microcategory-research-2026-10-13/query-variants.jsonl.gz.json \
+ --supplement artifacts/microcategory-research-2026-10-13/compact-query-variants.jsonl.gz \
+ --supplement-metadata artifacts/microcategory-research-2026-10-13/compact-query-variants.jsonl.gz.json \
+ --configuration artifacts/microcategory-research-2026-10-13/document-hypotheses-compact-v1.json \
+ --text-limit 2000 --bootstrap-replicates 2000 \
+ --output artifacts/microcategory-research-2026-10-13/document-compact-screen-v1.json
+
+No new-pool Recall@50 or released-model improvement is claimed from a candidate
+gain alone. A changed dense channel may change reranker feature distributions;
+any retraining/production wrapper needs its own explicit fit-only policy.

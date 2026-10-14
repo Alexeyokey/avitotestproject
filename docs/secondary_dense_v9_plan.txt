@@ -1,0 +1,75 @@
+SECONDARY COMPACT COSINE: OPTIONAL SAME-POOL V9 EXPERIMENT
+
+Status: code and synthetic guards only. Do not launch until the primary V8
+training, Tune assessment and any frozen-regression work have completed.
+No dense/reranker/production schema modules were changed.
+
+Hypothesis
+The current LoRA representation performed best as a retriever, yet its text
+layout keeps much less description inside 128 tokens. Compact document cosine
+may add a different numerical ranking signal for candidates already supplied
+by the successful V8 composite. This tests ranking, not pool coverage: candidate
+IDs, labels, weights, OOF priors, ranks, original cosine and feature values stay
+unchanged. Expected candidate-pool Recall change is exactly zero by construction.
+
+New standalone schema9 = exact V8 feature prefix + compact_dense_score and
+compact_dense_known. The known flag is 1 for every existing candidate successfully
+scored; it is a validity marker, not a hypothesized predictive signal.
+
+Input identity/control
+* Frozen encoder/base/128 length and the completed compact index are required.
+* Current and compact HNSW indexes share the SHA-bound 200000-item catalog/order.
+* Queries are encoded ONCE per batch. The SAME fresh vector is used against stored
+  current-document and compact-document vectors, without neighbor search.
+* The fresh current cosine must reproduce the existing full_dense_score within
+  0.005, matching the existing cosine audit tolerance. The old feature is never
+  replaced. This is numerical agreement, not a claim of bit-identical GPU replay.
+* Train raw representatives are recovered from the identical protocol source,
+  using read_fit_labels' actual LAST fit/in-corpus raw-row rule and the primary
+  reader batch size. Rendered query input must exactly match the stored context.
+  Missing recovery or mismatched inputs fail; there is no silent new query variant.
+* Tune uses the exact canonical query context originally passed by the V8 cache
+  producer. Every context/ID is kept in the source order; no targets are inserted.
+* The original training priors are copied byte-for-byte, never refitted. The V8
+  reference artifact and all train/cache/metadata/prior hashes are checked.
+
+Optional future commands (only after V8 pipeline is done)
+
+HF_HUB_OFFLINE=1 PYTHONPATH=src:scripts python scripts/augment_secondary_dense_v9.py \
+  --mode train --protocol-dir "$BASE/protocol" \
+  --reference-model "$NEW/hgb-v8-composite.joblib" \
+  --source "$NEW/train-v8-composite.parquet" \
+  --output "$NEW/v9-secondary/train.parquet" \
+  --compact-cache "$NEW/dense-compact" --current-cache "$BASE/dense" \
+  --encoder-base-reference "$NEW/frozen-encoder-base.json" \
+  --representative-batch-size 65536
+
+HF_HUB_OFFLINE=1 PYTHONPATH=src:scripts python scripts/augment_secondary_dense_v9.py \
+  --mode tune --protocol-dir "$BASE/protocol" \
+  --reference-model "$NEW/hgb-v8-composite.joblib" \
+  --reference-train-data "$NEW/train-v8-composite.parquet" \
+  --source "$NEW/cache-v8-composite/tune.parquet" \
+  --output "$NEW/v9-secondary/tune.parquet" \
+  --compact-cache "$NEW/dense-compact" --current-cache "$BASE/dense" \
+  --encoder-base-reference "$NEW/frozen-encoder-base.json"
+
+Model/evaluation integration gate
+Schema9 is deliberately not registered in the frozen production Reranker. This
+script labels its outputs production_schema_registered=false and uses a distinct
+derived cache version. They must not be passed to the existing production trainer
+or audit evaluator as if they were V8. A later standalone fitter/evaluator is
+required, or a separate integration branch after the frozen primary pipeline.
+
+The next fitter should preserve V8's same rows/weights/HGB hyperparameters and
+compare V9 at fixed 150 iterations against original V8 on exactly the same Tune
+candidate IDs (75/100/150 curve may diagnose capacity). Check same-pool Recall,
+text-cluster paired differences, local/nonlocal slices, train log-loss and complete
+GT denominators. Tune has already been inspected; this remains exploratory.
+Do not use the already observed Audit to select this feature. If V8 is satisfactory,
+the optional experiment can remain unrun.
+
+Resources
+No new document embeddings or BM25 preparation. Query-only GPU work plus two
+read-only HNSW indexes (~2 x 834 MiB CPU memory), one encoder, small Arrow row batches.
+Run serially on the 8 GiB WSL machine. No ML jobs or actual augmentation has been
+started in this subtask.

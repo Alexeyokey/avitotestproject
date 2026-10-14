@@ -1,0 +1,221 @@
+{
+  "schema_version": 1,
+  "as_of": "2026-10-14",
+  "scope": "Research branch with geographic dense experiments, cached regularization and documentation; model weights, input data and indexes are stored outside Git.",
+  "original_baseline": {
+    "commit": "6db6f17",
+    "algorithm": "TF-IDF title+params, three fit-history lists, equal-weight RRF60, top300/channel, popularity fallback",
+    "numeric_recall_available": false
+  },
+  "external_submissions": {
+    "provenance": "Scores reported by the user; CSV hashes verified locally, no new platform query.",
+    "corpus_items": 189212,
+    "benchmark_queries": 2452,
+    "results": [
+      {
+        "recall_at_50": 0.736234,
+        "csv": "artifacts/answer-original-0736234.csv",
+        "sha256": "609c2ad8f5fdc532d58b924b5c4c8968856f7465ca0795cbe54f821c9b13f97f"
+      },
+      {
+        "recall_at_50": 0.763383,
+        "csv": "artifacts/answer-microgeo-v4-final-20k.csv",
+        "sha256": "566800f62d515834bd7daf3dd02c7e0f0d6ef80a94f3ea1cff5aef5f4882d1d8"
+      }
+    ],
+    "latest_research_submission_score": null
+  },
+  "protocol": {
+    "catalog_items": 200000,
+    "tune_contexts": 12103,
+    "tune_texts": 6111,
+    "available_contexts": 4750,
+    "available_texts": 3069,
+    "full_positive_pairs": 12800,
+    "available_positive_pairs": 4871,
+    "zero_availability_contexts": 7353,
+    "manifest": "artifacts/fresh-validation-2026-10-13/protocol/manifest.json",
+    "manifest_sha256": "c421cf47a61b1d7a1687079f31146d34cd17ec2743fd16841ceda15f030ef58e",
+    "primary_metric": "text-macro Recall@50 conditional on available positives; mean over contexts of a normalized text, then over texts",
+    "tune_status": "reused exploratory Tune; not independent confirmation"
+  },
+  "same_tune_timeline": [
+    {
+      "stage": "V4 HGB150",
+      "pool_recall": 0.8886449836014265,
+      "recall_at_50": 0.8134421089742808,
+      "average_pool_size": 821.3533,
+      "maximum_pool_size": 997,
+      "report": "artifacts/fresh-validation-2026-10-13/evaluation/tune-report.json"
+    },
+    {
+      "stage": "V8 HGB100",
+      "pool_recall": 0.9071479517486073,
+      "recall_at_50": 0.8289049765862485,
+      "average_pool_size": 998,
+      "maximum_pool_size": 998,
+      "report": "artifacts/microcategory-research-2026-10-13/eval-v8-composite/research-tune-report.json"
+    },
+    {
+      "stage": "Exact cosine, no geo, frozen HGB100",
+      "pool_recall": 0.9095917445149807,
+      "recall_at_50": 0.8320004474236549,
+      "average_pool_size": 998,
+      "maximum_pool_size": 998,
+      "report": "artifacts/geo-dense-research-2026-10-14/full-tune/report.json"
+    },
+    {
+      "stage": "Geo prior0.05, frozen HGB100",
+      "pool_recall": 0.9858334896702442,
+      "recall_at_50": 0.8795739799815183,
+      "average_pool_size": 998,
+      "maximum_pool_size": 998,
+      "report": "artifacts/geo-dense-research-2026-10-14/full-tune/report.json"
+    },
+    {
+      "stage": "Geo retrained HGB50",
+      "pool_recall": 0.9858334896702442,
+      "recall_at_50": 0.8902455738261614,
+      "average_pool_size": 998,
+      "maximum_pool_size": 998,
+      "report": "artifacts/geo-dense-reranker-2026-10-14/full-tune/report.json"
+    },
+    {
+      "stage": "max_features0.8 HGB50",
+      "pool_recall": 0.9858334896702442,
+      "recall_at_50": 0.8938680411094303,
+      "average_pool_size": 998,
+      "maximum_pool_size": 998,
+      "report": "artifacts/geo-dense-regularization-2026-10-14/full-tune/report.json"
+    },
+    {
+      "stage": "max_leaf_nodes15 HGB50",
+      "pool_recall": 0.9858334896702442,
+      "recall_at_50": 0.8957697679622812,
+      "average_pool_size": 998,
+      "maximum_pool_size": 998,
+      "report": "artifacts/geo-dense-regularization-2026-10-14/full-tune/report.json"
+    }
+  ],
+  "prior_audit_regression": {
+    "contexts": 12649,
+    "texts": 6191,
+    "available_contexts": 5092,
+    "available_texts": 3153,
+    "status": "V4 baseline Audit was observed before frozen V8 regression. Latest geo/retraining/regularization have no Audit result.",
+    "results": [
+      {
+        "stage": "V4 HGB150",
+        "pool_recall": 0.8857731751711511,
+        "recall_at_50": 0.8072717683388819,
+        "report": "artifacts/fresh-validation-2026-10-13/evaluation/audit-report.json"
+      },
+      {
+        "stage": "V8 HGB100",
+        "pool_recall": 0.89741137882886,
+        "recall_at_50": 0.8213229469096424,
+        "report": "artifacts/microcategory-research-2026-10-13/frozen-regression-evaluation/frozen-regression-report.json"
+      }
+    ]
+  },
+  "latest_training": {
+    "selected_groups": 30000,
+    "groups_with_positive_in_pool": 29696,
+    "feature_count": 85,
+    "rows": 1935640,
+    "positive_rows": 35096,
+    "unobserved_rows": 1900544,
+    "weighting": "unchanged per-query class weights",
+    "data": "artifacts/geo-dense-reranker-2026-10-14/train-geo005-v8.parquet"
+  },
+  "regularization": {
+    "primary_stage": 50,
+    "baseline_recall_at_50": 0.8902455738261614,
+    "only_one_parameter_changes": true,
+    "combination_tested": false,
+    "bootstrap_replicates": 10000,
+    "interval_scope": "nominal95%, paired by normalized text; two comparisons on reused Tune",
+    "tune_feature_rows": 4740500,
+    "feature_cache_role": "tune-only-never-training",
+    "inventory_reencoded": false,
+    "retrieval_rebuilt": false,
+    "audit_opened": false,
+    "current_model_replaced": false,
+    "variants": {
+      "maxfeatures08": {
+        "parameters_changed": {
+          "max_features": 0.8
+        },
+        "recall_at_50": 0.8938680411094303,
+        "delta": 0.0036224672832688475,
+        "percentile_95_interval": [
+          -0.0001489549876646651,
+          0.007448137286846964
+        ],
+        "capacity_curve": {
+          "50": 0.8938680411094303,
+          "75": 0.8868950857493783,
+          "100": 0.8813387543865953,
+          "150": 0.8797689084619106
+        },
+        "fit_seconds": 59.17797858
+      },
+      "leaves15": {
+        "parameters_changed": {
+          "max_leaf_nodes": 15
+        },
+        "recall_at_50": 0.8957697679622812,
+        "delta": 0.005524194136119845,
+        "percentile_95_interval": [
+          0.0003437413750219224,
+          0.010860384320794877
+        ],
+        "capacity_curve": {
+          "50": 0.8957697679622812,
+          "75": 0.8892956213854954,
+          "100": 0.8818990517699621,
+          "150": 0.880011124882035
+        },
+        "fit_seconds": 53.773536268999976
+      }
+    }
+  },
+  "best_observed_candidate": {
+    "model": "artifacts/geo-dense-regularization-2026-10-14/full-tune/hgb-geo005-leaves15-selected50.joblib",
+    "sha256": "de71c22170dd8b971048cf527892d265c3b71de536f1b0a847c0442c51ac1431",
+    "estimator": "HistGradientBoostingClassifier",
+    "max_leaf_nodes": 15,
+    "max_features": 1,
+    "selected_iteration": 50,
+    "fitted_iterations": 150,
+    "conditional_text_macro_recall_at_50": 0.8957697679622812,
+    "full_truth_text_macro_recall_at_50": 0.33590123987527937,
+    "ordinary_predict_supported": false,
+    "ordinary_export_supported": false
+  },
+  "retrieval": {
+    "encoder": "Octen/Octen-Embedding-0.6B with saved LoRA",
+    "embedding_max_length": 128,
+    "embedding_params_words": 40,
+    "embedding_description_words": 48,
+    "description_k": 449,
+    "dense_k": 449,
+    "geographic_k": 100,
+    "pool_cap": 998,
+    "dense_retrieval_policy": "exact-cosine-plus-location-log-prior-v1",
+    "geo_dense_weight": 0.05,
+    "smoothing_mass": 3,
+    "distance_scale_km": 40,
+    "probability_floor": 1e-7,
+    "location_bonus": 0.02,
+    "ef_search": 1000,
+    "ef_search_scope": "HNSW supplemental/control routes; exact geo dense top449 does not use ef_search",
+    "channel_quota": 0
+  },
+  "limitations": [
+    "Different catalogs/cohorts/aggregation must not be compared as an official score improvement.",
+    "No numeric score was established for the original TF-IDF commit.",
+    "15 leaves is the best observed research candidate; independent confirmation remains necessary.",
+    "Stored artifacts retain150 fitted trees; selected_iteration50 must be honored."
+  ]
+}

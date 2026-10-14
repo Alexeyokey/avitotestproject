@@ -1,0 +1,78 @@
+POSTHOC DOCUMENT COMPLEMENT STUDY V1 — DECLARED BEFORE ITS NEW COMPARISON
+2026-10-13
+
+Disclosure
+----------
+This is an exploratory follow-up informed by ALREADY OBSERVED compact
+replacement results:103 positive pairs gained and86 lost on full Tune.
+It is not retrospectively described as an overall preregistered study or a
+fresh confirmation holdout. The following four route choices and selection
+policy are written before inspecting outcomes of this NEW complementary
+candidate contrast. Completed Audit labels/report are never used.
+
+Frozen inventory, model and protected pool
+-----------------------------------------
+Same sampled200000-item catalog, encoder/adapter/base reference and128-token
+budget. Same ef_search1000, original description449 +current dense449 +geo100
+protected union B, location_bonus0.02 and full GT denominators. Every candidate
+in B remains. New IDs fill only998-|B| free places; no positive is inserted.
+No new index, vector encoding, classifier inference or training is required.
+The four existing SHA-sealed streams are reused:query-variants,lexical,micro,
+document-compact, each with its full filename+'.json' companion.
+
+Four declared variants
+-----------------------
+F_hybrid_routes(control):
+  lexical_title_values +lexical_params_values +micro_combined_top3 +dense_current
+F_compact_only:
+  dense_compact_current only(the already saved raw449 compact neighbors)
+F_compact_instead_depth:
+  typed title +typed params +micro combined(top3) +dense_compact_current
+F_five_views:
+  the original four control routes +dense_compact_current
+
+Equal weights1. Novel score is sum1/(60+ORIGINAL raw rank) over the declared
+routes. Skip base IDs in place, without compressing ranks. Sort novel IDs by
+descending score, then ascending native16hex item_id. Append first free IDs
+to B, preserving its original order. This chooses a pool, not a final top50.
+
+All variants have the same998-ID upper budget. Realized unique sizes may
+differ; compact-only can underfill, and replacement need not always reach998.
+Report actual sizes and overlap/additions. Do not attribute a gain to document
+format alone, since routes, overlap and allocated candidates also differ.
+The existing frozen generic evaluator already supports these fill variants.
+The fixed production four-route helper is NOT changed by this hypothesis.
+
+Screen and selection
+--------------------
+First screen the SAME2000 normalized Tune texts by identity hash, salt
+retrieval-hypotheses-tune-texts-v1. Preserve every selected text's context,
+including zero-availability groups. Primary metric is conditional-available
+text-macro candidate Recall; numerator/denominators use the sealed complete
+available/full GT, not only positives found in a pool.
+
+Select the best NON-CONTROL by primary candidate Recall. Ties within1e-12
+prefer smaller average realized pool, then lexicographic variant name. Full
+Tune follows with exactly that single winner and F_hybrid_routes, using all
+6111 texts /12103 contexts. A losing winner remains reported as losing; there
+is no silent adoption or switch to a different non-control after the result.
+
+Paired text-cluster bootstrap:2000 replicates,seed20261013,percentile95%.
+Show direct control contrast, original protected pool, full-truth Recall,
+available-pair fraction and actual sizes. These are exploratory intervals
+uncorrected for the earlier screens and this new selection. Full Tune includes
+the screened texts and is not an independent confirmation.
+
+Execution and boundaries
+-------------------------
+CPU-only evaluator:OMP_NUM_THREADS=2,--batch-size8192. Root's existing V8
+current-document training continues unchanged. No GPU/model/index job is
+launched. No frozen evaluator, producer, helper, dense or profile source is
+edited. A production five-route or secondary-cosine implementation, if useful,
+would require a later separately approved decision based on actual gains.
+Native item IDs remain strings; no integer conversion or answer hardcode.
+
+Config:
+scripts/document_complement_hypotheses_v1.json
+artifacts/microcategory-research-2026-10-13/document-complement-hypotheses-v1.json
+The screen/full reports are new files and never overwrite previous outputs.

@@ -1,0 +1,51 @@
+{
+  "selection_version": 1,
+  "policy": {
+    "version": 1,
+    "tune_stages": [
+      25,
+      50,
+      75,
+      100,
+      150
+    ],
+    "limit": 50,
+    "selection_metric": "conditional_available_text_macro_recall_at_50",
+    "tie_rule": "smallest stage within 1e-12 of the maximum",
+    "audit_comparisons": [
+      "selected_stage",
+      "baseline_rrf"
+    ],
+    "bootstrap_unit": "normalized query text",
+    "bootstrap_seed": 20261013,
+    "bootstrap_replicates": 2000,
+    "source_controlled_diagnostic": {
+      "version": 1,
+      "name": "train_source_only",
+      "candidate_filter": "item_id absent from original benchmark_items; filter existing pool only",
+      "systems": [
+        "tune-selected model prefix",
+        "RRF score order"
+      ],
+      "limit": 50,
+      "denominators": "same available and full GT; every full GT must be train-source",
+      "selection_effect": "none; primary text-macro and five-stage winner are unchanged",
+      "scope": "Counterfactual smaller pool, not an official metric or proof of static-feature causality"
+    }
+  },
+  "protocol_sha256": "c421cf47a61b1d7a1687079f31146d34cd17ec2743fd16841ceda15f030ef58e",
+  "model_sha256": "f19f86df4ac76b3f8721768f3b3e048a9a97382bb970bb7ea40572b2ef910363",
+  "tune_cache_sha256": {
+    "parquet": "1999ec97747e88291598bd22b6d539633cb74e654863a23977024988d058b3d2",
+    "metadata": "0246c399389bbd387a2e43590ef7ebae3364536368704a6b458b03db3747f62d"
+  },
+  "tune_report_sha256": "edb1bc3d3083970d43ded3363ed5352b806891afbff69b9d2655f8afcb96d07a",
+  "tune_cache_paths": {
+    "parquet": "/home/alex/avitotestproject/artifacts/fresh-validation-2026-10-13/cache/tune.parquet",
+    "metadata": "/home/alex/avitotestproject/artifacts/fresh-validation-2026-10-13/cache/tune.json"
+  },
+  "train_data_sha256": "afce6ff62d031fd360ed583f900f73c6b3859f5c16d335f6c47a5d8471e967c6",
+  "selected_stage": 150,
+  "selected_tune_text_recall": 0.8134421089742808,
+  "seal_sha256": "e72b082b9e2d93e050003d8bd20244d46adb284060b92060df239f7aa03f71d3"
+}

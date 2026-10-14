@@ -10,11 +10,18 @@ import sys
 
 
 def retrieval_arguments(report, *, data_dir, checkpoint, device, batch_size,
-                        max_length, ef_search, candidate_k=None,
+                        max_length=None, ef_search=None, candidate_k=None,
                         geo_candidate_k=None, location_bonus=None):
     """Восстанавливаем конфигурацию поиска из исходного отчёта оценки."""
     if report.get("method") != "hybrid" or report.get("split") != "queries":
         raise ValueError("Нужен отчёт hybrid с разбиением split=queries")
+    config = report.get("retrieval_config", {})
+    max_length = (max_length if max_length is not None else
+                  config.get("embedding_max_length", report.get("embedding_max_length", 128)))
+    ef_search = (ef_search if ef_search is not None else
+                 config.get("ef_search", report.get("ef_search", 300)))
+    if max_length <= 0 or ef_search <= 0:
+        raise ValueError("Embedding max length and ef-search must be positive")
     bm25 = report["bm25_fields"]
     arguments = [
         "--data-dir", str(data_dir), "--split", "queries",
@@ -51,6 +58,8 @@ def retrieval_arguments(report, *, data_dir, checkpoint, device, batch_size,
         for parameter in ("k1", "b", "weight"):
             arguments.extend((f"--{field}-{parameter}",
                               str(bm25[field][parameter])))
+    if bm25.get("geo_include_related", config.get("geo_include_related", False)):
+        arguments.append("--geo-include-related")
     return arguments
 
 
@@ -74,8 +83,10 @@ def main():
                         default=Path("artifacts/reranker-new-octen"))
     parser.add_argument("--device", default="cuda")
     parser.add_argument("--embedding-batch-size", type=int, default=16)
-    parser.add_argument("--embedding-max-length", type=int, default=128)
-    parser.add_argument("--ef-search", type=int, default=300)
+    parser.add_argument("--embedding-max-length", type=int,
+                        help="Override source report; older reports fall back to 128")
+    parser.add_argument("--ef-search", type=int,
+                        help="Override source report; older reports fall back to 300")
     parser.add_argument("--target-candidate-k", type=int, default=500)
     parser.add_argument("--target-geo-candidate-k", type=int, default=100)
     parser.add_argument("--reranker-negatives-per-query", type=int, default=64)
@@ -92,7 +103,9 @@ def main():
         parser.error("В --data-dir нужны train.parquet и benchmark_items.parquet")
     if args.target_candidate_k <= 0 or args.target_geo_candidate_k < 0:
         parser.error("Глубина поиска должна быть положительной")
-    if args.embedding_batch_size <= 0 or args.ef_search <= 0:
+    if (args.embedding_batch_size <= 0
+            or (args.ef_search is not None and args.ef_search <= 0)
+            or (args.embedding_max_length is not None and args.embedding_max_length <= 0)):
         parser.error("Размер пакета и ef-search должны быть положительными")
     output = args.output_dir
     if not args.dry_run:

@@ -88,8 +88,25 @@ class BM25Index:
             if len(allowed) != len(self.ids):
                 raise ValueError("Allowed-item mask must match the index size")
             candidates = candidates[allowed[candidates]]
-        order = np.lexsort((candidates, -scores[candidates]))[:limit]
-        selected = candidates[order]
+        values = scores[candidates]
+        if 0 < limit < len(candidates) and np.all(np.isfinite(values)):
+            # Only K rows need sorting. Partition on the score first, then
+            # resolve every tie at the boundary by the original row number.
+            # Merely sorting argpartition's arbitrary K rows loses tied IDs.
+            top = np.argpartition(values, len(values) - limit)[-limit:]
+            boundary = values[top].min()
+            better = candidates[values > boundary]
+            tied = candidates[values == boundary]
+            remaining = limit - len(better)
+            if len(tied) > remaining:
+                tied = np.partition(tied, remaining - 1)[:remaining]
+            selected = np.concatenate((better, tied))
+            selected = selected[np.lexsort((selected, -scores[selected]))]
+        else:
+            # Empty/small lists and nonfinite caller-supplied scores retain
+            # NumPy's existing complete-sort semantics exactly.
+            order = np.lexsort((candidates, -values))[:limit]
+            selected = candidates[order]
         ids = [self.ids[row] for row in selected]
         if return_scores:
             return ids, {self.ids[row]: float(scores[row]) for row in selected}
@@ -138,9 +155,11 @@ class Baseline:
         channel_quota=10,
         geo_candidate_k=0,
         geo_top_locations=3,
+        geo_include_related=False,
         geo_min_history=20,
         geo_weight=0.25,
         geo_associations=None,
+        geo_leave_query_out=False,
     ):
         self.ids = [item["item_id"] for item in items]
         if len(set(self.ids)) != len(self.ids):
@@ -171,9 +190,11 @@ class Baseline:
         )
         self.geo_candidate_k = geo_candidate_k
         self.geo_top_locations = geo_top_locations
+        self.geo_include_related = geo_include_related
         self.geo_min_history = geo_min_history
         self.geo_weight = geo_weight
         self.geo_associations = geo_associations
+        self.geo_leave_query_out = geo_leave_query_out
         self._geo_rows = defaultdict(list)
         if geo_candidate_k:
             for row, item in enumerate(items):
@@ -268,8 +289,49 @@ class Baseline:
         if self.geo_associations is not None:
             return self.geo_associations.destinations(
                 location, max_locations=self.geo_top_locations,
-                min_history=self.geo_min_history)
+                min_history=self.geo_min_history,
+                exclude_query_text=(query.get("search_query", "")
+                                    if self.geo_leave_query_out else None))
         return ()
+
+    def related_geo_locations(self, query):
+        """Optional destinations that cannot displace the exact-city channel."""
+        location = str(query.get("search_location_id", ""))
+        if (not self.geo_include_related or location not in self._geo_rows
+                or self.geo_associations is None):
+            return ()
+        destinations = self.geo_associations.destinations(
+            location, max_locations=self.geo_top_locations,
+            min_history=self.geo_min_history, include_related=True,
+            exclude_query_text=(query.get("search_query", "")
+                                if self.geo_leave_query_out else None))
+        return tuple(destination for destination in destinations if destination != location)
+
+    def related_geo_lists_with_scores(self, query, limit):
+        """Retrieve related-city candidates in separate zero-weight pool channels."""
+        destinations = self.related_geo_locations(query)
+        if not destinations or limit <= 0:
+            return [], {}
+        mask = np.zeros(len(self.ids), dtype=bool)
+        for destination in destinations:
+            mask[self._geo_rows[destination]] = True
+        text = query.get("search_query", "")
+        fields = (
+            ("title", self.title_index, self.title_weight),
+            ("params", self.params_index, self.params_weight),
+            ("description", self.description_index, self.description_weight),
+            ("title_stem", self.stem_title_index, self.stem_title_weight),
+            ("params_stem", self.stem_params_index, self.stem_params_weight),
+        )
+        channels, channel_scores = [], {}
+        for name, index, weight in fields:
+            if weight > 0:
+                ids, scores = index.retrieve(text, limit, allowed=mask,
+                                             return_scores=True)
+                channel_name = f"{name}_geo_related"
+                channels.append((channel_name, ids, 0.0))
+                channel_scores[channel_name] = scores
+        return channels, channel_scores
 
     def _geo_mask(self, query):
         """Точная или найденная по обучению локация; общий поиск сохраняется."""

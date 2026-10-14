@@ -1,4 +1,5 @@
 import unittest
+import json
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest.mock import patch
@@ -8,7 +9,7 @@ import numpy as np
 from avito_candidates.dense import (
     DEFAULT_EMBEDDING_MODEL, DenseRetriever, _fingerprint,
     _local_model_signature, encoding_input,
-    item_text, query_text,
+    item_text, query_text, document_text,
 )
 
 
@@ -203,6 +204,97 @@ class DenseHelpersTest(unittest.TestCase):
                 _fingerprint(items, str(checkpoint), model_signature=first),
                 _fingerprint(items, str(checkpoint), model_signature=second),
             )
+
+    def test_legacy_fingerprint_has_not_changed_with_default_format(self):
+        items = [{"item_id": "a", "item_title_raw": "ремонт", "item_category_id": "114",
+                  "item_infm_params_text": "вид услуги x", "item_description_raw": "description"}]
+        # Captured from the pre-extension version, including a local signature.
+        self.assertEqual(_fingerprint(items, "model-a", 128, 40, 48, "sig"),
+                         "aa647f0df73e0e8a8354")
+        self.assertEqual(_fingerprint(items, "model-a", 128, 40, 48, "sig", "current"),
+                         "aa647f0df73e0e8a8354")
+
+    def test_document_variants_get_separate_content_bound_indexes(self):
+        items = [{"item_id": "a", "item_title_raw": "ремонт", "item_category_id": "114",
+                  "item_infm_params_text": "вид услуги телефоны", "item_description_raw": "description"}]
+        variants = {variant: _fingerprint(items, "model", document_format=variant)
+                    for variant in ("current", "compact", "title_description")}
+        self.assertEqual(len(set(variants.values())), 3)
+        changed = [{**items[0], "item_description_raw": "different"}]
+        self.assertNotEqual(variants["compact"], _fingerprint(changed, "model", document_format="compact"))
+        # Changing implementation format version must invalidate experimental
+        # indexes, even if this particular row happens to render identically.
+        with patch("avito_candidates.embedding_formats.FORMAT_VERSION", 999):
+            self.assertNotEqual(variants["compact"], _fingerprint(items, "model", document_format="compact"))
+            self.assertEqual(variants["current"], _fingerprint(items, "model"))
+
+    def test_document_helper_matches_declared_layout(self):
+        from avito_candidates.embedding_formats import item_format
+        item = {"item_title_raw": "t", "item_infm_params_text": "вид услуги v", "item_description_raw": "a b c"}
+        for variant in ("current", "compact", "title_description"):
+            self.assertEqual(document_text(item, document_format=variant, description_words=2),
+                             item_format(item, variant, description_words=2))
+        with self.assertRaises(ValueError):
+            document_text(item, document_format="invalid")
+
+    def test_legacy_index_reused_and_changed_format_cannot_silently_reuse_it(self):
+        encoded = []
+        loaded = []
+
+        class FakeModel:
+            prompts = {"query": "Q:", "document": "D:"}
+
+            def __init__(self, _name, **kwargs):
+                pass
+
+            def get_embedding_dimension(self):
+                return 2
+
+            def encode(self, texts, **kwargs):
+                encoded.append((list(texts), kwargs))
+                return np.ones((len(texts), 2), dtype=np.float32)
+
+        class FakeIndex:
+            def __init__(self, **kwargs):
+                pass
+
+            def init_index(self, **kwargs):
+                pass
+
+            def add_items(self, vectors, labels):
+                pass
+
+            def set_ef(self, value):
+                pass
+
+            def save_index(self, path):
+                Path(path).write_bytes(b"fake")
+
+            def load_index(self, path, **kwargs):
+                loaded.append(path)
+
+        class FakeHnsw:
+            Index = FakeIndex
+
+        items = [{"item_id": "a", "item_title_raw": "title", "item_infm_params_text": "вид услуги service",
+                  "item_description_raw": "description"}]
+        with TemporaryDirectory() as directory, patch("avito_candidates.dense._load_dependencies", return_value=(FakeHnsw, FakeModel)):
+            current = DenseRetriever(items, model_name="fake-octen", cache_dir=directory)
+            old_metadata = current._metadata()
+            self.assertNotIn("document_format", old_metadata)
+            self.assertNotIn("document_format_version", old_metadata)
+            DenseRetriever(items, model_name="fake-octen", cache_dir=directory, require_cached_index=True)
+            self.assertEqual(len(encoded), 1)
+            self.assertEqual(len(loaded), 1)
+            with self.assertRaises(FileNotFoundError):
+                DenseRetriever(items, model_name="fake-octen", cache_dir=directory, document_format="compact", require_cached_index=True)
+            self.assertEqual(len(encoded), 1)
+            compact = DenseRetriever(items, model_name="fake-octen", cache_dir=directory, document_format="compact")
+            self.assertEqual(len(encoded), 2)
+            self.assertEqual(encoded[1][0], [document_text(items[0], document_format="compact")])
+            self.assertEqual(encoded[1][1]["prompt_name"], "document")
+            self.assertEqual(compact._metadata()["document_format"], "compact")
+            self.assertEqual(len(list(Path(directory).glob("*.bin"))), 2)
 
 
 if __name__ == "__main__":

@@ -1,0 +1,3005 @@
+{
+  "model": "artifacts/reranker-microgeo-v4-k449-geo100/model.joblib",
+  "sha256": "a57d2e753df5fa53e59d188697aa52b64dcb3dc671a70a6be2105f8879a8382a",
+  "model_class": "HistGradientBoostingClassifier",
+  "stages": [
+    25,
+    50,
+    75,
+    100,
+    125,
+    150
+  ],
+  "prefix_score_type": "positive_class_probability",
+  "inference_prior_policy": {
+    "inference_priors_sha256": "56fa6e43f291a62a5c22caca8f50aada19b9b13bd4e6d4c6dc6b49d2a522870b",
+    "disable_microcategory_prior": false
+  },
+  "historical_holdout_reused": true,
+  "validation_only": false,
+  "interpretation": "Recall uses complete fixed pools and corpus-positive denominators. When a compatible fit-side sample is supplied, it includes groups skipped by reranker fitting because no positive was retrieved. The embedding encoder was fitted on fit-side texts. A fit-side/validation gap alone does not prove overfitting. Tune and confirmation texts are separated now, but the historical holdout has previously been inspected.",
+  "retrieval_config": {
+    "method": "hybrid",
+    "candidate_k": 449,
+    "title_k1": 1.0,
+    "title_b": 0.2,
+    "title_weight": 0.0,
+    "params_k1": 1.2,
+    "params_b": 0.7,
+    "params_weight": 0.0,
+    "description_k1": 1.0,
+    "description_b": 0.8,
+    "description_weight": 0.5,
+    "stem_title_weight": 0.0,
+    "stem_params_weight": 0.0,
+    "location_bonus": 0.02,
+    "bm25_rrf_k": 30,
+    "bm25_channel_quota": 10,
+    "geo_candidate_k": 100,
+    "geo_top_locations": 3,
+    "geo_min_history": 20,
+    "geo_weight": 0.25,
+    "embedding_model": "/home/alex/avitotestproject/artifacts/octen-lora-128-full-mb16-s42/model",
+    "embedding_max_length": 128,
+    "embedding_params_words": 40,
+    "embedding_description_words": 48,
+    "ef_search": 1000,
+    "rrf_k": 60,
+    "bm25_weight": 1.0,
+    "dense_weight": 1.0,
+    "channel_quota": 0
+  },
+  "benchmark_strata": [
+    {
+      "no_exact_location": false,
+      "has_filters": false,
+      "one_word": false,
+      "queries": 1221
+    },
+    {
+      "no_exact_location": false,
+      "has_filters": false,
+      "one_word": true,
+      "queries": 41
+    },
+    {
+      "no_exact_location": false,
+      "has_filters": true,
+      "one_word": false,
+      "queries": 718
+    },
+    {
+      "no_exact_location": false,
+      "has_filters": true,
+      "one_word": true,
+      "queries": 45
+    },
+    {
+      "no_exact_location": true,
+      "has_filters": false,
+      "one_word": false,
+      "queries": 270
+    },
+    {
+      "no_exact_location": true,
+      "has_filters": false,
+      "one_word": true,
+      "queries": 14
+    },
+    {
+      "no_exact_location": true,
+      "has_filters": true,
+      "one_word": false,
+      "queries": 134
+    },
+    {
+      "no_exact_location": true,
+      "has_filters": true,
+      "one_word": true,
+      "queries": 9
+    }
+  ],
+  "datasets": {
+    "train_sample": {
+      "25": {
+        "all_groups": {
+          "groups": 1000,
+          "query_texts": 845,
+          "average_pool_size": 782.506,
+          "maximum_pool_size": 989,
+          "slices": {
+            "all": {
+              "queries_with_positives": 1000,
+              "corpus_positive_rows": 1123,
+              "reranker_macro_recall": 0.8626566666666666,
+              "reranker_micro_recall": 0.8441674087266251,
+              "reranker_positive_hits": 948,
+              "baseline_macro_recall": 0.8001866666666666,
+              "baseline_micro_recall": 0.792520035618878,
+              "baseline_positive_hits": 890,
+              "pool_macro_recall": 0.9071333333333333,
+              "pool_micro_recall": 0.9020480854853072,
+              "pool_positive_hits": 1013
+            },
+            "local": {
+              "queries_with_positives": 812,
+              "corpus_positive_rows": 920,
+              "reranker_macro_recall": 0.8911124794745485,
+              "reranker_micro_recall": 0.8695652173913043,
+              "reranker_positive_hits": 800,
+              "baseline_macro_recall": 0.8871613300492611,
+              "baseline_micro_recall": 0.8739130434782608,
+              "baseline_positive_hits": 804,
+              "pool_macro_recall": 0.9174363711001643,
+              "pool_micro_recall": 0.9108695652173913,
+              "pool_positive_hits": 838
+            },
+            "nonlocal": {
+              "queries_with_positives": 190,
+              "corpus_positive_rows": 203,
+              "reranker_macro_recall": 0.7328947368421053,
+              "reranker_micro_recall": 0.729064039408867,
+              "reranker_positive_hits": 148,
+              "baseline_macro_recall": 0.42105263157894735,
+              "baseline_micro_recall": 0.4236453201970443,
+              "baseline_positive_hits": 86,
+              "pool_macro_recall": 0.8635964912280703,
+              "pool_micro_recall": 0.8620689655172413,
+              "pool_positive_hits": 175
+            },
+            "seen": {
+              "queries_with_positives": 1000,
+              "corpus_positive_rows": 1123,
+              "reranker_macro_recall": 0.8626566666666666,
+              "reranker_micro_recall": 0.8441674087266251,
+              "reranker_positive_hits": 948,
+              "baseline_macro_recall": 0.8001866666666666,
+              "baseline_micro_recall": 0.792520035618878,
+              "baseline_positive_hits": 890,
+              "pool_macro_recall": 0.9071333333333333,
+              "pool_micro_recall": 0.9020480854853072,
+              "pool_positive_hits": 1013
+            }
+          }
+        },
+        "sample_description": "Fit-side sample; not every sampled group was eligible for reranker fitting.",
+        "reranker_training_eligible_groups": {
+          "groups": 914,
+          "query_texts": 784,
+          "average_pool_size": 782.0295404814004,
+          "maximum_pool_size": 982,
+          "slices": {
+            "all": {
+              "queries_with_positives": 914,
+              "corpus_positive_rows": 1035,
+              "reranker_macro_recall": 0.9438256746900072,
+              "reranker_micro_recall": 0.9159420289855073,
+              "reranker_positive_hits": 948,
+              "baseline_macro_recall": 0.8754777534646243,
+              "baseline_micro_recall": 0.8599033816425121,
+              "baseline_positive_hits": 890,
+              "pool_macro_recall": 0.9924872355944566,
+              "pool_micro_recall": 0.978743961352657,
+              "pool_positive_hits": 1013
+            },
+            "local": {
+              "queries_with_positives": 751,
+              "corpus_positive_rows": 857,
+              "reranker_macro_recall": 0.9634931202840658,
+              "reranker_micro_recall": 0.9334889148191365,
+              "reranker_positive_hits": 800,
+              "baseline_macro_recall": 0.9592210386151797,
+              "baseline_micro_recall": 0.9381563593932322,
+              "baseline_positive_hits": 804,
+              "pool_macro_recall": 0.9919551708832668,
+              "pool_micro_recall": 0.9778296382730455,
+              "pool_positive_hits": 838
+            },
+            "nonlocal": {
+              "queries_with_positives": 165,
+              "corpus_positive_rows": 178,
+              "reranker_macro_recall": 0.843939393939394,
+              "reranker_micro_recall": 0.8314606741573034,
+              "reranker_positive_hits": 148,
+              "baseline_macro_recall": 0.48484848484848486,
+              "baseline_micro_recall": 0.48314606741573035,
+              "baseline_positive_hits": 86,
+              "pool_macro_recall": 0.9944444444444445,
+              "pool_micro_recall": 0.9831460674157303,
+              "pool_positive_hits": 175
+            },
+            "seen": {
+              "queries_with_positives": 914,
+              "corpus_positive_rows": 1035,
+              "reranker_macro_recall": 0.9438256746900072,
+              "reranker_micro_recall": 0.9159420289855073,
+              "reranker_positive_hits": 948,
+              "baseline_macro_recall": 0.8754777534646243,
+              "baseline_micro_recall": 0.8599033816425121,
+              "baseline_positive_hits": 890,
+              "pool_macro_recall": 0.9924872355944566,
+              "pool_micro_recall": 0.978743961352657,
+              "pool_positive_hits": 1013
+            }
+          }
+        },
+        "groups_without_retrieved_training_positive": {
+          "groups": 86,
+          "query_texts": 82,
+          "average_pool_size": 787.5697674418604,
+          "maximum_pool_size": 989,
+          "slices": {
+            "all": {
+              "queries_with_positives": 86,
+              "corpus_positive_rows": 88,
+              "reranker_macro_recall": 0.0,
+              "reranker_micro_recall": 0.0,
+              "reranker_positive_hits": 0,
+              "baseline_macro_recall": 0.0,
+              "baseline_micro_recall": 0.0,
+              "baseline_positive_hits": 0,
+              "pool_macro_recall": 0.0,
+              "pool_micro_recall": 0.0,
+              "pool_positive_hits": 0
+            },
+            "local": {
+              "queries_with_positives": 61,
+              "corpus_positive_rows": 63,
+              "reranker_macro_recall": 0.0,
+              "reranker_micro_recall": 0.0,
+              "reranker_positive_hits": 0,
+              "baseline_macro_recall": 0.0,
+              "baseline_micro_recall": 0.0,
+              "baseline_positive_hits": 0,
+              "pool_macro_recall": 0.0,
+              "pool_micro_recall": 0.0,
+              "pool_positive_hits": 0
+            },
+            "nonlocal": {
+              "queries_with_positives": 25,
+              "corpus_positive_rows": 25,
+              "reranker_macro_recall": 0.0,
+              "reranker_micro_recall": 0.0,
+              "reranker_positive_hits": 0,
+              "baseline_macro_recall": 0.0,
+              "baseline_micro_recall": 0.0,
+              "baseline_positive_hits": 0,
+              "pool_macro_recall": 0.0,
+              "pool_micro_recall": 0.0,
+              "pool_positive_hits": 0
+            },
+            "seen": {
+              "queries_with_positives": 86,
+              "corpus_positive_rows": 88,
+              "reranker_macro_recall": 0.0,
+              "reranker_micro_recall": 0.0,
+              "reranker_positive_hits": 0,
+              "baseline_macro_recall": 0.0,
+              "baseline_micro_recall": 0.0,
+              "baseline_positive_hits": 0,
+              "pool_macro_recall": 0.0,
+              "pool_micro_recall": 0.0,
+              "pool_positive_hits": 0
+            }
+          }
+        },
+        "benchmark_mix": {
+          "target_queries": 2452,
+          "target_queries_in_covered_strata": 2452,
+          "covered_target_fraction": 1.0,
+          "reranker_macro_recall": 0.8806501175031759,
+          "baseline_macro_recall": 0.8037563415025927,
+          "pool_macro_recall": 0.9242573266342494,
+          "note": "Weights use benchmark query attributes only; uncovered strata are excluded."
+        }
+      },
+      "50": {
+        "all_groups": {
+          "groups": 1000,
+          "query_texts": 845,
+          "average_pool_size": 782.506,
+          "maximum_pool_size": 989,
+          "slices": {
+            "all": {
+              "queries_with_positives": 1000,
+              "corpus_positive_rows": 1123,
+              "reranker_macro_recall": 0.8667366666666667,
+              "reranker_micro_recall": 0.8495102404274265,
+              "reranker_positive_hits": 954,
+              "baseline_macro_recall": 0.8001866666666666,
+              "baseline_micro_recall": 0.792520035618878,
+              "baseline_positive_hits": 890,
+              "pool_macro_recall": 0.9071333333333333,
+              "pool_micro_recall": 0.9020480854853072,
+              "pool_positive_hits": 1013
+            },
+            "local": {
+              "queries_with_positives": 812,
+              "corpus_positive_rows": 920,
+              "reranker_macro_recall": 0.891215106732348,
+              "reranker_micro_recall": 0.8717391304347826,
+              "reranker_positive_hits": 802,
+              "baseline_macro_recall": 0.8871613300492611,
+              "baseline_micro_recall": 0.8739130434782608,
+              "baseline_positive_hits": 804,
+              "pool_macro_recall": 0.9174363711001643,
+              "pool_micro_recall": 0.9108695652173913,
+              "pool_positive_hits": 838
+            },
+            "nonlocal": {
+              "queries_with_positives": 190,
+              "corpus_positive_rows": 203,
+              "reranker_macro_recall": 0.7539473684210526,
+              "reranker_micro_recall": 0.7487684729064039,
+              "reranker_positive_hits": 152,
+              "baseline_macro_recall": 0.42105263157894735,
+              "baseline_micro_recall": 0.4236453201970443,
+              "baseline_positive_hits": 86,
+              "pool_macro_recall": 0.8635964912280703,
+              "pool_micro_recall": 0.8620689655172413,
+              "pool_positive_hits": 175
+            },
+            "seen": {
+              "queries_with_positives": 1000,
+              "corpus_positive_rows": 1123,
+              "reranker_macro_recall": 0.8667366666666667,
+              "reranker_micro_recall": 0.8495102404274265,
+              "reranker_positive_hits": 954,
+              "baseline_macro_recall": 0.8001866666666666,
+              "baseline_micro_recall": 0.792520035618878,
+              "baseline_positive_hits": 890,
+              "pool_macro_recall": 0.9071333333333333,
+              "pool_micro_recall": 0.9020480854853072,
+              "pool_positive_hits": 1013
+            }
+          }
+        },
+        "sample_description": "Fit-side sample; not every sampled group was eligible for reranker fitting.",
+        "reranker_training_eligible_groups": {
+          "groups": 914,
+          "query_texts": 784,
+          "average_pool_size": 782.0295404814004,
+          "maximum_pool_size": 982,
+          "slices": {
+            "all": {
+              "queries_with_positives": 914,
+              "corpus_positive_rows": 1035,
+              "reranker_macro_recall": 0.9482895696571846,
+              "reranker_micro_recall": 0.9217391304347826,
+              "reranker_positive_hits": 954,
+              "baseline_macro_recall": 0.8754777534646243,
+              "baseline_micro_recall": 0.8599033816425121,
+              "baseline_positive_hits": 890,
+              "pool_macro_recall": 0.9924872355944566,
+              "pool_micro_recall": 0.978743961352657,
+              "pool_positive_hits": 1013
+            },
+            "local": {
+              "queries_with_positives": 751,
+              "corpus_positive_rows": 857,
+              "reranker_macro_recall": 0.9636040834442965,
+              "reranker_micro_recall": 0.9358226371061844,
+              "reranker_positive_hits": 802,
+              "baseline_macro_recall": 0.9592210386151797,
+              "baseline_micro_recall": 0.9381563593932322,
+              "baseline_positive_hits": 804,
+              "pool_macro_recall": 0.9919551708832668,
+              "pool_micro_recall": 0.9778296382730455,
+              "pool_positive_hits": 838
+            },
+            "nonlocal": {
+              "queries_with_positives": 165,
+              "corpus_positive_rows": 178,
+              "reranker_macro_recall": 0.8681818181818182,
+              "reranker_micro_recall": 0.8539325842696629,
+              "reranker_positive_hits": 152,
+              "baseline_macro_recall": 0.48484848484848486,
+              "baseline_micro_recall": 0.48314606741573035,
+              "baseline_positive_hits": 86,
+              "pool_macro_recall": 0.9944444444444445,
+              "pool_micro_recall": 0.9831460674157303,
+              "pool_positive_hits": 175
+            },
+            "seen": {
+              "queries_with_positives": 914,
+              "corpus_positive_rows": 1035,
+              "reranker_macro_recall": 0.9482895696571846,
+              "reranker_micro_recall": 0.9217391304347826,
+              "reranker_positive_hits": 954,
+              "baseline_macro_recall": 0.8754777534646243,
+              "baseline_micro_recall": 0.8599033816425121,
+              "baseline_positive_hits": 890,
+              "pool_macro_recall": 0.9924872355944566,
+              "pool_micro_recall": 0.978743961352657,
+              "pool_positive_hits": 1013
+            }
+          }
+        },
+        "groups_without_retrieved_training_positive": {
+          "groups": 86,
+          "query_texts": 82,
+          "average_pool_size": 787.5697674418604,
+          "maximum_pool_size": 989,
+          "slices": {
+            "all": {
+              "queries_with_positives": 86,
+              "corpus_positive_rows": 88,
+              "reranker_macro_recall": 0.0,
+              "reranker_micro_recall": 0.0,
+              "reranker_positive_hits": 0,
+              "baseline_macro_recall": 0.0,
+              "baseline_micro_recall": 0.0,
+              "baseline_positive_hits": 0,
+              "pool_macro_recall": 0.0,
+              "pool_micro_recall": 0.0,
+              "pool_positive_hits": 0
+            },
+            "local": {
+              "queries_with_positives": 61,
+              "corpus_positive_rows": 63,
+              "reranker_macro_recall": 0.0,
+              "reranker_micro_recall": 0.0,
+              "reranker_positive_hits": 0,
+              "baseline_macro_recall": 0.0,
+              "baseline_micro_recall": 0.0,
+              "baseline_positive_hits": 0,
+              "pool_macro_recall": 0.0,
+              "pool_micro_recall": 0.0,
+              "pool_positive_hits": 0
+            },
+            "nonlocal": {
+              "queries_with_positives": 25,
+              "corpus_positive_rows": 25,
+              "reranker_macro_recall": 0.0,
+              "reranker_micro_recall": 0.0,
+              "reranker_positive_hits": 0,
+              "baseline_macro_recall": 0.0,
+              "baseline_micro_recall": 0.0,
+              "baseline_positive_hits": 0,
+              "pool_macro_recall": 0.0,
+              "pool_micro_recall": 0.0,
+              "pool_positive_hits": 0
+            },
+            "seen": {
+              "queries_with_positives": 86,
+              "corpus_positive_rows": 88,
+              "reranker_macro_recall": 0.0,
+              "reranker_micro_recall": 0.0,
+              "reranker_positive_hits": 0,
+              "baseline_macro_recall": 0.0,
+              "baseline_micro_recall": 0.0,
+              "baseline_positive_hits": 0,
+              "pool_macro_recall": 0.0,
+              "pool_micro_recall": 0.0,
+              "pool_positive_hits": 0
+            }
+          }
+        },
+        "benchmark_mix": {
+          "target_queries": 2452,
+          "target_queries_in_covered_strata": 2452,
+          "covered_target_fraction": 1.0,
+          "reranker_macro_recall": 0.8836372418464687,
+          "baseline_macro_recall": 0.8037563415025927,
+          "pool_macro_recall": 0.9242573266342494,
+          "note": "Weights use benchmark query attributes only; uncovered strata are excluded."
+        }
+      },
+      "75": {
+        "all_groups": {
+          "groups": 1000,
+          "query_texts": 845,
+          "average_pool_size": 782.506,
+          "maximum_pool_size": 989,
+          "slices": {
+            "all": {
+              "queries_with_positives": 1000,
+              "corpus_positive_rows": 1123,
+              "reranker_macro_recall": 0.8665700000000001,
+              "reranker_micro_recall": 0.8486197684772929,
+              "reranker_positive_hits": 953,
+              "baseline_macro_recall": 0.8001866666666666,
+              "baseline_micro_recall": 0.792520035618878,
+              "baseline_positive_hits": 890,
+              "pool_macro_recall": 0.9071333333333333,
+              "pool_micro_recall": 0.9020480854853072,
+              "pool_positive_hits": 1013
+            },
+            "local": {
+              "queries_with_positives": 812,
+              "corpus_positive_rows": 920,
+              "reranker_macro_recall": 0.8879310344827587,
+              "reranker_micro_recall": 0.8695652173913043,
+              "reranker_positive_hits": 800,
+              "baseline_macro_recall": 0.8871613300492611,
+              "baseline_micro_recall": 0.8739130434782608,
+              "baseline_positive_hits": 804,
+              "pool_macro_recall": 0.9174363711001643,
+              "pool_micro_recall": 0.9108695652173913,
+              "pool_positive_hits": 838
+            },
+            "nonlocal": {
+              "queries_with_positives": 190,
+              "corpus_positive_rows": 203,
+              "reranker_macro_recall": 0.7671052631578947,
+              "reranker_micro_recall": 0.7536945812807881,
+              "reranker_positive_hits": 153,
+              "baseline_macro_recall": 0.42105263157894735,
+              "baseline_micro_recall": 0.4236453201970443,
+              "baseline_positive_hits": 86,
+              "pool_macro_recall": 0.8635964912280703,
+              "pool_micro_recall": 0.8620689655172413,
+              "pool_positive_hits": 175
+            },
+            "seen": {
+              "queries_with_positives": 1000,
+              "corpus_positive_rows": 1123,
+              "reranker_macro_recall": 0.8665700000000001,
+              "reranker_micro_recall": 0.8486197684772929,
+              "reranker_positive_hits": 953,
+              "baseline_macro_recall": 0.8001866666666666,
+              "baseline_micro_recall": 0.792520035618878,
+              "baseline_positive_hits": 890,
+              "pool_macro_recall": 0.9071333333333333,
+              "pool_micro_recall": 0.9020480854853072,
+              "pool_positive_hits": 1013
+            }
+          }
+        },
+        "sample_description": "Fit-side sample; not every sampled group was eligible for reranker fitting.",
+        "reranker_training_eligible_groups": {
+          "groups": 914,
+          "query_texts": 784,
+          "average_pool_size": 782.0295404814004,
+          "maximum_pool_size": 982,
+          "slices": {
+            "all": {
+              "queries_with_positives": 914,
+              "corpus_positive_rows": 1035,
+              "reranker_macro_recall": 0.9481072210065646,
+              "reranker_micro_recall": 0.9207729468599034,
+              "reranker_positive_hits": 953,
+              "baseline_macro_recall": 0.8754777534646243,
+              "baseline_micro_recall": 0.8599033816425121,
+              "baseline_positive_hits": 890,
+              "pool_macro_recall": 0.9924872355944566,
+              "pool_micro_recall": 0.978743961352657,
+              "pool_positive_hits": 1013
+            },
+            "local": {
+              "queries_with_positives": 751,
+              "corpus_positive_rows": 857,
+              "reranker_macro_recall": 0.9600532623169108,
+              "reranker_micro_recall": 0.9334889148191365,
+              "reranker_positive_hits": 800,
+              "baseline_macro_recall": 0.9592210386151797,
+              "baseline_micro_recall": 0.9381563593932322,
+              "baseline_positive_hits": 804,
+              "pool_macro_recall": 0.9919551708832668,
+              "pool_micro_recall": 0.9778296382730455,
+              "pool_positive_hits": 838
+            },
+            "nonlocal": {
+              "queries_with_positives": 165,
+              "corpus_positive_rows": 178,
+              "reranker_macro_recall": 0.8833333333333333,
+              "reranker_micro_recall": 0.8595505617977528,
+              "reranker_positive_hits": 153,
+              "baseline_macro_recall": 0.48484848484848486,
+              "baseline_micro_recall": 0.48314606741573035,
+              "baseline_positive_hits": 86,
+              "pool_macro_recall": 0.9944444444444445,
+              "pool_micro_recall": 0.9831460674157303,
+              "pool_positive_hits": 175
+            },
+            "seen": {
+              "queries_with_positives": 914,
+              "corpus_positive_rows": 1035,
+              "reranker_macro_recall": 0.9481072210065646,
+              "reranker_micro_recall": 0.9207729468599034,
+              "reranker_positive_hits": 953,
+              "baseline_macro_recall": 0.8754777534646243,
+              "baseline_micro_recall": 0.8599033816425121,
+              "baseline_positive_hits": 890,
+              "pool_macro_recall": 0.9924872355944566,
+              "pool_micro_recall": 0.978743961352657,
+              "pool_positive_hits": 1013
+            }
+          }
+        },
+        "groups_without_retrieved_training_positive": {
+          "groups": 86,
+          "query_texts": 82,
+          "average_pool_size": 787.5697674418604,
+          "maximum_pool_size": 989,
+          "slices": {
+            "all": {
+              "queries_with_positives": 86,
+              "corpus_positive_rows": 88,
+              "reranker_macro_recall": 0.0,
+              "reranker_micro_recall": 0.0,
+              "reranker_positive_hits": 0,
+              "baseline_macro_recall": 0.0,
+              "baseline_micro_recall": 0.0,
+              "baseline_positive_hits": 0,
+              "pool_macro_recall": 0.0,
+              "pool_micro_recall": 0.0,
+              "pool_positive_hits": 0
+            },
+            "local": {
+              "queries_with_positives": 61,
+              "corpus_positive_rows": 63,
+              "reranker_macro_recall": 0.0,
+              "reranker_micro_recall": 0.0,
+              "reranker_positive_hits": 0,
+              "baseline_macro_recall": 0.0,
+              "baseline_micro_recall": 0.0,
+              "baseline_positive_hits": 0,
+              "pool_macro_recall": 0.0,
+              "pool_micro_recall": 0.0,
+              "pool_positive_hits": 0
+            },
+            "nonlocal": {
+              "queries_with_positives": 25,
+              "corpus_positive_rows": 25,
+              "reranker_macro_recall": 0.0,
+              "reranker_micro_recall": 0.0,
+              "reranker_positive_hits": 0,
+              "baseline_macro_recall": 0.0,
+              "baseline_micro_recall": 0.0,
+              "baseline_positive_hits": 0,
+              "pool_macro_recall": 0.0,
+              "pool_micro_recall": 0.0,
+              "pool_positive_hits": 0
+            },
+            "seen": {
+              "queries_with_positives": 86,
+              "corpus_positive_rows": 88,
+              "reranker_macro_recall": 0.0,
+              "reranker_micro_recall": 0.0,
+              "reranker_positive_hits": 0,
+              "baseline_macro_recall": 0.0,
+              "baseline_micro_recall": 0.0,
+              "baseline_positive_hits": 0,
+              "pool_macro_recall": 0.0,
+              "pool_micro_recall": 0.0,
+              "pool_positive_hits": 0
+            }
+          }
+        },
+        "benchmark_mix": {
+          "target_queries": 2452,
+          "target_queries_in_covered_strata": 2452,
+          "covered_target_fraction": 1.0,
+          "reranker_macro_recall": 0.8840971533543577,
+          "baseline_macro_recall": 0.8037563415025927,
+          "pool_macro_recall": 0.9242573266342494,
+          "note": "Weights use benchmark query attributes only; uncovered strata are excluded."
+        }
+      },
+      "100": {
+        "all_groups": {
+          "groups": 1000,
+          "query_texts": 845,
+          "average_pool_size": 782.506,
+          "maximum_pool_size": 989,
+          "slices": {
+            "all": {
+              "queries_with_positives": 1000,
+              "corpus_positive_rows": 1123,
+              "reranker_macro_recall": 0.86682,
+              "reranker_micro_recall": 0.8459483526268923,
+              "reranker_positive_hits": 950,
+              "baseline_macro_recall": 0.8001866666666666,
+              "baseline_micro_recall": 0.792520035618878,
+              "baseline_positive_hits": 890,
+              "pool_macro_recall": 0.9071333333333333,
+              "pool_micro_recall": 0.9020480854853072,
+              "pool_positive_hits": 1013
+            },
+            "local": {
+              "queries_with_positives": 812,
+              "corpus_positive_rows": 920,
+              "reranker_macro_recall": 0.8893678160919539,
+              "reranker_micro_recall": 0.8695652173913043,
+              "reranker_positive_hits": 800,
+              "baseline_macro_recall": 0.8871613300492611,
+              "baseline_micro_recall": 0.8739130434782608,
+              "baseline_positive_hits": 804,
+              "pool_macro_recall": 0.9174363711001643,
+              "pool_micro_recall": 0.9108695652173913,
+              "pool_positive_hits": 838
+            },
+            "nonlocal": {
+              "queries_with_positives": 190,
+              "corpus_positive_rows": 203,
+              "reranker_macro_recall": 0.762280701754386,
+              "reranker_micro_recall": 0.7389162561576355,
+              "reranker_positive_hits": 150,
+              "baseline_macro_recall": 0.42105263157894735,
+              "baseline_micro_recall": 0.4236453201970443,
+              "baseline_positive_hits": 86,
+              "pool_macro_recall": 0.8635964912280703,
+              "pool_micro_recall": 0.8620689655172413,
+              "pool_positive_hits": 175
+            },
+            "seen": {
+              "queries_with_positives": 1000,
+              "corpus_positive_rows": 1123,
+              "reranker_macro_recall": 0.86682,
+              "reranker_micro_recall": 0.8459483526268923,
+              "reranker_positive_hits": 950,
+              "baseline_macro_recall": 0.8001866666666666,
+              "baseline_micro_recall": 0.792520035618878,
+              "baseline_positive_hits": 890,
+              "pool_macro_recall": 0.9071333333333333,
+              "pool_micro_recall": 0.9020480854853072,
+              "pool_positive_hits": 1013
+            }
+          }
+        },
+        "sample_description": "Fit-side sample; not every sampled group was eligible for reranker fitting.",
+        "reranker_training_eligible_groups": {
+          "groups": 914,
+          "query_texts": 784,
+          "average_pool_size": 782.0295404814004,
+          "maximum_pool_size": 982,
+          "slices": {
+            "all": {
+              "queries_with_positives": 914,
+              "corpus_positive_rows": 1035,
+              "reranker_macro_recall": 0.9483807439824946,
+              "reranker_micro_recall": 0.9178743961352657,
+              "reranker_positive_hits": 950,
+              "baseline_macro_recall": 0.8754777534646243,
+              "baseline_micro_recall": 0.8599033816425121,
+              "baseline_positive_hits": 890,
+              "pool_macro_recall": 0.9924872355944566,
+              "pool_micro_recall": 0.978743961352657,
+              "pool_positive_hits": 1013
+            },
+            "local": {
+              "queries_with_positives": 751,
+              "corpus_positive_rows": 857,
+              "reranker_macro_recall": 0.961606746560142,
+              "reranker_micro_recall": 0.9334889148191365,
+              "reranker_positive_hits": 800,
+              "baseline_macro_recall": 0.9592210386151797,
+              "baseline_micro_recall": 0.9381563593932322,
+              "baseline_positive_hits": 804,
+              "pool_macro_recall": 0.9919551708832668,
+              "pool_micro_recall": 0.9778296382730455,
+              "pool_positive_hits": 838
+            },
+            "nonlocal": {
+              "queries_with_positives": 165,
+              "corpus_positive_rows": 178,
+              "reranker_macro_recall": 0.8777777777777779,
+              "reranker_micro_recall": 0.8426966292134831,
+              "reranker_positive_hits": 150,
+              "baseline_macro_recall": 0.48484848484848486,
+              "baseline_micro_recall": 0.48314606741573035,
+              "baseline_positive_hits": 86,
+              "pool_macro_recall": 0.9944444444444445,
+              "pool_micro_recall": 0.9831460674157303,
+              "pool_positive_hits": 175
+            },
+            "seen": {
+              "queries_with_positives": 914,
+              "corpus_positive_rows": 1035,
+              "reranker_macro_recall": 0.9483807439824946,
+              "reranker_micro_recall": 0.9178743961352657,
+              "reranker_positive_hits": 950,
+              "baseline_macro_recall": 0.8754777534646243,
+              "baseline_micro_recall": 0.8599033816425121,
+              "baseline_positive_hits": 890,
+              "pool_macro_recall": 0.9924872355944566,
+              "pool_micro_recall": 0.978743961352657,
+              "pool_positive_hits": 1013
+            }
+          }
+        },
+        "groups_without_retrieved_training_positive": {
+          "groups": 86,
+          "query_texts": 82,
+          "average_pool_size": 787.5697674418604,
+          "maximum_pool_size": 989,
+          "slices": {
+            "all": {
+              "queries_with_positives": 86,
+              "corpus_positive_rows": 88,
+              "reranker_macro_recall": 0.0,
+              "reranker_micro_recall": 0.0,
+              "reranker_positive_hits": 0,
+              "baseline_macro_recall": 0.0,
+              "baseline_micro_recall": 0.0,
+              "baseline_positive_hits": 0,
+              "pool_macro_recall": 0.0,
+              "pool_micro_recall": 0.0,
+              "pool_positive_hits": 0
+            },
+            "local": {
+              "queries_with_positives": 61,
+              "corpus_positive_rows": 63,
+              "reranker_macro_recall": 0.0,
+              "reranker_micro_recall": 0.0,
+              "reranker_positive_hits": 0,
+              "baseline_macro_recall": 0.0,
+              "baseline_micro_recall": 0.0,
+              "baseline_positive_hits": 0,
+              "pool_macro_recall": 0.0,
+              "pool_micro_recall": 0.0,
+              "pool_positive_hits": 0
+            },
+            "nonlocal": {
+              "queries_with_positives": 25,
+              "corpus_positive_rows": 25,
+              "reranker_macro_recall": 0.0,
+              "reranker_micro_recall": 0.0,
+              "reranker_positive_hits": 0,
+              "baseline_macro_recall": 0.0,
+              "baseline_micro_recall": 0.0,
+              "baseline_positive_hits": 0,
+              "pool_macro_recall": 0.0,
+              "pool_micro_recall": 0.0,
+              "pool_positive_hits": 0
+            },
+            "seen": {
+              "queries_with_positives": 86,
+              "corpus_positive_rows": 88,
+              "reranker_macro_recall": 0.0,
+              "reranker_micro_recall": 0.0,
+              "reranker_positive_hits": 0,
+              "baseline_macro_recall": 0.0,
+              "baseline_micro_recall": 0.0,
+              "baseline_positive_hits": 0,
+              "pool_macro_recall": 0.0,
+              "pool_micro_recall": 0.0,
+              "pool_positive_hits": 0
+            }
+          }
+        },
+        "benchmark_mix": {
+          "target_queries": 2452,
+          "target_queries_in_covered_strata": 2452,
+          "covered_target_fraction": 1.0,
+          "reranker_macro_recall": 0.8813807533537691,
+          "baseline_macro_recall": 0.8037563415025927,
+          "pool_macro_recall": 0.9242573266342494,
+          "note": "Weights use benchmark query attributes only; uncovered strata are excluded."
+        }
+      },
+      "125": {
+        "all_groups": {
+          "groups": 1000,
+          "query_texts": 845,
+          "average_pool_size": 782.506,
+          "maximum_pool_size": 989,
+          "slices": {
+            "all": {
+              "queries_with_positives": 1000,
+              "corpus_positive_rows": 1123,
+              "reranker_macro_recall": 0.8663200000000001,
+              "reranker_micro_recall": 0.8450578806767587,
+              "reranker_positive_hits": 949,
+              "baseline_macro_recall": 0.8001866666666666,
+              "baseline_micro_recall": 0.792520035618878,
+              "baseline_positive_hits": 890,
+              "pool_macro_recall": 0.9071333333333333,
+              "pool_micro_recall": 0.9020480854853072,
+              "pool_positive_hits": 1013
+            },
+            "local": {
+              "queries_with_positives": 812,
+              "corpus_positive_rows": 920,
+              "reranker_macro_recall": 0.8918308702791461,
+              "reranker_micro_recall": 0.8717391304347826,
+              "reranker_positive_hits": 802,
+              "baseline_macro_recall": 0.8871613300492611,
+              "baseline_micro_recall": 0.8739130434782608,
+              "baseline_positive_hits": 804,
+              "pool_macro_recall": 0.9174363711001643,
+              "pool_micro_recall": 0.9108695652173913,
+              "pool_positive_hits": 838
+            },
+            "nonlocal": {
+              "queries_with_positives": 190,
+              "corpus_positive_rows": 203,
+              "reranker_macro_recall": 0.7491228070175439,
+              "reranker_micro_recall": 0.7241379310344828,
+              "reranker_positive_hits": 147,
+              "baseline_macro_recall": 0.42105263157894735,
+              "baseline_micro_recall": 0.4236453201970443,
+              "baseline_positive_hits": 86,
+              "pool_macro_recall": 0.8635964912280703,
+              "pool_micro_recall": 0.8620689655172413,
+              "pool_positive_hits": 175
+            },
+            "seen": {
+              "queries_with_positives": 1000,
+              "corpus_positive_rows": 1123,
+              "reranker_macro_recall": 0.8663200000000001,
+              "reranker_micro_recall": 0.8450578806767587,
+              "reranker_positive_hits": 949,
+              "baseline_macro_recall": 0.8001866666666666,
+              "baseline_micro_recall": 0.792520035618878,
+              "baseline_positive_hits": 890,
+              "pool_macro_recall": 0.9071333333333333,
+              "pool_micro_recall": 0.9020480854853072,
+              "pool_positive_hits": 1013
+            }
+          }
+        },
+        "sample_description": "Fit-side sample; not every sampled group was eligible for reranker fitting.",
+        "reranker_training_eligible_groups": {
+          "groups": 914,
+          "query_texts": 784,
+          "average_pool_size": 782.0295404814004,
+          "maximum_pool_size": 982,
+          "slices": {
+            "all": {
+              "queries_with_positives": 914,
+              "corpus_positive_rows": 1035,
+              "reranker_macro_recall": 0.9478336980306347,
+              "reranker_micro_recall": 0.9169082125603865,
+              "reranker_positive_hits": 949,
+              "baseline_macro_recall": 0.8754777534646243,
+              "baseline_micro_recall": 0.8599033816425121,
+              "baseline_positive_hits": 890,
+              "pool_macro_recall": 0.9924872355944566,
+              "pool_micro_recall": 0.978743961352657,
+              "pool_positive_hits": 1013
+            },
+            "local": {
+              "queries_with_positives": 751,
+              "corpus_positive_rows": 857,
+              "reranker_macro_recall": 0.9642698624056812,
+              "reranker_micro_recall": 0.9358226371061844,
+              "reranker_positive_hits": 802,
+              "baseline_macro_recall": 0.9592210386151797,
+              "baseline_micro_recall": 0.9381563593932322,
+              "baseline_positive_hits": 804,
+              "pool_macro_recall": 0.9919551708832668,
+              "pool_micro_recall": 0.9778296382730455,
+              "pool_positive_hits": 838
+            },
+            "nonlocal": {
+              "queries_with_positives": 165,
+              "corpus_positive_rows": 178,
+              "reranker_macro_recall": 0.8626262626262626,
+              "reranker_micro_recall": 0.8258426966292135,
+              "reranker_positive_hits": 147,
+              "baseline_macro_recall": 0.48484848484848486,
+              "baseline_micro_recall": 0.48314606741573035,
+              "baseline_positive_hits": 86,
+              "pool_macro_recall": 0.9944444444444445,
+              "pool_micro_recall": 0.9831460674157303,
+              "pool_positive_hits": 175
+            },
+            "seen": {
+              "queries_with_positives": 914,
+              "corpus_positive_rows": 1035,
+              "reranker_macro_recall": 0.9478336980306347,
+              "reranker_micro_recall": 0.9169082125603865,
+              "reranker_positive_hits": 949,
+              "baseline_macro_recall": 0.8754777534646243,
+              "baseline_micro_recall": 0.8599033816425121,
+              "baseline_positive_hits": 890,
+              "pool_macro_recall": 0.9924872355944566,
+              "pool_micro_recall": 0.978743961352657,
+              "pool_positive_hits": 1013
+            }
+          }
+        },
+        "groups_without_retrieved_training_positive": {
+          "groups": 86,
+          "query_texts": 82,
+          "average_pool_size": 787.5697674418604,
+          "maximum_pool_size": 989,
+          "slices": {
+            "all": {
+              "queries_with_positives": 86,
+              "corpus_positive_rows": 88,
+              "reranker_macro_recall": 0.0,
+              "reranker_micro_recall": 0.0,
+              "reranker_positive_hits": 0,
+              "baseline_macro_recall": 0.0,
+              "baseline_micro_recall": 0.0,
+              "baseline_positive_hits": 0,
+              "pool_macro_recall": 0.0,
+              "pool_micro_recall": 0.0,
+              "pool_positive_hits": 0
+            },
+            "local": {
+              "queries_with_positives": 61,
+              "corpus_positive_rows": 63,
+              "reranker_macro_recall": 0.0,
+              "reranker_micro_recall": 0.0,
+              "reranker_positive_hits": 0,
+              "baseline_macro_recall": 0.0,
+              "baseline_micro_recall": 0.0,
+              "baseline_positive_hits": 0,
+              "pool_macro_recall": 0.0,
+              "pool_micro_recall": 0.0,
+              "pool_positive_hits": 0
+            },
+            "nonlocal": {
+              "queries_with_positives": 25,
+              "corpus_positive_rows": 25,
+              "reranker_macro_recall": 0.0,
+              "reranker_micro_recall": 0.0,
+              "reranker_positive_hits": 0,
+              "baseline_macro_recall": 0.0,
+              "baseline_micro_recall": 0.0,
+              "baseline_positive_hits": 0,
+              "pool_macro_recall": 0.0,
+              "pool_micro_recall": 0.0,
+              "pool_positive_hits": 0
+            },
+            "seen": {
+              "queries_with_positives": 86,
+              "corpus_positive_rows": 88,
+              "reranker_macro_recall": 0.0,
+              "reranker_micro_recall": 0.0,
+              "reranker_positive_hits": 0,
+              "baseline_macro_recall": 0.0,
+              "baseline_micro_recall": 0.0,
+              "baseline_positive_hits": 0,
+              "pool_macro_recall": 0.0,
+              "pool_micro_recall": 0.0,
+              "pool_positive_hits": 0
+            }
+          }
+        },
+        "benchmark_mix": {
+          "target_queries": 2452,
+          "target_queries_in_covered_strata": 2452,
+          "covered_target_fraction": 1.0,
+          "reranker_macro_recall": 0.8798253800072248,
+          "baseline_macro_recall": 0.8037563415025927,
+          "pool_macro_recall": 0.9242573266342494,
+          "note": "Weights use benchmark query attributes only; uncovered strata are excluded."
+        }
+      },
+      "150": {
+        "all_groups": {
+          "groups": 1000,
+          "query_texts": 845,
+          "average_pool_size": 782.506,
+          "maximum_pool_size": 989,
+          "slices": {
+            "all": {
+              "queries_with_positives": 1000,
+              "corpus_positive_rows": 1123,
+              "reranker_macro_recall": 0.8703200000000001,
+              "reranker_micro_recall": 0.8486197684772929,
+              "reranker_positive_hits": 953,
+              "baseline_macro_recall": 0.8001866666666666,
+              "baseline_micro_recall": 0.792520035618878,
+              "baseline_positive_hits": 890,
+              "pool_macro_recall": 0.9071333333333333,
+              "pool_micro_recall": 0.9020480854853072,
+              "pool_positive_hits": 1013
+            },
+            "local": {
+              "queries_with_positives": 812,
+              "corpus_positive_rows": 920,
+              "reranker_macro_recall": 0.8918308702791461,
+              "reranker_micro_recall": 0.8717391304347826,
+              "reranker_positive_hits": 802,
+              "baseline_macro_recall": 0.8871613300492611,
+              "baseline_micro_recall": 0.8739130434782608,
+              "baseline_positive_hits": 804,
+              "pool_macro_recall": 0.9174363711001643,
+              "pool_micro_recall": 0.9108695652173913,
+              "pool_positive_hits": 838
+            },
+            "nonlocal": {
+              "queries_with_positives": 190,
+              "corpus_positive_rows": 203,
+              "reranker_macro_recall": 0.7701754385964913,
+              "reranker_micro_recall": 0.7438423645320197,
+              "reranker_positive_hits": 151,
+              "baseline_macro_recall": 0.42105263157894735,
+              "baseline_micro_recall": 0.4236453201970443,
+              "baseline_positive_hits": 86,
+              "pool_macro_recall": 0.8635964912280703,
+              "pool_micro_recall": 0.8620689655172413,
+              "pool_positive_hits": 175
+            },
+            "seen": {
+              "queries_with_positives": 1000,
+              "corpus_positive_rows": 1123,
+              "reranker_macro_recall": 0.8703200000000001,
+              "reranker_micro_recall": 0.8486197684772929,
+              "reranker_positive_hits": 953,
+              "baseline_macro_recall": 0.8001866666666666,
+              "baseline_micro_recall": 0.792520035618878,
+              "baseline_positive_hits": 890,
+              "pool_macro_recall": 0.9071333333333333,
+              "pool_micro_recall": 0.9020480854853072,
+              "pool_positive_hits": 1013
+            }
+          }
+        },
+        "sample_description": "Fit-side sample; not every sampled group was eligible for reranker fitting.",
+        "reranker_training_eligible_groups": {
+          "groups": 914,
+          "query_texts": 784,
+          "average_pool_size": 782.0295404814004,
+          "maximum_pool_size": 982,
+          "slices": {
+            "all": {
+              "queries_with_positives": 914,
+              "corpus_positive_rows": 1035,
+              "reranker_macro_recall": 0.9522100656455142,
+              "reranker_micro_recall": 0.9207729468599034,
+              "reranker_positive_hits": 953,
+              "baseline_macro_recall": 0.8754777534646243,
+              "baseline_micro_recall": 0.8599033816425121,
+              "baseline_positive_hits": 890,
+              "pool_macro_recall": 0.9924872355944566,
+              "pool_micro_recall": 0.978743961352657,
+              "pool_positive_hits": 1013
+            },
+            "local": {
+              "queries_with_positives": 751,
+              "corpus_positive_rows": 857,
+              "reranker_macro_recall": 0.9642698624056812,
+              "reranker_micro_recall": 0.9358226371061844,
+              "reranker_positive_hits": 802,
+              "baseline_macro_recall": 0.9592210386151797,
+              "baseline_micro_recall": 0.9381563593932322,
+              "baseline_positive_hits": 804,
+              "pool_macro_recall": 0.9919551708832668,
+              "pool_micro_recall": 0.9778296382730455,
+              "pool_positive_hits": 838
+            },
+            "nonlocal": {
+              "queries_with_positives": 165,
+              "corpus_positive_rows": 178,
+              "reranker_macro_recall": 0.8868686868686869,
+              "reranker_micro_recall": 0.848314606741573,
+              "reranker_positive_hits": 151,
+              "baseline_macro_recall": 0.48484848484848486,
+              "baseline_micro_recall": 0.48314606741573035,
+              "baseline_positive_hits": 86,
+              "pool_macro_recall": 0.9944444444444445,
+              "pool_micro_recall": 0.9831460674157303,
+              "pool_positive_hits": 175
+            },
+            "seen": {
+              "queries_with_positives": 914,
+              "corpus_positive_rows": 1035,
+              "reranker_macro_recall": 0.9522100656455142,
+              "reranker_micro_recall": 0.9207729468599034,
+              "reranker_positive_hits": 953,
+              "baseline_macro_recall": 0.8754777534646243,
+              "baseline_micro_recall": 0.8599033816425121,
+              "baseline_positive_hits": 890,
+              "pool_macro_recall": 0.9924872355944566,
+              "pool_micro_recall": 0.978743961352657,
+              "pool_positive_hits": 1013
+            }
+          }
+        },
+        "groups_without_retrieved_training_positive": {
+          "groups": 86,
+          "query_texts": 82,
+          "average_pool_size": 787.5697674418604,
+          "maximum_pool_size": 989,
+          "slices": {
+            "all": {
+              "queries_with_positives": 86,
+              "corpus_positive_rows": 88,
+              "reranker_macro_recall": 0.0,
+              "reranker_micro_recall": 0.0,
+              "reranker_positive_hits": 0,
+              "baseline_macro_recall": 0.0,
+              "baseline_micro_recall": 0.0,
+              "baseline_positive_hits": 0,
+              "pool_macro_recall": 0.0,
+              "pool_micro_recall": 0.0,
+              "pool_positive_hits": 0
+            },
+            "local": {
+              "queries_with_positives": 61,
+              "corpus_positive_rows": 63,
+              "reranker_macro_recall": 0.0,
+              "reranker_micro_recall": 0.0,
+              "reranker_positive_hits": 0,
+              "baseline_macro_recall": 0.0,
+              "baseline_micro_recall": 0.0,
+              "baseline_positive_hits": 0,
+              "pool_macro_recall": 0.0,
+              "pool_micro_recall": 0.0,
+              "pool_positive_hits": 0
+            },
+            "nonlocal": {
+              "queries_with_positives": 25,
+              "corpus_positive_rows": 25,
+              "reranker_macro_recall": 0.0,
+              "reranker_micro_recall": 0.0,
+              "reranker_positive_hits": 0,
+              "baseline_macro_recall": 0.0,
+              "baseline_micro_recall": 0.0,
+              "baseline_positive_hits": 0,
+              "pool_macro_recall": 0.0,
+              "pool_micro_recall": 0.0,
+              "pool_positive_hits": 0
+            },
+            "seen": {
+              "queries_with_positives": 86,
+              "corpus_positive_rows": 88,
+              "reranker_macro_recall": 0.0,
+              "reranker_micro_recall": 0.0,
+              "reranker_positive_hits": 0,
+              "baseline_macro_recall": 0.0,
+              "baseline_micro_recall": 0.0,
+              "baseline_positive_hits": 0,
+              "pool_macro_recall": 0.0,
+              "pool_micro_recall": 0.0,
+              "pool_positive_hits": 0
+            }
+          }
+        },
+        "benchmark_mix": {
+          "target_queries": 2452,
+          "target_queries_in_covered_strata": 2452,
+          "covered_target_fraction": 1.0,
+          "reranker_macro_recall": 0.8834065563887203,
+          "baseline_macro_recall": 0.8037563415025927,
+          "pool_macro_recall": 0.9242573266342494,
+          "note": "Weights use benchmark query attributes only; uncovered strata are excluded."
+        }
+      }
+    },
+    "validation": {
+      "25": {
+        "all_groups": {
+          "groups": 5157,
+          "query_texts": 2431,
+          "average_pool_size": 783.4574364940858,
+          "maximum_pool_size": 996,
+          "slices": {
+            "all": {
+              "queries_with_positives": 5157,
+              "corpus_positive_rows": 5710,
+              "reranker_macro_recall": 0.8474902351865703,
+              "reranker_micro_recall": 0.8453590192644483,
+              "reranker_positive_hits": 4827,
+              "baseline_macro_recall": 0.8033269619657054,
+              "baseline_micro_recall": 0.8033274956217162,
+              "baseline_positive_hits": 4587,
+              "pool_macro_recall": 0.9166438128480013,
+              "pool_micro_recall": 0.9178633975481612,
+              "pool_positive_hits": 5241
+            },
+            "local": {
+              "queries_with_positives": 4225,
+              "corpus_positive_rows": 4713,
+              "reranker_macro_recall": 0.8758213581290505,
+              "reranker_micro_recall": 0.8737534479100361,
+              "reranker_positive_hits": 4118,
+              "baseline_macro_recall": 0.8837655677655678,
+              "baseline_micro_recall": 0.8830893273923192,
+              "baseline_positive_hits": 4162,
+              "pool_macro_recall": 0.9167269653423499,
+              "pool_micro_recall": 0.9191597708465945,
+              "pool_positive_hits": 4332
+            },
+            "nonlocal": {
+              "queries_with_positives": 942,
+              "corpus_positive_rows": 997,
+              "reranker_macro_recall": 0.7164720452937013,
+              "reranker_micro_recall": 0.7111334002006018,
+              "reranker_positive_hits": 709,
+              "baseline_macro_recall": 0.43780962491153574,
+              "baseline_micro_recall": 0.4262788365095286,
+              "baseline_positive_hits": 425,
+              "pool_macro_recall": 0.9147204529370134,
+              "pool_micro_recall": 0.9117352056168505,
+              "pool_positive_hits": 909
+            },
+            "seen": {
+              "queries_with_positives": 2639,
+              "corpus_positive_rows": 2847,
+              "reranker_macro_recall": 0.8561260578501958,
+              "reranker_micro_recall": 0.8535300316122234,
+              "reranker_positive_hits": 2430,
+              "baseline_macro_recall": 0.8124668435013263,
+              "baseline_micro_recall": 0.8103266596417281,
+              "baseline_positive_hits": 2307,
+              "pool_macro_recall": 0.9321965390930907,
+              "pool_micro_recall": 0.9339655778011943,
+              "pool_positive_hits": 2659
+            },
+            "unseen": {
+              "queries_with_positives": 2699,
+              "corpus_positive_rows": 2863,
+              "reranker_macro_recall": 0.8382734346054094,
+              "reranker_micro_recall": 0.8372336709745023,
+              "reranker_positive_hits": 2397,
+              "baseline_macro_recall": 0.7954427565765099,
+              "baseline_micro_recall": 0.7963674467341949,
+              "baseline_positive_hits": 2280,
+              "pool_macro_recall": 0.902340372977646,
+              "pool_micro_recall": 0.9018512050296892,
+              "pool_positive_hits": 2582
+            }
+          }
+        },
+        "benchmark_mix": {
+          "target_queries": 2452,
+          "target_queries_in_covered_strata": 2452,
+          "covered_target_fraction": 1.0,
+          "reranker_macro_recall": 0.8471870545960231,
+          "baseline_macro_recall": 0.8043749051104866,
+          "pool_macro_recall": 0.9277660132079389,
+          "note": "Weights use benchmark query attributes only; uncovered strata are excluded."
+        },
+        "tune": {
+          "groups": 2881,
+          "query_texts": 1237,
+          "average_pool_size": 785.2953835473794,
+          "maximum_pool_size": 996,
+          "slices": {
+            "all": {
+              "queries_with_positives": 2881,
+              "corpus_positive_rows": 3255,
+              "reranker_macro_recall": 0.8499504140427432,
+              "reranker_micro_recall": 0.8466973886328725,
+              "reranker_positive_hits": 2756,
+              "baseline_macro_recall": 0.8051395844696781,
+              "baseline_micro_recall": 0.8036866359447005,
+              "baseline_positive_hits": 2616,
+              "pool_macro_recall": 0.9158274243400936,
+              "pool_micro_recall": 0.9161290322580645,
+              "pool_positive_hits": 2982
+            },
+            "local": {
+              "queries_with_positives": 2370,
+              "corpus_positive_rows": 2698,
+              "reranker_macro_recall": 0.8792314647377939,
+              "reranker_micro_recall": 0.8765752409191994,
+              "reranker_positive_hits": 2365,
+              "baseline_macro_recall": 0.8912557765722323,
+              "baseline_micro_recall": 0.8895478131949592,
+              "baseline_positive_hits": 2400,
+              "pool_macro_recall": 0.9173367490456098,
+              "pool_micro_recall": 0.9195700518902891,
+              "pool_positive_hits": 2481
+            },
+            "nonlocal": {
+              "queries_with_positives": 518,
+              "corpus_positive_rows": 557,
+              "reranker_macro_recall": 0.7105855855855856,
+              "reranker_micro_recall": 0.7019748653500898,
+              "reranker_positive_hits": 391,
+              "baseline_macro_recall": 0.4049227799227799,
+              "baseline_micro_recall": 0.3877917414721723,
+              "baseline_positive_hits": 216,
+              "pool_macro_recall": 0.9057271557271558,
+              "pool_micro_recall": 0.8994614003590664,
+              "pool_positive_hits": 501
+            },
+            "seen": {
+              "queries_with_positives": 1466,
+              "corpus_positive_rows": 1590,
+              "reranker_macro_recall": 0.8568440200090951,
+              "reranker_micro_recall": 0.8540880503144654,
+              "reranker_positive_hits": 1358,
+              "baseline_macro_recall": 0.8114029104138245,
+              "baseline_micro_recall": 0.8075471698113208,
+              "baseline_positive_hits": 1284,
+              "pool_macro_recall": 0.9291041382446567,
+              "pool_micro_recall": 0.9308176100628931,
+              "pool_positive_hits": 1480
+            },
+            "unseen": {
+              "queries_with_positives": 1536,
+              "corpus_positive_rows": 1665,
+              "reranker_macro_recall": 0.8424479166666666,
+              "reranker_micro_recall": 0.8396396396396396,
+              "reranker_positive_hits": 1398,
+              "baseline_macro_recall": 0.800390625,
+              "baseline_micro_recall": 0.8,
+              "baseline_positive_hits": 1332,
+              "pool_macro_recall": 0.9042426215277778,
+              "pool_micro_recall": 0.9021021021021021,
+              "pool_positive_hits": 1502
+            }
+          }
+        },
+        "tune_benchmark_mix": {
+          "target_queries": 2452,
+          "target_queries_in_covered_strata": 2452,
+          "covered_target_fraction": 1.0,
+          "reranker_macro_recall": 0.8511173957071506,
+          "baseline_macro_recall": 0.8117847485174913,
+          "pool_macro_recall": 0.928950524812142,
+          "note": "Weights use benchmark query attributes only; uncovered strata are excluded."
+        },
+        "confirmation": {
+          "groups": 2276,
+          "query_texts": 1194,
+          "average_pool_size": 781.1309314586995,
+          "maximum_pool_size": 993,
+          "slices": {
+            "all": {
+              "queries_with_positives": 2276,
+              "corpus_positive_rows": 2455,
+              "reranker_macro_recall": 0.8443760984182777,
+              "reranker_micro_recall": 0.8435845213849287,
+              "reranker_positive_hits": 2071,
+              "baseline_macro_recall": 0.8010325131810194,
+              "baseline_micro_recall": 0.8028513238289205,
+              "baseline_positive_hits": 1971,
+              "pool_macro_recall": 0.9176772114821323,
+              "pool_micro_recall": 0.920162932790224,
+              "pool_positive_hits": 2259
+            },
+            "local": {
+              "queries_with_positives": 1855,
+              "corpus_positive_rows": 2015,
+              "reranker_macro_recall": 0.8714645103324349,
+              "reranker_micro_recall": 0.8699751861042183,
+              "reranker_positive_hits": 1753,
+              "baseline_macro_recall": 0.8741958670260558,
+              "baseline_micro_recall": 0.8744416873449131,
+              "baseline_positive_hits": 1762,
+              "pool_macro_recall": 0.915947888589398,
+              "pool_micro_recall": 0.9186104218362283,
+              "pool_positive_hits": 1851
+            },
+            "nonlocal": {
+              "queries_with_positives": 424,
+              "corpus_positive_rows": 440,
+              "reranker_macro_recall": 0.7236635220125786,
+              "reranker_micro_recall": 0.7227272727272728,
+              "reranker_positive_hits": 318,
+              "baseline_macro_recall": 0.4779874213836478,
+              "baseline_micro_recall": 0.475,
+              "baseline_positive_hits": 209,
+              "pool_macro_recall": 0.9257075471698113,
+              "pool_micro_recall": 0.9272727272727272,
+              "pool_positive_hits": 408
+            },
+            "seen": {
+              "queries_with_positives": 1173,
+              "corpus_positive_rows": 1257,
+              "reranker_macro_recall": 0.8552287581699346,
+              "reranker_micro_recall": 0.8528241845664281,
+              "reranker_positive_hits": 1072,
+              "baseline_macro_recall": 0.8137965331059961,
+              "baseline_micro_recall": 0.8138424821002387,
+              "baseline_positive_hits": 1023,
+              "pool_macro_recall": 0.9360613810741688,
+              "pool_micro_recall": 0.9379474940334129,
+              "pool_positive_hits": 1179
+            },
+            "unseen": {
+              "queries_with_positives": 1163,
+              "corpus_positive_rows": 1198,
+              "reranker_macro_recall": 0.8327601031814273,
+              "reranker_micro_recall": 0.833889816360601,
+              "reranker_positive_hits": 999,
+              "baseline_macro_recall": 0.788907996560619,
+              "baseline_micro_recall": 0.7913188647746243,
+              "baseline_positive_hits": 948,
+              "pool_macro_recall": 0.8998280309544282,
+              "pool_micro_recall": 0.9015025041736227,
+              "pool_positive_hits": 1080
+            }
+          }
+        },
+        "confirmation_benchmark_mix": {
+          "target_queries": 2452,
+          "target_queries_in_covered_strata": 2452,
+          "covered_target_fraction": 1.0,
+          "reranker_macro_recall": 0.8430532373750974,
+          "baseline_macro_recall": 0.7974521235579208,
+          "pool_macro_recall": 0.9258772801607683,
+          "note": "Weights use benchmark query attributes only; uncovered strata are excluded."
+        }
+      },
+      "50": {
+        "all_groups": {
+          "groups": 5157,
+          "query_texts": 2431,
+          "average_pool_size": 783.4574364940858,
+          "maximum_pool_size": 996,
+          "slices": {
+            "all": {
+              "queries_with_positives": 5157,
+              "corpus_positive_rows": 5710,
+              "reranker_macro_recall": 0.8500175443456421,
+              "reranker_micro_recall": 0.8472854640980736,
+              "reranker_positive_hits": 4838,
+              "baseline_macro_recall": 0.8033269619657054,
+              "baseline_micro_recall": 0.8033274956217162,
+              "baseline_positive_hits": 4587,
+              "pool_macro_recall": 0.9166438128480013,
+              "pool_micro_recall": 0.9178633975481612,
+              "pool_positive_hits": 5241
+            },
+            "local": {
+              "queries_with_positives": 4225,
+              "corpus_positive_rows": 4713,
+              "reranker_macro_recall": 0.8781763877148492,
+              "reranker_micro_recall": 0.8752387014640356,
+              "reranker_positive_hits": 4125,
+              "baseline_macro_recall": 0.8837655677655678,
+              "baseline_micro_recall": 0.8830893273923192,
+              "baseline_positive_hits": 4162,
+              "pool_macro_recall": 0.9167269653423499,
+              "pool_micro_recall": 0.9191597708465945,
+              "pool_positive_hits": 4332
+            },
+            "nonlocal": {
+              "queries_with_positives": 942,
+              "corpus_positive_rows": 997,
+              "reranker_macro_recall": 0.7200106157112527,
+              "reranker_micro_recall": 0.7151454363089268,
+              "reranker_positive_hits": 713,
+              "baseline_macro_recall": 0.43780962491153574,
+              "baseline_micro_recall": 0.4262788365095286,
+              "baseline_positive_hits": 425,
+              "pool_macro_recall": 0.9147204529370134,
+              "pool_micro_recall": 0.9117352056168505,
+              "pool_positive_hits": 909
+            },
+            "seen": {
+              "queries_with_positives": 2639,
+              "corpus_positive_rows": 2847,
+              "reranker_macro_recall": 0.8602248326386257,
+              "reranker_micro_recall": 0.8563400070249385,
+              "reranker_positive_hits": 2438,
+              "baseline_macro_recall": 0.8124668435013263,
+              "baseline_micro_recall": 0.8103266596417281,
+              "baseline_positive_hits": 2307,
+              "pool_macro_recall": 0.9321965390930907,
+              "pool_micro_recall": 0.9339655778011943,
+              "pool_positive_hits": 2659
+            },
+            "unseen": {
+              "queries_with_positives": 2699,
+              "corpus_positive_rows": 2863,
+              "reranker_macro_recall": 0.8397554649870322,
+              "reranker_micro_recall": 0.8382815228780999,
+              "reranker_positive_hits": 2400,
+              "baseline_macro_recall": 0.7954427565765099,
+              "baseline_micro_recall": 0.7963674467341949,
+              "baseline_positive_hits": 2280,
+              "pool_macro_recall": 0.902340372977646,
+              "pool_micro_recall": 0.9018512050296892,
+              "pool_positive_hits": 2582
+            }
+          }
+        },
+        "benchmark_mix": {
+          "target_queries": 2452,
+          "target_queries_in_covered_strata": 2452,
+          "covered_target_fraction": 1.0,
+          "reranker_macro_recall": 0.8491945062607981,
+          "baseline_macro_recall": 0.8043749051104866,
+          "pool_macro_recall": 0.9277660132079389,
+          "note": "Weights use benchmark query attributes only; uncovered strata are excluded."
+        },
+        "tune": {
+          "groups": 2881,
+          "query_texts": 1237,
+          "average_pool_size": 785.2953835473794,
+          "maximum_pool_size": 996,
+          "slices": {
+            "all": {
+              "queries_with_positives": 2881,
+              "corpus_positive_rows": 3255,
+              "reranker_macro_recall": 0.8505867671608733,
+              "reranker_micro_recall": 0.8463901689708141,
+              "reranker_positive_hits": 2755,
+              "baseline_macro_recall": 0.8051395844696781,
+              "baseline_micro_recall": 0.8036866359447005,
+              "baseline_positive_hits": 2616,
+              "pool_macro_recall": 0.9158274243400936,
+              "pool_micro_recall": 0.9161290322580645,
+              "pool_positive_hits": 2982
+            },
+            "local": {
+              "queries_with_positives": 2370,
+              "corpus_positive_rows": 2698,
+              "reranker_macro_recall": 0.8795479204339964,
+              "reranker_micro_recall": 0.8758339510748703,
+              "reranker_positive_hits": 2363,
+              "baseline_macro_recall": 0.8912557765722323,
+              "baseline_micro_recall": 0.8895478131949592,
+              "baseline_positive_hits": 2400,
+              "pool_macro_recall": 0.9173367490456098,
+              "pool_micro_recall": 0.9195700518902891,
+              "pool_positive_hits": 2481
+            },
+            "nonlocal": {
+              "queries_with_positives": 518,
+              "corpus_positive_rows": 557,
+              "reranker_macro_recall": 0.7131595881595882,
+              "reranker_micro_recall": 0.703770197486535,
+              "reranker_positive_hits": 392,
+              "baseline_macro_recall": 0.4049227799227799,
+              "baseline_micro_recall": 0.3877917414721723,
+              "baseline_positive_hits": 216,
+              "pool_macro_recall": 0.9057271557271558,
+              "pool_micro_recall": 0.8994614003590664,
+              "pool_positive_hits": 501
+            },
+            "seen": {
+              "queries_with_positives": 1466,
+              "corpus_positive_rows": 1590,
+              "reranker_macro_recall": 0.8579467939972715,
+              "reranker_micro_recall": 0.8528301886792453,
+              "reranker_positive_hits": 1356,
+              "baseline_macro_recall": 0.8114029104138245,
+              "baseline_micro_recall": 0.8075471698113208,
+              "baseline_positive_hits": 1284,
+              "pool_macro_recall": 0.9291041382446567,
+              "pool_micro_recall": 0.9308176100628931,
+              "pool_positive_hits": 1480
+            },
+            "unseen": {
+              "queries_with_positives": 1536,
+              "corpus_positive_rows": 1665,
+              "reranker_macro_recall": 0.8434244791666666,
+              "reranker_micro_recall": 0.8402402402402402,
+              "reranker_positive_hits": 1399,
+              "baseline_macro_recall": 0.800390625,
+              "baseline_micro_recall": 0.8,
+              "baseline_positive_hits": 1332,
+              "pool_macro_recall": 0.9042426215277778,
+              "pool_micro_recall": 0.9021021021021021,
+              "pool_positive_hits": 1502
+            }
+          }
+        },
+        "tune_benchmark_mix": {
+          "target_queries": 2452,
+          "target_queries_in_covered_strata": 2452,
+          "covered_target_fraction": 1.0,
+          "reranker_macro_recall": 0.8513491210909647,
+          "baseline_macro_recall": 0.8117847485174913,
+          "pool_macro_recall": 0.928950524812142,
+          "note": "Weights use benchmark query attributes only; uncovered strata are excluded."
+        },
+        "confirmation": {
+          "groups": 2276,
+          "query_texts": 1194,
+          "average_pool_size": 781.1309314586995,
+          "maximum_pool_size": 993,
+          "slices": {
+            "all": {
+              "queries_with_positives": 2276,
+              "corpus_positive_rows": 2455,
+              "reranker_macro_recall": 0.8492970123022847,
+              "reranker_micro_recall": 0.8484725050916497,
+              "reranker_positive_hits": 2083,
+              "baseline_macro_recall": 0.8010325131810194,
+              "baseline_micro_recall": 0.8028513238289205,
+              "baseline_positive_hits": 1971,
+              "pool_macro_recall": 0.9176772114821323,
+              "pool_micro_recall": 0.920162932790224,
+              "pool_positive_hits": 2259
+            },
+            "local": {
+              "queries_with_positives": 1855,
+              "corpus_positive_rows": 2015,
+              "reranker_macro_recall": 0.8764240790655885,
+              "reranker_micro_recall": 0.8744416873449131,
+              "reranker_positive_hits": 1762,
+              "baseline_macro_recall": 0.8741958670260558,
+              "baseline_micro_recall": 0.8744416873449131,
+              "baseline_positive_hits": 1762,
+              "pool_macro_recall": 0.915947888589398,
+              "pool_micro_recall": 0.9186104218362283,
+              "pool_positive_hits": 1851
+            },
+            "nonlocal": {
+              "queries_with_positives": 424,
+              "corpus_positive_rows": 440,
+              "reranker_macro_recall": 0.7283805031446541,
+              "reranker_micro_recall": 0.7295454545454545,
+              "reranker_positive_hits": 321,
+              "baseline_macro_recall": 0.4779874213836478,
+              "baseline_micro_recall": 0.475,
+              "baseline_positive_hits": 209,
+              "pool_macro_recall": 0.9257075471698113,
+              "pool_micro_recall": 0.9272727272727272,
+              "pool_positive_hits": 408
+            },
+            "seen": {
+              "queries_with_positives": 1173,
+              "corpus_positive_rows": 1257,
+              "reranker_macro_recall": 0.8630718954248366,
+              "reranker_micro_recall": 0.8607796340493238,
+              "reranker_positive_hits": 1082,
+              "baseline_macro_recall": 0.8137965331059961,
+              "baseline_micro_recall": 0.8138424821002387,
+              "baseline_positive_hits": 1023,
+              "pool_macro_recall": 0.9360613810741688,
+              "pool_micro_recall": 0.9379474940334129,
+              "pool_positive_hits": 1179
+            },
+            "unseen": {
+              "queries_with_positives": 1163,
+              "corpus_positive_rows": 1198,
+              "reranker_macro_recall": 0.8349097162510748,
+              "reranker_micro_recall": 0.835559265442404,
+              "reranker_positive_hits": 1001,
+              "baseline_macro_recall": 0.788907996560619,
+              "baseline_micro_recall": 0.7913188647746243,
+              "baseline_positive_hits": 948,
+              "pool_macro_recall": 0.8998280309544282,
+              "pool_micro_recall": 0.9015025041736227,
+              "pool_positive_hits": 1080
+            }
+          }
+        },
+        "confirmation_benchmark_mix": {
+          "target_queries": 2452,
+          "target_queries_in_covered_strata": 2452,
+          "covered_target_fraction": 1.0,
+          "reranker_macro_recall": 0.8470650405729346,
+          "baseline_macro_recall": 0.7974521235579208,
+          "pool_macro_recall": 0.9258772801607683,
+          "note": "Weights use benchmark query attributes only; uncovered strata are excluded."
+        }
+      },
+      "75": {
+        "all_groups": {
+          "groups": 5157,
+          "query_texts": 2431,
+          "average_pool_size": 783.4574364940858,
+          "maximum_pool_size": 996,
+          "slices": {
+            "all": {
+              "queries_with_positives": 5157,
+              "corpus_positive_rows": 5710,
+              "reranker_macro_recall": 0.8471056446623636,
+              "reranker_micro_recall": 0.8436077057793345,
+              "reranker_positive_hits": 4817,
+              "baseline_macro_recall": 0.8033269619657054,
+              "baseline_micro_recall": 0.8033274956217162,
+              "baseline_positive_hits": 4587,
+              "pool_macro_recall": 0.9166438128480013,
+              "pool_micro_recall": 0.9178633975481612,
+              "pool_positive_hits": 5241
+            },
+            "local": {
+              "queries_with_positives": 4225,
+              "corpus_positive_rows": 4713,
+              "reranker_macro_recall": 0.8744288531980839,
+              "reranker_micro_recall": 0.8707829408020369,
+              "reranker_positive_hits": 4104,
+              "baseline_macro_recall": 0.8837655677655678,
+              "baseline_micro_recall": 0.8830893273923192,
+              "baseline_positive_hits": 4162,
+              "pool_macro_recall": 0.9167269653423499,
+              "pool_micro_recall": 0.9191597708465945,
+              "pool_positive_hits": 4332
+            },
+            "nonlocal": {
+              "queries_with_positives": 942,
+              "corpus_positive_rows": 997,
+              "reranker_macro_recall": 0.7217799009200283,
+              "reranker_micro_recall": 0.7151454363089268,
+              "reranker_positive_hits": 713,
+              "baseline_macro_recall": 0.43780962491153574,
+              "baseline_micro_recall": 0.4262788365095286,
+              "baseline_positive_hits": 425,
+              "pool_macro_recall": 0.9147204529370134,
+              "pool_micro_recall": 0.9117352056168505,
+              "pool_positive_hits": 909
+            },
+            "seen": {
+              "queries_with_positives": 2639,
+              "corpus_positive_rows": 2847,
+              "reranker_macro_recall": 0.8564670961222686,
+              "reranker_micro_recall": 0.853178784685634,
+              "reranker_positive_hits": 2429,
+              "baseline_macro_recall": 0.8124668435013263,
+              "baseline_micro_recall": 0.8103266596417281,
+              "baseline_positive_hits": 2307,
+              "pool_macro_recall": 0.9321965390930907,
+              "pool_micro_recall": 0.9339655778011943,
+              "pool_positive_hits": 2659
+            },
+            "unseen": {
+              "queries_with_positives": 2699,
+              "corpus_positive_rows": 2863,
+              "reranker_macro_recall": 0.8361738915647772,
+              "reranker_micro_recall": 0.8340901152637094,
+              "reranker_positive_hits": 2388,
+              "baseline_macro_recall": 0.7954427565765099,
+              "baseline_micro_recall": 0.7963674467341949,
+              "baseline_positive_hits": 2280,
+              "pool_macro_recall": 0.902340372977646,
+              "pool_micro_recall": 0.9018512050296892,
+              "pool_positive_hits": 2582
+            }
+          }
+        },
+        "benchmark_mix": {
+          "target_queries": 2452,
+          "target_queries_in_covered_strata": 2452,
+          "covered_target_fraction": 1.0,
+          "reranker_macro_recall": 0.8476595913384121,
+          "baseline_macro_recall": 0.8043749051104866,
+          "pool_macro_recall": 0.9277660132079389,
+          "note": "Weights use benchmark query attributes only; uncovered strata are excluded."
+        },
+        "tune": {
+          "groups": 2881,
+          "query_texts": 1237,
+          "average_pool_size": 785.2953835473794,
+          "maximum_pool_size": 996,
+          "slices": {
+            "all": {
+              "queries_with_positives": 2881,
+              "corpus_positive_rows": 3255,
+              "reranker_macro_recall": 0.8496322374836779,
+              "reranker_micro_recall": 0.8442396313364056,
+              "reranker_positive_hits": 2748,
+              "baseline_macro_recall": 0.8051395844696781,
+              "baseline_micro_recall": 0.8036866359447005,
+              "baseline_positive_hits": 2616,
+              "pool_macro_recall": 0.9158274243400936,
+              "pool_micro_recall": 0.9161290322580645,
+              "pool_positive_hits": 2982
+            },
+            "local": {
+              "queries_with_positives": 2370,
+              "corpus_positive_rows": 2698,
+              "reranker_macro_recall": 0.8781062889290738,
+              "reranker_micro_recall": 0.8736100815418829,
+              "reranker_positive_hits": 2357,
+              "baseline_macro_recall": 0.8912557765722323,
+              "baseline_micro_recall": 0.8895478131949592,
+              "baseline_positive_hits": 2400,
+              "pool_macro_recall": 0.9173367490456098,
+              "pool_micro_recall": 0.9195700518902891,
+              "pool_positive_hits": 2481
+            },
+            "nonlocal": {
+              "queries_with_positives": 518,
+              "corpus_positive_rows": 557,
+              "reranker_macro_recall": 0.7144465894465895,
+              "reranker_micro_recall": 0.7019748653500898,
+              "reranker_positive_hits": 391,
+              "baseline_macro_recall": 0.4049227799227799,
+              "baseline_micro_recall": 0.3877917414721723,
+              "baseline_positive_hits": 216,
+              "pool_macro_recall": 0.9057271557271558,
+              "pool_micro_recall": 0.8994614003590664,
+              "pool_positive_hits": 501
+            },
+            "seen": {
+              "queries_with_positives": 1466,
+              "corpus_positive_rows": 1590,
+              "reranker_macro_recall": 0.8586857662573897,
+              "reranker_micro_recall": 0.8528301886792453,
+              "reranker_positive_hits": 1356,
+              "baseline_macro_recall": 0.8114029104138245,
+              "baseline_micro_recall": 0.8075471698113208,
+              "baseline_positive_hits": 1284,
+              "pool_macro_recall": 0.9291041382446567,
+              "pool_micro_recall": 0.9308176100628931,
+              "pool_positive_hits": 1480
+            },
+            "unseen": {
+              "queries_with_positives": 1536,
+              "corpus_positive_rows": 1665,
+              "reranker_macro_recall": 0.8403862847222222,
+              "reranker_micro_recall": 0.836036036036036,
+              "reranker_positive_hits": 1392,
+              "baseline_macro_recall": 0.800390625,
+              "baseline_micro_recall": 0.8,
+              "baseline_positive_hits": 1332,
+              "pool_macro_recall": 0.9042426215277778,
+              "pool_micro_recall": 0.9021021021021021,
+              "pool_positive_hits": 1502
+            }
+          }
+        },
+        "tune_benchmark_mix": {
+          "target_queries": 2452,
+          "target_queries_in_covered_strata": 2452,
+          "covered_target_fraction": 1.0,
+          "reranker_macro_recall": 0.8517537043833925,
+          "baseline_macro_recall": 0.8117847485174913,
+          "pool_macro_recall": 0.928950524812142,
+          "note": "Weights use benchmark query attributes only; uncovered strata are excluded."
+        },
+        "confirmation": {
+          "groups": 2276,
+          "query_texts": 1194,
+          "average_pool_size": 781.1309314586995,
+          "maximum_pool_size": 993,
+          "slices": {
+            "all": {
+              "queries_with_positives": 2276,
+              "corpus_positive_rows": 2455,
+              "reranker_macro_recall": 0.8439074399531341,
+              "reranker_micro_recall": 0.8427698574338085,
+              "reranker_positive_hits": 2069,
+              "baseline_macro_recall": 0.8010325131810194,
+              "baseline_micro_recall": 0.8028513238289205,
+              "baseline_positive_hits": 1971,
+              "pool_macro_recall": 0.9176772114821323,
+              "pool_micro_recall": 0.920162932790224,
+              "pool_positive_hits": 2259
+            },
+            "local": {
+              "queries_with_positives": 1855,
+              "corpus_positive_rows": 2015,
+              "reranker_macro_recall": 0.8697304582210242,
+              "reranker_micro_recall": 0.8669975186104218,
+              "reranker_positive_hits": 1747,
+              "baseline_macro_recall": 0.8741958670260558,
+              "baseline_micro_recall": 0.8744416873449131,
+              "baseline_positive_hits": 1762,
+              "pool_macro_recall": 0.915947888589398,
+              "pool_micro_recall": 0.9186104218362283,
+              "pool_positive_hits": 1851
+            },
+            "nonlocal": {
+              "queries_with_positives": 424,
+              "corpus_positive_rows": 440,
+              "reranker_macro_recall": 0.7307389937106917,
+              "reranker_micro_recall": 0.7318181818181818,
+              "reranker_positive_hits": 322,
+              "baseline_macro_recall": 0.4779874213836478,
+              "baseline_micro_recall": 0.475,
+              "baseline_positive_hits": 209,
+              "pool_macro_recall": 0.9257075471698113,
+              "pool_micro_recall": 0.9272727272727272,
+              "pool_positive_hits": 408
+            },
+            "seen": {
+              "queries_with_positives": 1173,
+              "corpus_positive_rows": 1257,
+              "reranker_macro_recall": 0.8536942313157146,
+              "reranker_micro_recall": 0.8536197295147175,
+              "reranker_positive_hits": 1073,
+              "baseline_macro_recall": 0.8137965331059961,
+              "baseline_micro_recall": 0.8138424821002387,
+              "baseline_positive_hits": 1023,
+              "pool_macro_recall": 0.9360613810741688,
+              "pool_micro_recall": 0.9379474940334129,
+              "pool_positive_hits": 1179
+            },
+            "unseen": {
+              "queries_with_positives": 1163,
+              "corpus_positive_rows": 1198,
+              "reranker_macro_recall": 0.8306104901117799,
+              "reranker_micro_recall": 0.8313856427378965,
+              "reranker_positive_hits": 996,
+              "baseline_macro_recall": 0.788907996560619,
+              "baseline_micro_recall": 0.7913188647746243,
+              "baseline_positive_hits": 948,
+              "pool_macro_recall": 0.8998280309544282,
+              "pool_micro_recall": 0.9015025041736227,
+              "pool_positive_hits": 1080
+            }
+          }
+        },
+        "confirmation_benchmark_mix": {
+          "target_queries": 2452,
+          "target_queries_in_covered_strata": 2452,
+          "covered_target_fraction": 1.0,
+          "reranker_macro_recall": 0.8432161355978065,
+          "baseline_macro_recall": 0.7974521235579208,
+          "pool_macro_recall": 0.9258772801607683,
+          "note": "Weights use benchmark query attributes only; uncovered strata are excluded."
+        }
+      },
+      "100": {
+        "all_groups": {
+          "groups": 5157,
+          "query_texts": 2431,
+          "average_pool_size": 783.4574364940858,
+          "maximum_pool_size": 996,
+          "slices": {
+            "all": {
+              "queries_with_positives": 5157,
+              "corpus_positive_rows": 5710,
+              "reranker_macro_recall": 0.8451180549784388,
+              "reranker_micro_recall": 0.841506129597198,
+              "reranker_positive_hits": 4805,
+              "baseline_macro_recall": 0.8033269619657054,
+              "baseline_micro_recall": 0.8033274956217162,
+              "baseline_positive_hits": 4587,
+              "pool_macro_recall": 0.9166438128480013,
+              "pool_micro_recall": 0.9178633975481612,
+              "pool_positive_hits": 5241
+            },
+            "local": {
+              "queries_with_positives": 4225,
+              "corpus_positive_rows": 4713,
+              "reranker_macro_recall": 0.8744091293322063,
+              "reranker_micro_recall": 0.8703585826437513,
+              "reranker_positive_hits": 4102,
+              "baseline_macro_recall": 0.8837655677655678,
+              "baseline_micro_recall": 0.8830893273923192,
+              "baseline_positive_hits": 4162,
+              "pool_macro_recall": 0.9167269653423499,
+              "pool_micro_recall": 0.9191597708465945,
+              "pool_positive_hits": 4332
+            },
+            "nonlocal": {
+              "queries_with_positives": 942,
+              "corpus_positive_rows": 997,
+              "reranker_macro_recall": 0.7109872611464968,
+              "reranker_micro_recall": 0.7051153460381143,
+              "reranker_positive_hits": 703,
+              "baseline_macro_recall": 0.43780962491153574,
+              "baseline_micro_recall": 0.4262788365095286,
+              "baseline_positive_hits": 425,
+              "pool_macro_recall": 0.9147204529370134,
+              "pool_micro_recall": 0.9117352056168505,
+              "pool_positive_hits": 909
+            },
+            "seen": {
+              "queries_with_positives": 2639,
+              "corpus_positive_rows": 2847,
+              "reranker_macro_recall": 0.8555197675887332,
+              "reranker_micro_recall": 0.8521250439058659,
+              "reranker_positive_hits": 2426,
+              "baseline_macro_recall": 0.8124668435013263,
+              "baseline_micro_recall": 0.8103266596417281,
+              "baseline_positive_hits": 2307,
+              "pool_macro_recall": 0.9321965390930907,
+              "pool_micro_recall": 0.9339655778011943,
+              "pool_positive_hits": 2659
+            },
+            "unseen": {
+              "queries_with_positives": 2699,
+              "corpus_positive_rows": 2863,
+              "reranker_macro_recall": 0.8328393232061257,
+              "reranker_micro_recall": 0.8309465595529165,
+              "reranker_positive_hits": 2379,
+              "baseline_macro_recall": 0.7954427565765099,
+              "baseline_micro_recall": 0.7963674467341949,
+              "baseline_positive_hits": 2280,
+              "pool_macro_recall": 0.902340372977646,
+              "pool_micro_recall": 0.9018512050296892,
+              "pool_positive_hits": 2582
+            }
+          }
+        },
+        "benchmark_mix": {
+          "target_queries": 2452,
+          "target_queries_in_covered_strata": 2452,
+          "covered_target_fraction": 1.0,
+          "reranker_macro_recall": 0.8472970604923592,
+          "baseline_macro_recall": 0.8043749051104866,
+          "pool_macro_recall": 0.9277660132079389,
+          "note": "Weights use benchmark query attributes only; uncovered strata are excluded."
+        },
+        "tune": {
+          "groups": 2881,
+          "query_texts": 1237,
+          "average_pool_size": 785.2953835473794,
+          "maximum_pool_size": 996,
+          "slices": {
+            "all": {
+              "queries_with_positives": 2881,
+              "corpus_positive_rows": 3255,
+              "reranker_macro_recall": 0.8483306061056841,
+              "reranker_micro_recall": 0.8423963133640553,
+              "reranker_positive_hits": 2742,
+              "baseline_macro_recall": 0.8051395844696781,
+              "baseline_micro_recall": 0.8036866359447005,
+              "baseline_positive_hits": 2616,
+              "pool_macro_recall": 0.9158274243400936,
+              "pool_micro_recall": 0.9161290322580645,
+              "pool_positive_hits": 2982
+            },
+            "local": {
+              "queries_with_positives": 2370,
+              "corpus_positive_rows": 2698,
+              "reranker_macro_recall": 0.8782820976491863,
+              "reranker_micro_recall": 0.8728687916975537,
+              "reranker_positive_hits": 2355,
+              "baseline_macro_recall": 0.8912557765722323,
+              "baseline_micro_recall": 0.8895478131949592,
+              "baseline_positive_hits": 2400,
+              "pool_macro_recall": 0.9173367490456098,
+              "pool_micro_recall": 0.9195700518902891,
+              "pool_positive_hits": 2481
+            },
+            "nonlocal": {
+              "queries_with_positives": 518,
+              "corpus_positive_rows": 557,
+              "reranker_macro_recall": 0.7064028314028314,
+              "reranker_micro_recall": 0.6947935368043088,
+              "reranker_positive_hits": 387,
+              "baseline_macro_recall": 0.4049227799227799,
+              "baseline_micro_recall": 0.3877917414721723,
+              "baseline_positive_hits": 216,
+              "pool_macro_recall": 0.9057271557271558,
+              "pool_micro_recall": 0.8994614003590664,
+              "pool_positive_hits": 501
+            },
+            "seen": {
+              "queries_with_positives": 1466,
+              "corpus_positive_rows": 1590,
+              "reranker_macro_recall": 0.8580036380172805,
+              "reranker_micro_recall": 0.8515723270440252,
+              "reranker_positive_hits": 1354,
+              "baseline_macro_recall": 0.8114029104138245,
+              "baseline_micro_recall": 0.8075471698113208,
+              "baseline_positive_hits": 1284,
+              "pool_macro_recall": 0.9291041382446567,
+              "pool_micro_recall": 0.9308176100628931,
+              "pool_positive_hits": 1480
+            },
+            "unseen": {
+              "queries_with_positives": 1536,
+              "corpus_positive_rows": 1665,
+              "reranker_macro_recall": 0.8377821180555555,
+              "reranker_micro_recall": 0.8336336336336336,
+              "reranker_positive_hits": 1388,
+              "baseline_macro_recall": 0.800390625,
+              "baseline_micro_recall": 0.8,
+              "baseline_positive_hits": 1332,
+              "pool_macro_recall": 0.9042426215277778,
+              "pool_micro_recall": 0.9021021021021021,
+              "pool_positive_hits": 1502
+            }
+          }
+        },
+        "tune_benchmark_mix": {
+          "target_queries": 2452,
+          "target_queries_in_covered_strata": 2452,
+          "covered_target_fraction": 1.0,
+          "reranker_macro_recall": 0.8519557395004855,
+          "baseline_macro_recall": 0.8117847485174913,
+          "pool_macro_recall": 0.928950524812142,
+          "note": "Weights use benchmark query attributes only; uncovered strata are excluded."
+        },
+        "confirmation": {
+          "groups": 2276,
+          "query_texts": 1194,
+          "average_pool_size": 781.1309314586995,
+          "maximum_pool_size": 993,
+          "slices": {
+            "all": {
+              "queries_with_positives": 2276,
+              "corpus_positive_rows": 2455,
+              "reranker_macro_recall": 0.8410515524311658,
+              "reranker_micro_recall": 0.8403258655804481,
+              "reranker_positive_hits": 2063,
+              "baseline_macro_recall": 0.8010325131810194,
+              "baseline_micro_recall": 0.8028513238289205,
+              "baseline_positive_hits": 1971,
+              "pool_macro_recall": 0.9176772114821323,
+              "pool_micro_recall": 0.920162932790224,
+              "pool_positive_hits": 2259
+            },
+            "local": {
+              "queries_with_positives": 1855,
+              "corpus_positive_rows": 2015,
+              "reranker_macro_recall": 0.8694609164420485,
+              "reranker_micro_recall": 0.8669975186104218,
+              "reranker_positive_hits": 1747,
+              "baseline_macro_recall": 0.8741958670260558,
+              "baseline_micro_recall": 0.8744416873449131,
+              "baseline_positive_hits": 1762,
+              "pool_macro_recall": 0.915947888589398,
+              "pool_micro_recall": 0.9186104218362283,
+              "pool_positive_hits": 1851
+            },
+            "nonlocal": {
+              "queries_with_positives": 424,
+              "corpus_positive_rows": 440,
+              "reranker_macro_recall": 0.7165880503144654,
+              "reranker_micro_recall": 0.7181818181818181,
+              "reranker_positive_hits": 316,
+              "baseline_macro_recall": 0.4779874213836478,
+              "baseline_micro_recall": 0.475,
+              "baseline_positive_hits": 209,
+              "pool_macro_recall": 0.9257075471698113,
+              "pool_micro_recall": 0.9272727272727272,
+              "pool_positive_hits": 408
+            },
+            "seen": {
+              "queries_with_positives": 1173,
+              "corpus_positive_rows": 1257,
+              "reranker_macro_recall": 0.8524154589371981,
+              "reranker_micro_recall": 0.8528241845664281,
+              "reranker_positive_hits": 1072,
+              "baseline_macro_recall": 0.8137965331059961,
+              "baseline_micro_recall": 0.8138424821002387,
+              "baseline_positive_hits": 1023,
+              "pool_macro_recall": 0.9360613810741688,
+              "pool_micro_recall": 0.9379474940334129,
+              "pool_positive_hits": 1179
+            },
+            "unseen": {
+              "queries_with_positives": 1163,
+              "corpus_positive_rows": 1198,
+              "reranker_macro_recall": 0.826311263972485,
+              "reranker_micro_recall": 0.827212020033389,
+              "reranker_positive_hits": 991,
+              "baseline_macro_recall": 0.788907996560619,
+              "baseline_micro_recall": 0.7913188647746243,
+              "baseline_positive_hits": 948,
+              "pool_macro_recall": 0.8998280309544282,
+              "pool_micro_recall": 0.9015025041736227,
+              "pool_positive_hits": 1080
+            }
+          }
+        },
+        "confirmation_benchmark_mix": {
+          "target_queries": 2452,
+          "target_queries_in_covered_strata": 2452,
+          "covered_target_fraction": 1.0,
+          "reranker_macro_recall": 0.8418741534375471,
+          "baseline_macro_recall": 0.7974521235579208,
+          "pool_macro_recall": 0.9258772801607683,
+          "note": "Weights use benchmark query attributes only; uncovered strata are excluded."
+        }
+      },
+      "125": {
+        "all_groups": {
+          "groups": 5157,
+          "query_texts": 2431,
+          "average_pool_size": 783.4574364940858,
+          "maximum_pool_size": 996,
+          "slices": {
+            "all": {
+              "queries_with_positives": 5157,
+              "corpus_positive_rows": 5710,
+              "reranker_macro_recall": 0.8430577485987607,
+              "reranker_micro_recall": 0.8401050788091068,
+              "reranker_positive_hits": 4797,
+              "baseline_macro_recall": 0.8033269619657054,
+              "baseline_micro_recall": 0.8033274956217162,
+              "baseline_positive_hits": 4587,
+              "pool_macro_recall": 0.9166438128480013,
+              "pool_micro_recall": 0.9178633975481612,
+              "pool_positive_hits": 5241
+            },
+            "local": {
+              "queries_with_positives": 4225,
+              "corpus_positive_rows": 4713,
+              "reranker_macro_recall": 0.8728763031839955,
+              "reranker_micro_recall": 0.8692976872480374,
+              "reranker_positive_hits": 4097,
+              "baseline_macro_recall": 0.8837655677655678,
+              "baseline_micro_recall": 0.8830893273923192,
+              "baseline_positive_hits": 4162,
+              "pool_macro_recall": 0.9167269653423499,
+              "pool_micro_recall": 0.9191597708465945,
+              "pool_positive_hits": 4332
+            },
+            "nonlocal": {
+              "queries_with_positives": 942,
+              "corpus_positive_rows": 997,
+              "reranker_macro_recall": 0.7065640481245578,
+              "reranker_micro_recall": 0.7021063189568706,
+              "reranker_positive_hits": 700,
+              "baseline_macro_recall": 0.43780962491153574,
+              "baseline_micro_recall": 0.4262788365095286,
+              "baseline_positive_hits": 425,
+              "pool_macro_recall": 0.9147204529370134,
+              "pool_micro_recall": 0.9117352056168505,
+              "pool_positive_hits": 909
+            },
+            "seen": {
+              "queries_with_positives": 2639,
+              "corpus_positive_rows": 2847,
+              "reranker_macro_recall": 0.8536124794745484,
+              "reranker_micro_recall": 0.8510713031260977,
+              "reranker_positive_hits": 2423,
+              "baseline_macro_recall": 0.8124668435013263,
+              "baseline_micro_recall": 0.8103266596417281,
+              "baseline_positive_hits": 2307,
+              "pool_macro_recall": 0.9321965390930907,
+              "pool_micro_recall": 0.9339655778011943,
+              "pool_positive_hits": 2659
+            },
+            "unseen": {
+              "queries_with_positives": 2699,
+              "corpus_positive_rows": 2863,
+              "reranker_macro_recall": 0.8309867852290973,
+              "reranker_micro_recall": 0.8292001397135872,
+              "reranker_positive_hits": 2374,
+              "baseline_macro_recall": 0.7954427565765099,
+              "baseline_micro_recall": 0.7963674467341949,
+              "baseline_positive_hits": 2280,
+              "pool_macro_recall": 0.902340372977646,
+              "pool_micro_recall": 0.9018512050296892,
+              "pool_positive_hits": 2582
+            }
+          }
+        },
+        "benchmark_mix": {
+          "target_queries": 2452,
+          "target_queries_in_covered_strata": 2452,
+          "covered_target_fraction": 1.0,
+          "reranker_macro_recall": 0.8454079113409928,
+          "baseline_macro_recall": 0.8043749051104866,
+          "pool_macro_recall": 0.9277660132079389,
+          "note": "Weights use benchmark query attributes only; uncovered strata are excluded."
+        },
+        "tune": {
+          "groups": 2881,
+          "query_texts": 1237,
+          "average_pool_size": 785.2953835473794,
+          "maximum_pool_size": 996,
+          "slices": {
+            "all": {
+              "queries_with_positives": 2881,
+              "corpus_positive_rows": 3255,
+              "reranker_macro_recall": 0.8462046081882943,
+              "reranker_micro_recall": 0.8411674347158218,
+              "reranker_positive_hits": 2738,
+              "baseline_macro_recall": 0.8051395844696781,
+              "baseline_micro_recall": 0.8036866359447005,
+              "baseline_positive_hits": 2616,
+              "pool_macro_recall": 0.9158274243400936,
+              "pool_micro_recall": 0.9161290322580645,
+              "pool_positive_hits": 2982
+            },
+            "local": {
+              "queries_with_positives": 2370,
+              "corpus_positive_rows": 2698,
+              "reranker_macro_recall": 0.876604380148684,
+              "reranker_micro_recall": 0.8717568569310601,
+              "reranker_positive_hits": 2352,
+              "baseline_macro_recall": 0.8912557765722323,
+              "baseline_micro_recall": 0.8895478131949592,
+              "baseline_positive_hits": 2400,
+              "pool_macro_recall": 0.9173367490456098,
+              "pool_micro_recall": 0.9195700518902891,
+              "pool_positive_hits": 2481
+            },
+            "nonlocal": {
+              "queries_with_positives": 518,
+              "corpus_positive_rows": 557,
+              "reranker_macro_recall": 0.7022200772200772,
+              "reranker_micro_recall": 0.6929982046678635,
+              "reranker_positive_hits": 386,
+              "baseline_macro_recall": 0.4049227799227799,
+              "baseline_micro_recall": 0.3877917414721723,
+              "baseline_positive_hits": 216,
+              "pool_macro_recall": 0.9057271557271558,
+              "pool_micro_recall": 0.8994614003590664,
+              "pool_positive_hits": 501
+            },
+            "seen": {
+              "queries_with_positives": 1466,
+              "corpus_positive_rows": 1590,
+              "reranker_macro_recall": 0.8549113233287858,
+              "reranker_micro_recall": 0.849685534591195,
+              "reranker_positive_hits": 1351,
+              "baseline_macro_recall": 0.8114029104138245,
+              "baseline_micro_recall": 0.8075471698113208,
+              "baseline_positive_hits": 1284,
+              "pool_macro_recall": 0.9291041382446567,
+              "pool_micro_recall": 0.9308176100628931,
+              "pool_positive_hits": 1480
+            },
+            "unseen": {
+              "queries_with_positives": 1536,
+              "corpus_positive_rows": 1665,
+              "reranker_macro_recall": 0.8371310763888888,
+              "reranker_micro_recall": 0.833033033033033,
+              "reranker_positive_hits": 1387,
+              "baseline_macro_recall": 0.800390625,
+              "baseline_micro_recall": 0.8,
+              "baseline_positive_hits": 1332,
+              "pool_macro_recall": 0.9042426215277778,
+              "pool_micro_recall": 0.9021021021021021,
+              "pool_positive_hits": 1502
+            }
+          }
+        },
+        "tune_benchmark_mix": {
+          "target_queries": 2452,
+          "target_queries_in_covered_strata": 2452,
+          "covered_target_fraction": 1.0,
+          "reranker_macro_recall": 0.849731204747541,
+          "baseline_macro_recall": 0.8117847485174913,
+          "pool_macro_recall": 0.928950524812142,
+          "note": "Weights use benchmark query attributes only; uncovered strata are excluded."
+        },
+        "confirmation": {
+          "groups": 2276,
+          "query_texts": 1194,
+          "average_pool_size": 781.1309314586995,
+          "maximum_pool_size": 993,
+          "slices": {
+            "all": {
+              "queries_with_positives": 2276,
+              "corpus_positive_rows": 2455,
+              "reranker_macro_recall": 0.8390743995313416,
+              "reranker_micro_recall": 0.8386965376782077,
+              "reranker_positive_hits": 2059,
+              "baseline_macro_recall": 0.8010325131810194,
+              "baseline_micro_recall": 0.8028513238289205,
+              "baseline_positive_hits": 1971,
+              "pool_macro_recall": 0.9176772114821323,
+              "pool_micro_recall": 0.920162932790224,
+              "pool_positive_hits": 2259
+            },
+            "local": {
+              "queries_with_positives": 1855,
+              "corpus_positive_rows": 2015,
+              "reranker_macro_recall": 0.8681132075471698,
+              "reranker_micro_recall": 0.8660049627791563,
+              "reranker_positive_hits": 1745,
+              "baseline_macro_recall": 0.8741958670260558,
+              "baseline_micro_recall": 0.8744416873449131,
+              "baseline_positive_hits": 1762,
+              "pool_macro_recall": 0.915947888589398,
+              "pool_micro_recall": 0.9186104218362283,
+              "pool_positive_hits": 1851
+            },
+            "nonlocal": {
+              "queries_with_positives": 424,
+              "corpus_positive_rows": 440,
+              "reranker_macro_recall": 0.7118710691823898,
+              "reranker_micro_recall": 0.7136363636363636,
+              "reranker_positive_hits": 314,
+              "baseline_macro_recall": 0.4779874213836478,
+              "baseline_micro_recall": 0.475,
+              "baseline_positive_hits": 209,
+              "pool_macro_recall": 0.9257075471698113,
+              "pool_micro_recall": 0.9272727272727272,
+              "pool_positive_hits": 408
+            },
+            "seen": {
+              "queries_with_positives": 1173,
+              "corpus_positive_rows": 1257,
+              "reranker_macro_recall": 0.8519892014776925,
+              "reranker_micro_recall": 0.8528241845664281,
+              "reranker_positive_hits": 1072,
+              "baseline_macro_recall": 0.8137965331059961,
+              "baseline_micro_recall": 0.8138424821002387,
+              "baseline_positive_hits": 1023,
+              "pool_macro_recall": 0.9360613810741688,
+              "pool_micro_recall": 0.9379474940334129,
+              "pool_positive_hits": 1179
+            },
+            "unseen": {
+              "queries_with_positives": 1163,
+              "corpus_positive_rows": 1198,
+              "reranker_macro_recall": 0.822871883061049,
+              "reranker_micro_recall": 0.823873121869783,
+              "reranker_positive_hits": 987,
+              "baseline_macro_recall": 0.788907996560619,
+              "baseline_micro_recall": 0.7913188647746243,
+              "baseline_positive_hits": 948,
+              "pool_macro_recall": 0.8998280309544282,
+              "pool_micro_recall": 0.9015025041736227,
+              "pool_positive_hits": 1080
+            }
+          }
+        },
+        "confirmation_benchmark_mix": {
+          "target_queries": 2452,
+          "target_queries_in_covered_strata": 2452,
+          "covered_target_fraction": 1.0,
+          "reranker_macro_recall": 0.8402725002656893,
+          "baseline_macro_recall": 0.7974521235579208,
+          "pool_macro_recall": 0.9258772801607683,
+          "note": "Weights use benchmark query attributes only; uncovered strata are excluded."
+        }
+      },
+      "150": {
+        "all_groups": {
+          "groups": 5157,
+          "query_texts": 2431,
+          "average_pool_size": 783.4574364940858,
+          "maximum_pool_size": 996,
+          "slices": {
+            "all": {
+              "queries_with_positives": 5157,
+              "corpus_positive_rows": 5710,
+              "reranker_macro_recall": 0.8446995299962141,
+              "reranker_micro_recall": 0.8409807355516637,
+              "reranker_positive_hits": 4802,
+              "baseline_macro_recall": 0.8033269619657054,
+              "baseline_micro_recall": 0.8033274956217162,
+              "baseline_positive_hits": 4587,
+              "pool_macro_recall": 0.9166438128480013,
+              "pool_micro_recall": 0.9178633975481612,
+              "pool_positive_hits": 5241
+            },
+            "local": {
+              "queries_with_positives": 4225,
+              "corpus_positive_rows": 4713,
+              "reranker_macro_recall": 0.8745922795153565,
+              "reranker_micro_recall": 0.8701464035646085,
+              "reranker_positive_hits": 4101,
+              "baseline_macro_recall": 0.8837655677655678,
+              "baseline_micro_recall": 0.8830893273923192,
+              "baseline_positive_hits": 4162,
+              "pool_macro_recall": 0.9167269653423499,
+              "pool_micro_recall": 0.9191597708465945,
+              "pool_positive_hits": 4332
+            },
+            "nonlocal": {
+              "queries_with_positives": 942,
+              "corpus_positive_rows": 997,
+              "reranker_macro_recall": 0.7078025477707006,
+              "reranker_micro_recall": 0.7031093279839519,
+              "reranker_positive_hits": 701,
+              "baseline_macro_recall": 0.43780962491153574,
+              "baseline_micro_recall": 0.4262788365095286,
+              "baseline_positive_hits": 425,
+              "pool_macro_recall": 0.9147204529370134,
+              "pool_micro_recall": 0.9117352056168505,
+              "pool_positive_hits": 909
+            },
+            "seen": {
+              "queries_with_positives": 2639,
+              "corpus_positive_rows": 2847,
+              "reranker_macro_recall": 0.8545282303902993,
+              "reranker_micro_recall": 0.8514225500526871,
+              "reranker_positive_hits": 2424,
+              "baseline_macro_recall": 0.8124668435013263,
+              "baseline_micro_recall": 0.8103266596417281,
+              "baseline_positive_hits": 2307,
+              "pool_macro_recall": 0.9321965390930907,
+              "pool_micro_recall": 0.9339655778011943,
+              "pool_positive_hits": 2659
+            },
+            "unseen": {
+              "queries_with_positives": 2699,
+              "corpus_positive_rows": 2863,
+              "reranker_macro_recall": 0.8327158206743238,
+              "reranker_micro_recall": 0.8305972755850507,
+              "reranker_positive_hits": 2378,
+              "baseline_macro_recall": 0.7954427565765099,
+              "baseline_micro_recall": 0.7963674467341949,
+              "baseline_positive_hits": 2280,
+              "pool_macro_recall": 0.902340372977646,
+              "pool_micro_recall": 0.9018512050296892,
+              "pool_positive_hits": 2582
+            }
+          }
+        },
+        "benchmark_mix": {
+          "target_queries": 2452,
+          "target_queries_in_covered_strata": 2452,
+          "covered_target_fraction": 1.0,
+          "reranker_macro_recall": 0.8468171968807453,
+          "baseline_macro_recall": 0.8043749051104866,
+          "pool_macro_recall": 0.9277660132079389,
+          "note": "Weights use benchmark query attributes only; uncovered strata are excluded."
+        },
+        "tune": {
+          "groups": 2881,
+          "query_texts": 1237,
+          "average_pool_size": 785.2953835473794,
+          "maximum_pool_size": 996,
+          "slices": {
+            "all": {
+              "queries_with_positives": 2881,
+              "corpus_positive_rows": 3255,
+              "reranker_macro_recall": 0.8469277367316242,
+              "reranker_micro_recall": 0.8408602150537634,
+              "reranker_positive_hits": 2737,
+              "baseline_macro_recall": 0.8051395844696781,
+              "baseline_micro_recall": 0.8036866359447005,
+              "baseline_positive_hits": 2616,
+              "pool_macro_recall": 0.9158274243400936,
+              "pool_micro_recall": 0.9161290322580645,
+              "pool_positive_hits": 2982
+            },
+            "local": {
+              "queries_with_positives": 2370,
+              "corpus_positive_rows": 2698,
+              "reranker_macro_recall": 0.8772021297970665,
+              "reranker_micro_recall": 0.8713862120088954,
+              "reranker_positive_hits": 2351,
+              "baseline_macro_recall": 0.8912557765722323,
+              "baseline_micro_recall": 0.8895478131949592,
+              "baseline_positive_hits": 2400,
+              "pool_macro_recall": 0.9173367490456098,
+              "pool_micro_recall": 0.9195700518902891,
+              "pool_positive_hits": 2481
+            },
+            "nonlocal": {
+              "queries_with_positives": 518,
+              "corpus_positive_rows": 557,
+              "reranker_macro_recall": 0.7035070785070785,
+              "reranker_micro_recall": 0.6929982046678635,
+              "reranker_positive_hits": 386,
+              "baseline_macro_recall": 0.4049227799227799,
+              "baseline_micro_recall": 0.3877917414721723,
+              "baseline_positive_hits": 216,
+              "pool_macro_recall": 0.9057271557271558,
+              "pool_micro_recall": 0.8994614003590664,
+              "pool_positive_hits": 501
+            },
+            "seen": {
+              "queries_with_positives": 1466,
+              "corpus_positive_rows": 1590,
+              "reranker_macro_recall": 0.8550818553888131,
+              "reranker_micro_recall": 0.8490566037735849,
+              "reranker_positive_hits": 1350,
+              "baseline_macro_recall": 0.8114029104138245,
+              "baseline_micro_recall": 0.8075471698113208,
+              "baseline_positive_hits": 1284,
+              "pool_macro_recall": 0.9291041382446567,
+              "pool_micro_recall": 0.9308176100628931,
+              "pool_positive_hits": 1480
+            },
+            "unseen": {
+              "queries_with_positives": 1536,
+              "corpus_positive_rows": 1665,
+              "reranker_macro_recall": 0.8375651041666666,
+              "reranker_micro_recall": 0.833033033033033,
+              "reranker_positive_hits": 1387,
+              "baseline_macro_recall": 0.800390625,
+              "baseline_micro_recall": 0.8,
+              "baseline_positive_hits": 1332,
+              "pool_macro_recall": 0.9042426215277778,
+              "pool_micro_recall": 0.9021021021021021,
+              "pool_positive_hits": 1502
+            }
+          }
+        },
+        "tune_benchmark_mix": {
+          "target_queries": 2452,
+          "target_queries_in_covered_strata": 2452,
+          "covered_target_fraction": 1.0,
+          "reranker_macro_recall": 0.8503953092748429,
+          "baseline_macro_recall": 0.8117847485174913,
+          "pool_macro_recall": 0.928950524812142,
+          "note": "Weights use benchmark query attributes only; uncovered strata are excluded."
+        },
+        "confirmation": {
+          "groups": 2276,
+          "query_texts": 1194,
+          "average_pool_size": 781.1309314586995,
+          "maximum_pool_size": 993,
+          "slices": {
+            "all": {
+              "queries_with_positives": 2276,
+              "corpus_positive_rows": 2455,
+              "reranker_macro_recall": 0.8418790275336848,
+              "reranker_micro_recall": 0.8411405295315683,
+              "reranker_positive_hits": 2065,
+              "baseline_macro_recall": 0.8010325131810194,
+              "baseline_micro_recall": 0.8028513238289205,
+              "baseline_positive_hits": 1971,
+              "pool_macro_recall": 0.9176772114821323,
+              "pool_micro_recall": 0.920162932790224,
+              "pool_positive_hits": 2259
+            },
+            "local": {
+              "queries_with_positives": 1855,
+              "corpus_positive_rows": 2015,
+              "reranker_macro_recall": 0.8712578616352201,
+              "reranker_micro_recall": 0.8684863523573201,
+              "reranker_positive_hits": 1750,
+              "baseline_macro_recall": 0.8741958670260558,
+              "baseline_micro_recall": 0.8744416873449131,
+              "baseline_positive_hits": 1762,
+              "pool_macro_recall": 0.915947888589398,
+              "pool_micro_recall": 0.9186104218362283,
+              "pool_positive_hits": 1851
+            },
+            "nonlocal": {
+              "queries_with_positives": 424,
+              "corpus_positive_rows": 440,
+              "reranker_macro_recall": 0.7130503144654088,
+              "reranker_micro_recall": 0.7159090909090909,
+              "reranker_positive_hits": 315,
+              "baseline_macro_recall": 0.4779874213836478,
+              "baseline_micro_recall": 0.475,
+              "baseline_positive_hits": 209,
+              "pool_macro_recall": 0.9257075471698113,
+              "pool_micro_recall": 0.9272727272727272,
+              "pool_positive_hits": 408
+            },
+            "seen": {
+              "queries_with_positives": 1173,
+              "corpus_positive_rows": 1257,
+              "reranker_macro_recall": 0.8538363171355499,
+              "reranker_micro_recall": 0.8544152744630071,
+              "reranker_positive_hits": 1074,
+              "baseline_macro_recall": 0.8137965331059961,
+              "baseline_micro_recall": 0.8138424821002387,
+              "baseline_positive_hits": 1023,
+              "pool_macro_recall": 0.9360613810741688,
+              "pool_micro_recall": 0.9379474940334129,
+              "pool_positive_hits": 1179
+            },
+            "unseen": {
+              "queries_with_positives": 1163,
+              "corpus_positive_rows": 1198,
+              "reranker_macro_recall": 0.826311263972485,
+              "reranker_micro_recall": 0.827212020033389,
+              "reranker_positive_hits": 991,
+              "baseline_macro_recall": 0.788907996560619,
+              "baseline_micro_recall": 0.7913188647746243,
+              "baseline_positive_hits": 948,
+              "pool_macro_recall": 0.8998280309544282,
+              "pool_micro_recall": 0.9015025041736227,
+              "pool_positive_hits": 1080
+            }
+          }
+        },
+        "confirmation_benchmark_mix": {
+          "target_queries": 2452,
+          "target_queries_in_covered_strata": 2452,
+          "covered_target_fraction": 1.0,
+          "reranker_macro_recall": 0.8426375479615793,
+          "baseline_macro_recall": 0.7974521235579208,
+          "pool_macro_recall": 0.9258772801607683,
+          "note": "Weights use benchmark query attributes only; uncovered strata are excluded."
+        }
+      }
+    }
+  },
+  "per_query_scores": {
+    "train_sample": "artifacts/research-2026-10-12/matched-ablation/baseline-curves/hgb-train_sample-scores.parquet",
+    "validation": "artifacts/research-2026-10-12/matched-ablation/baseline-curves/hgb-validation-scores.parquet"
+  },
+  "candidate_pool_digest": "0f7be4d2dce6d4b0ec40ed3083b7cc7411fa06f4fc59cc809973da69ecfcadb2",
+  "selection": {
+    "stage_selected_on_tuning_texts": 50,
+    "selection_metric": "tune macro Recall@50 over complete pools",
+    "tune": {
+      "groups": 2881,
+      "query_texts": 1237,
+      "average_pool_size": 785.2953835473794,
+      "maximum_pool_size": 996,
+      "slices": {
+        "all": {
+          "queries_with_positives": 2881,
+          "corpus_positive_rows": 3255,
+          "reranker_macro_recall": 0.8505867671608733,
+          "reranker_micro_recall": 0.8463901689708141,
+          "reranker_positive_hits": 2755,
+          "baseline_macro_recall": 0.8051395844696781,
+          "baseline_micro_recall": 0.8036866359447005,
+          "baseline_positive_hits": 2616,
+          "pool_macro_recall": 0.9158274243400936,
+          "pool_micro_recall": 0.9161290322580645,
+          "pool_positive_hits": 2982
+        },
+        "local": {
+          "queries_with_positives": 2370,
+          "corpus_positive_rows": 2698,
+          "reranker_macro_recall": 0.8795479204339964,
+          "reranker_micro_recall": 0.8758339510748703,
+          "reranker_positive_hits": 2363,
+          "baseline_macro_recall": 0.8912557765722323,
+          "baseline_micro_recall": 0.8895478131949592,
+          "baseline_positive_hits": 2400,
+          "pool_macro_recall": 0.9173367490456098,
+          "pool_micro_recall": 0.9195700518902891,
+          "pool_positive_hits": 2481
+        },
+        "nonlocal": {
+          "queries_with_positives": 518,
+          "corpus_positive_rows": 557,
+          "reranker_macro_recall": 0.7131595881595882,
+          "reranker_micro_recall": 0.703770197486535,
+          "reranker_positive_hits": 392,
+          "baseline_macro_recall": 0.4049227799227799,
+          "baseline_micro_recall": 0.3877917414721723,
+          "baseline_positive_hits": 216,
+          "pool_macro_recall": 0.9057271557271558,
+          "pool_micro_recall": 0.8994614003590664,
+          "pool_positive_hits": 501
+        },
+        "seen": {
+          "queries_with_positives": 1466,
+          "corpus_positive_rows": 1590,
+          "reranker_macro_recall": 0.8579467939972715,
+          "reranker_micro_recall": 0.8528301886792453,
+          "reranker_positive_hits": 1356,
+          "baseline_macro_recall": 0.8114029104138245,
+          "baseline_micro_recall": 0.8075471698113208,
+          "baseline_positive_hits": 1284,
+          "pool_macro_recall": 0.9291041382446567,
+          "pool_micro_recall": 0.9308176100628931,
+          "pool_positive_hits": 1480
+        },
+        "unseen": {
+          "queries_with_positives": 1536,
+          "corpus_positive_rows": 1665,
+          "reranker_macro_recall": 0.8434244791666666,
+          "reranker_micro_recall": 0.8402402402402402,
+          "reranker_positive_hits": 1399,
+          "baseline_macro_recall": 0.800390625,
+          "baseline_micro_recall": 0.8,
+          "baseline_positive_hits": 1332,
+          "pool_macro_recall": 0.9042426215277778,
+          "pool_micro_recall": 0.9021021021021021,
+          "pool_positive_hits": 1502
+        }
+      }
+    },
+    "confirmation": {
+      "groups": 2276,
+      "query_texts": 1194,
+      "average_pool_size": 781.1309314586995,
+      "maximum_pool_size": 993,
+      "slices": {
+        "all": {
+          "queries_with_positives": 2276,
+          "corpus_positive_rows": 2455,
+          "reranker_macro_recall": 0.8492970123022847,
+          "reranker_micro_recall": 0.8484725050916497,
+          "reranker_positive_hits": 2083,
+          "baseline_macro_recall": 0.8010325131810194,
+          "baseline_micro_recall": 0.8028513238289205,
+          "baseline_positive_hits": 1971,
+          "pool_macro_recall": 0.9176772114821323,
+          "pool_micro_recall": 0.920162932790224,
+          "pool_positive_hits": 2259
+        },
+        "local": {
+          "queries_with_positives": 1855,
+          "corpus_positive_rows": 2015,
+          "reranker_macro_recall": 0.8764240790655885,
+          "reranker_micro_recall": 0.8744416873449131,
+          "reranker_positive_hits": 1762,
+          "baseline_macro_recall": 0.8741958670260558,
+          "baseline_micro_recall": 0.8744416873449131,
+          "baseline_positive_hits": 1762,
+          "pool_macro_recall": 0.915947888589398,
+          "pool_micro_recall": 0.9186104218362283,
+          "pool_positive_hits": 1851
+        },
+        "nonlocal": {
+          "queries_with_positives": 424,
+          "corpus_positive_rows": 440,
+          "reranker_macro_recall": 0.7283805031446541,
+          "reranker_micro_recall": 0.7295454545454545,
+          "reranker_positive_hits": 321,
+          "baseline_macro_recall": 0.4779874213836478,
+          "baseline_micro_recall": 0.475,
+          "baseline_positive_hits": 209,
+          "pool_macro_recall": 0.9257075471698113,
+          "pool_micro_recall": 0.9272727272727272,
+          "pool_positive_hits": 408
+        },
+        "seen": {
+          "queries_with_positives": 1173,
+          "corpus_positive_rows": 1257,
+          "reranker_macro_recall": 0.8630718954248366,
+          "reranker_micro_recall": 0.8607796340493238,
+          "reranker_positive_hits": 1082,
+          "baseline_macro_recall": 0.8137965331059961,
+          "baseline_micro_recall": 0.8138424821002387,
+          "baseline_positive_hits": 1023,
+          "pool_macro_recall": 0.9360613810741688,
+          "pool_micro_recall": 0.9379474940334129,
+          "pool_positive_hits": 1179
+        },
+        "unseen": {
+          "queries_with_positives": 1163,
+          "corpus_positive_rows": 1198,
+          "reranker_macro_recall": 0.8349097162510748,
+          "reranker_micro_recall": 0.835559265442404,
+          "reranker_positive_hits": 1001,
+          "baseline_macro_recall": 0.788907996560619,
+          "baseline_micro_recall": 0.7913188647746243,
+          "baseline_positive_hits": 948,
+          "pool_macro_recall": 0.8998280309544282,
+          "pool_micro_recall": 0.9015025041736227,
+          "pool_positive_hits": 1080
+        }
+      }
+    },
+    "confirmation_caveat": "Historical validation was previously used for experiments; this is not a new untouched holdout."
+  },
+  "fit_side_sample_available": true,
+  "fit_side_sample_note": "Fit-side sample includes groups skipped by reranker fitting when no positive was retrieved. The embedding encoder was trained on fit-side texts; gaps alone are not proof of reranker overfitting.",
+  "train_minus_validation_recall_gap": {
+    "25": 0.015166431480096332,
+    "50": 0.01671912232102457,
+    "75": 0.019464355337636463,
+    "100": 0.021701945021561198,
+    "125": 0.023262251401239387,
+    "150": 0.025620470003785978
+  },
+  "train_minus_validation_gap_definition": "Legacy field name: overall fit-side sample minus validation Recall, including fit-side groups ineligible for reranker fitting. Not evidence of overfitting by itself.",
+  "eligible_fit_groups_minus_validation_recall_gap": {
+    "25": 0.09633543950343693,
+    "50": 0.09827202531154244,
+    "75": 0.10100157634420104,
+    "100": 0.10326268900405577,
+    "125": 0.10477594943187396,
+    "150": 0.10751053564930013
+  },
+  "sampled_training_row_loss": {
+    "applicable": true,
+    "rows": 1279247,
+    "total_weight": 39296.0,
+    "meaning": "Binary loss on clicked versus sampled unobserved rows; this is not Recall or relevance accuracy.",
+    "stages": {
+      "25": {
+        "unweighted_log_loss": 0.3154545460601946,
+        "weighted_log_loss": 0.27888014032022684
+      },
+      "50": {
+        "unweighted_log_loss": 0.2923519533809315,
+        "weighted_log_loss": 0.25097105881352894
+      },
+      "75": {
+        "unweighted_log_loss": 0.28327358560906374,
+        "weighted_log_loss": 0.24115235391336476
+      },
+      "100": {
+        "unweighted_log_loss": 0.27781726163122145,
+        "weighted_log_loss": 0.23497331910719524
+      },
+      "125": {
+        "unweighted_log_loss": 0.2736611653110873,
+        "weighted_log_loss": 0.23053677512593634
+      },
+      "150": {
+        "unweighted_log_loss": 0.26990522036816444,
+        "weighted_log_loss": 0.22651775921621453
+      }
+    }
+  },
+  "training_prior_policy": {
+    "microcategory": "leave-query-text-out",
+    "geography": "full-fit-history"
+  },
+  "training_prior_policy_evidence": {
+    "status": "inferred_from_frozenproducer_cache",
+    "policy": {
+      "microcategory": "leave-query-text-out",
+      "geography": "full-fit-history"
+    },
+    "historical_training_policy_verified": false,
+    "audited_model_sha256": "a57d2e753df5fa53e59d188697aa52b64dcb3dc671a70a6be2105f8879a8382a",
+    "original_audit_report": {
+      "path": "/home/alex/avitotestproject/artifacts/research-2026-10-12/matched-ablation/baseline-curves/hgb-report.json",
+      "sha256": "07f0c58dd74b228d29be4ab85854f6e336ab32b0cf934708cc04421396379de9"
+    },
+    "fit_cache_metadata": {
+      "path": "/home/alex/avitotestproject/artifacts/research-2026-10-12/cache/train_sample.json",
+      "sha256": "b265fa25cdead0e719c0493a688da2ebf1dc4cf20df3230ed66d215ac364675c",
+      "leave_query_out": true,
+      "leave_geography_query_out": null
+    },
+    "frozen_producer_modules": {
+      "cli": {
+        "path": "/home/alex/avitotestproject/artifacts/research-2026-10-12/baseline-source/avito_candidates/cli.py",
+        "sha256": "8f785801528dbe1a42f847e1d669df36c7bda2b18df09810453bdc3dd4274273",
+        "prepare_branch_line": 453,
+        "builder_leave_query_out_true_line": 471
+      },
+      "reranker": {
+        "path": "/home/alex/avitotestproject/artifacts/research-2026-10-12/baseline-source/avito_candidates/reranker.py",
+        "sha256": "b6292c8964b9b9eb6f590ae990061a95d37a425caeed0e13f2f4d0c3473450d1",
+        "full_geo_total_line": 195,
+        "full_geo_counts_line": 196,
+        "microcategory_exclude_self_line": 260
+      },
+      "geography": {
+        "path": "/home/alex/avitotestproject/artifacts/research-2026-10-12/baseline-source/avito_candidates/geography.py",
+        "sha256": "070c5e9a2af4a4cc467ad8da88f22b64df21040ed53044d872faa2a53a34b386",
+        "full_history_destinations_line": 18
+      },
+      "microcategory": {
+        "path": "/home/alex/avitotestproject/artifacts/research-2026-10-12/baseline-source/avito_candidates/microcategory.py",
+        "sha256": "a70d18ae2a9120f446cb9651a605e956d6ef940c37f9816b562797bea982447f",
+        "self_contribution_subtraction_line": 42,
+        "self_total_subtraction_line": 40
+      }
+    },
+    "caveat": "Static frozen producer and fit-cache flags establish the inferred compatibility policy; the original historical training rows were not independently verified."
+  }
+}

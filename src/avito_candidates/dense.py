@@ -14,6 +14,7 @@ from .core import normalize
 
 DEFAULT_EMBEDDING_MODEL = "Octen/Octen-Embedding-0.6B"
 _CACHE_VERSION = 5
+_MAX_RESCORE_POOL = 998
 
 
 def encoding_input(texts, model_name, role, model=None):
@@ -66,6 +67,21 @@ def query_text(query) -> str:
     return " ".join(parts)
 
 
+def document_text(item, *, document_format="current", params_words=40,
+                  description_words=48):
+    """Render one explicit corpus format without altering the legacy layout."""
+    if document_format == "current":
+        return item_text(item, params_words=params_words,
+                         description_words=description_words)
+    if document_format not in {"compact", "title_description"}:
+        raise ValueError(f"Unknown embedding document format: {document_format}")
+    # Lazy import avoids the helper module's deliberate imports of item_text
+    # and query_text forming an initialization cycle.
+    from .embedding_formats import item_format
+    return item_format(item, document_format, params_words=params_words,
+                       description_words=description_words)
+
+
 def _fingerprint(
     items,
     model_name: str,
@@ -73,18 +89,25 @@ def _fingerprint(
     params_words=40,
     description_words=48,
     model_signature="",
+    document_format="current",
 ) -> str:
+    if document_format not in {"current", "compact", "title_description"}:
+        raise ValueError(f"Unknown embedding document format: {document_format}")
     digest = hashlib.sha256(
         f"{_CACHE_VERSION}\0{model_name}\0{max_seq_length}\0"
         f"{params_words}\0{description_words}\0".encode()
     )
     if model_signature:
         digest.update(f"{model_signature}\0".encode())
+    if document_format != "current":
+        from .embedding_formats import FORMAT_VERSION
+        digest.update(f"document_format\0{document_format}\0{FORMAT_VERSION}\0".encode())
     for item in items:
         digest.update(str(item["item_id"]).encode())
         digest.update(b"\0")
-        digest.update(item_text(
+        digest.update(document_text(
             item,
+            document_format=document_format,
             params_words=params_words,
             description_words=description_words,
         ).encode())
@@ -108,6 +131,85 @@ def _local_model_signature(model_name, model):
         digest.update(str(file.relative_to(path)).encode("utf-8"))
         digest.update(f"\0{stat.st_size}\0{stat.st_mtime_ns}\0".encode())
     return digest.hexdigest()
+
+
+def local_checkpoint_content_fingerprint(model_name):
+    """Hash a saved checkpoint's relative filenames and bytes for run provenance.
+
+    A Hub identifier has no local content to hash here. This fingerprint is
+    independent of timestamps and complements the faster index-cache signature.
+    """
+    path = Path(model_name)
+    if not path.is_dir():
+        return None
+    digest = hashlib.sha256()
+    files = sorted(file for file in path.rglob("*") if file.is_file())
+    if not files:
+        return None
+    for file in files:
+        digest.update(file.relative_to(path).as_posix().encode("utf-8"))
+        digest.update(b"\0")
+        digest.update(file.stat().st_size.to_bytes(8, "big"))
+        with file.open("rb") as stream:
+            for chunk in iter(lambda: stream.read(1024 * 1024), b""):
+                digest.update(chunk)
+        digest.update(b"\0")
+    return digest.hexdigest()
+
+
+def offline_adapter_base_reference(model_name, *, hub_cache=None):
+    """Identify a local adapter's cached base commit without contacting the Hub.
+
+    Adapter files do not contain base weights. Their content hash therefore
+    needs the cached base revision as a second identity check. Missing local
+    metadata remains explicit rather than guessing a remote revision.
+    """
+    import re
+
+    path = Path(model_name)
+    result = {"is_adapter": False, "base_repo": None, "base_revision": None}
+    if not path.is_dir():
+        return result
+    configs = sorted(path.rglob("adapter_config.json"))
+    if not configs:
+        return result
+    references = set()
+    for config_path in configs:
+        config = json.loads(config_path.read_text(encoding="utf-8"))
+        repo, revision = config.get("base_model_name_or_path"), config.get("revision")
+        if repo is not None and (not isinstance(repo, str) or not repo):
+            raise ValueError("Adapter base model reference must be a nonempty string")
+        if revision is not None and (not isinstance(revision, str) or not revision):
+            raise ValueError("Adapter base revision must be a nonempty string")
+        references.add((repo, revision))
+    if len(references) != 1:
+        raise ValueError("Local checkpoint contains conflicting adapter base references")
+    repo, requested_revision = references.pop()
+    result.update(is_adapter=True, base_repo=repo)
+    if repo is None or Path(repo).is_dir():
+        return result
+    if hub_cache is None:
+        hub_cache = os.environ.get("HF_HUB_CACHE") or os.environ.get("HUGGINGFACE_HUB_CACHE")
+        if not hub_cache:
+            hf_home = os.environ.get("HF_HOME")
+            if not hf_home:
+                hf_home = Path(os.environ.get("XDG_CACHE_HOME", Path.home() / ".cache")) / "huggingface"
+            hub_cache = Path(hf_home) / "hub"
+    repo_cache = Path(hub_cache) / ("models--" + repo.replace("/", "--"))
+    revision = requested_revision or "main"
+    if re.fullmatch(r"[0-9a-fA-F]{40}", revision):
+        # A pinned adapter commit is unaffected by a later refs/main change.
+        if (repo_cache / "snapshots" / revision).is_dir():
+            result["base_revision"] = revision.lower()
+        return result
+    reference_path = repo_cache / "refs" / revision
+    if not reference_path.resolve().is_relative_to(repo_cache.resolve()):
+        raise ValueError("Adapter revision points outside its local repository cache")
+    if reference_path.is_file():
+        commit = reference_path.read_text(encoding="utf-8").strip()
+        if re.fullmatch(r"[0-9a-fA-F]{40}", commit):
+            result["base_revision"] = commit.lower()
+    return result
 
 
 def _load_dependencies():
@@ -138,12 +240,16 @@ class DenseRetriever:
         ef_construction=200,
         ef_search=300,
         m=32,
+        require_cached_index=False,
+        document_format="current",
     ):
         if (batch_size <= 0 or encode_chunk_size <= 0 or max_seq_length <= 0
                 or checkpoint_items <= 0):
             raise ValueError("Embedding batch and chunk sizes must be positive")
         if ef_construction <= 0 or ef_search <= 0 or m <= 0:
             raise ValueError("HNSW parameters must be positive")
+        if document_format not in {"current", "compact", "title_description"}:
+            raise ValueError(f"Unknown embedding document format: {document_format}")
         self.ids = [item["item_id"] for item in items]
         if len(set(self.ids)) != len(self.ids):
             raise ValueError("Duplicate corpus item_id")
@@ -154,9 +260,12 @@ class DenseRetriever:
         self.max_seq_length = max_seq_length
         self.params_words = params_words
         self.description_words = description_words
+        self.document_format = document_format
         self.checkpoint_items = checkpoint_items
         self.ef_search = ef_search
         self.index = None
+        # Created only for full-pool rescoring; ordinary retrieval needs no map.
+        self._id_to_label = None
 
         hnswlib, sentence_transformer = _load_dependencies()
         model_kwargs = {"device": device} if device else {}
@@ -180,6 +289,7 @@ class DenseRetriever:
             params_words,
             description_words,
             self.model_signature,
+            document_format=document_format,
         )
         index_path = cache_dir / f"{fingerprint}.bin"
         metadata_path = cache_dir / f"{fingerprint}.json"
@@ -195,6 +305,12 @@ class DenseRetriever:
                 self.index.load_index(str(index_path), max_elements=len(items))
                 self.index.set_ef(max(self.ef_search, 50))
                 return
+
+        # Query-format experiments must never silently encode the inventory
+        # again. A cache-only caller gets an explicit failure on any mismatch.
+        if require_cached_index:
+            raise FileNotFoundError(
+                f"Matching completed dense index is required: {index_path}")
 
         start_item = 0
         # Промежуточный индекс содержит только первые indexed_items объявлений.
@@ -219,8 +335,9 @@ class DenseRetriever:
         for start in range(start_item, len(items), encode_chunk_size):
             stop = min(start + encode_chunk_size, len(items))
             texts = [
-                item_text(
+                document_text(
                     item,
+                    document_format=self.document_format,
                     params_words=self.params_words,
                     description_words=self.description_words,
                 )
@@ -282,6 +399,10 @@ class DenseRetriever:
         }
         if self.model_signature:
             metadata["model_signature"] = self.model_signature
+        if self.document_format != "current":
+            from .embedding_formats import FORMAT_VERSION
+            metadata["document_format"] = self.document_format
+            metadata["document_format_version"] = FORMAT_VERSION
         return metadata
 
     def retrieve(self, query, limit=50):
@@ -293,6 +414,71 @@ class DenseRetriever:
 
     def retrieve_with_scores(self, query, limit=50):
         return self.retrieve_batch_with_scores([query], limit)[0]
+
+    def score_candidates_batch(self, queries, pools):
+        """Exact cosine scores for supplied candidates from the existing index.
+
+        HNSW stores normalized corpus vectors in cosine space. Reading those
+        vectors avoids encoding the corpus again and gives lexical/geo-only
+        candidates the same numeric signal as dense candidates. Candidate
+        vectors are loaded one pool at a time, under the 998-candidate budget.
+        This operation does not run neighbor search or modify the index.
+        """
+        queries, pools = list(queries), [list(pool) for pool in pools]
+        if len(queries) != len(pools):
+            raise ValueError("Query and candidate-pool batch sizes must match")
+        results = [{} for _query in queries]
+        nonempty = [i for i, pool in enumerate(pools) if pool]
+        if not nonempty:
+            return results
+        if getattr(self, "_id_to_label", None) is None:
+            self._id_to_label = {item_id: label for label, item_id in enumerate(self.ids)}
+        for i in nonempty:
+            pool = pools[i]
+            if len(pool) > _MAX_RESCORE_POOL:
+                raise ValueError(f"Dense rescoring pool exceeds {_MAX_RESCORE_POOL} candidates")
+            if len(pool) != len(set(pool)):
+                raise ValueError("Dense rescoring pool contains duplicate item IDs")
+            unknown = [item_id for item_id in pool if item_id not in self._id_to_label]
+            if unknown:
+                raise ValueError(f"Dense rescoring received unknown item ID: {unknown[0]}")
+
+        for start in range(0, len(nonempty), self.batch_size):
+            batch = nonempty[start:start + self.batch_size]
+            # A nonempty pool receives scores even if search_query is blank:
+            # the same query_text template still preserves filters/category.
+            texts, prompt_kwargs = encoding_input(
+                [query_text(queries[i]) for i in batch],
+                self.model_name, "query", self.model,
+            )
+            vectors = np.asarray(self.model.encode(
+                texts,
+                batch_size=self.batch_size,
+                convert_to_numpy=True,
+                normalize_embeddings=True,
+                show_progress_bar=False,
+                **prompt_kwargs,
+            ), dtype=np.float32)
+            if (vectors.shape != (len(batch), self.dimension)
+                    or not np.isfinite(vectors).all()):
+                raise ValueError("Invalid query vectors during dense rescoring")
+            for i, vector in zip(batch, vectors):
+                pool = pools[i]
+                labels = [self._id_to_label[item_id] for item_id in pool]
+                stored = np.asarray(self.index.get_items(labels), dtype=np.float32)
+                if (stored.shape != (len(pool), self.dimension)
+                        or not np.isfinite(stored).all()):
+                    raise ValueError("Invalid stored item vectors during dense rescoring")
+                # Normalizing the query once also protects custom encoders from
+                # turning a normalized dot product into a scale-dependent score.
+                norm = float(np.linalg.norm(vector))
+                if norm <= 0 or not np.isfinite(norm):
+                    raise ValueError("Dense rescoring query vector must have positive norm")
+                scores = stored @ (vector / norm)
+                if not np.isfinite(scores).all() or np.max(np.abs(scores)) > 1.0001:
+                    raise ValueError("Invalid cosine scores during dense rescoring")
+                results[i] = {item_id: float(score) for item_id, score in zip(pool, scores)}
+        return results
 
     def retrieve_batch_with_scores(self, queries, limit=50):
         """Возвращаем ID и косинусную близость из одного поиска HNSW."""

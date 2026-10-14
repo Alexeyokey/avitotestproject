@@ -1,0 +1,134 @@
+RETRIEVAL HYPOTHESES V1 — DECLARED BEFORE VIEWING NEW OUTCOMES
+2026-10-13
+
+Scope
+-----
+Use only the completed fresh Tune cohort: 6111 normalized texts, 12103
+query-context groups. The completed fresh Audit report and labels are not used
+to choose a variant, feature, quota, query layout, classifier or reranker.
+Protocol verification may hash sealed files; it does not parse Audit labels.
+The old official submission catalog and historical benchmark scores are not
+the denominator or reference of this experiment.
+
+Frozen inputs
+-------------
+Research catalog: 200000 item identifiers selected before query labels.
+Frozen encoder: octen-lora-128-full-mb16-s42/model.
+Maximum sequence length: 128. HNSW ef_search: 1000.
+Saved original pool: description449 + dense449 + geography100, at most998
+unique identifiers. Location bonus remains0.02 in its cached original RRF.
+The document vectors and index are reused. Dense variants change query input
+only, all with depth998, a common encoder and the same batched producer.
+New microcategory classification is fitted only from the allowed fit texts.
+Tune/Audit choices must not be training examples or retrieval filters.
+
+Inputs
+------
+artifacts/microcategory-research-2026-10-13/query-variants.jsonl.gz
+artifacts/microcategory-research-2026-10-13/lexical.jsonl.gz
+artifacts/microcategory-research-2026-10-13/micro.jsonl.gz
+Each file's companion is its complete filename plus '.json', e.g.
+query-variants.jsonl.gz.json. Streams contain every Tune group in saved cache
+metadata order, using canonical group_id SHA256 and the same five-string key.
+There are no labels, relevant-item additions or predicted target IDs in the
+producer contract. Candidate IDs must be unique per route and in the sealed
+research catalog. SHA-bound provenance records the producer, fitted model or
+frozen encoder, fit text/label inventory, original cache and corpus identity.
+
+The producer may use the shared helper:
+candidate_metadata(candidate_path, protocol_dir, cache_dir, producer_path,
+                   model_path=actual_joblib_for_micro,
+                   provenance_kind='fitted' or 'frozen_encoder',
+                   text_limit=0, extra=producer_settings)
+Model/provenance declarations cannot by themselves prove producer behavior;
+the train-only producer implementation is inspected separately.
+
+Hypotheses
+----------
+Family A: unrestricted typed title vs microcategory title(top3) vs
+microcategory combined(top3) vs additional current-dense depth.
+Family B: unrestricted typed description vs microcategory description
+restricted to the classifier's top1, top3 or top5 categories.
+
+Both families preserve EVERY original candidate. Each member requests at
+most177 novel IDs, capped by that query's free slots below998. A family uses
+the minimum possible novel addition count across its members for EACH query.
+This exactly matches the realized per-query total pool size. Repeated IDs in
+the original pool never consume an addition slot. No positive set influences
+addition count, ordering or quota allocation. Zero additions in a family are
+a valid outcome when a query has no novel candidates in any member; do not
+drop that group or move it to another family after seeing labels.
+
+Novel IDs from several routes are ordered by equal-weight reciprocal ranks
+within the declared new routes, rank_constant60, item-ID ties. This ordering
+chooses additions only; it is not an evaluated new top50 ranking.
+
+Practical fills: unrestricted title, typed title, typed title+parameters,
+microcategory combined(top3), and their declared hybrid with additional dense
+depth. These use all available free slots, without removing old candidates.
+Their gains vs the original pool include the effect of more candidates and
+must not be described as evidence for microcategory classification alone.
+
+Dense query inputs: current, plain query, parsed semantic values, no numeric
+category, and no instruction prompt. Every replacement uses precisely the
+449 description +449 chosen dense route +100 original geography skeleton.
+Its realized unique union can differ because channel overlap changes. Compare
+each alternate input directly with the NEW dense_current control from the
+same producer, as well as report the original cached-pool reference.
+This separates query-layout effects from possible encoding/ANN rounding when
+reproducing the old449 list from a fresh depth998 batched search.
+
+Metric and sampling
+-------------------
+First screen2000 normalized Tune texts selected by SHA256([salt,text]), with
+salt='retrieval-hypotheses-tune-texts-v1'. Selection uses identities only and
+keeps every context of a selected text, including zero-availability groups.
+The evaluator streams compressed channel files and complete saved pools;
+it never holds all candidate lists in memory or constructs a new embedding
+index. Full Tune uses --text-limit0 with the same immutable producer files.
+
+Primary screening metric: conditional-available text-macro CANDIDATE Recall.
+Every numerator is an intersection with the full sealed available GT set;
+the denominator is not the positive count found in the retrieved pool.
+Also report group/representative/micro Recall, full-truth Recall including
+unavailable targets, available-pair fraction, pool sizes and added/lost IDs.
+Report one-word, filter and exact-location availability slices.
+Original cached RRF Recall@50 is displayed only as the unchanged reference.
+No new-pool reranker score or final Recall@50 gain is claimed at this stage.
+
+Paired bootstrap uses normalized-text clusters,2000 replicates,seed20261013,
+percentile95% intervals. Family contrasts use exactly matched per-group pool
+sizes. Dense contrasts share the same declared depths and current-input
+control; their unique pool sizes may differ. Intervals are exploratory and
+uncorrected for trying a hypothesis grid. The full-Tune follow-up includes
+the screened texts and is NOT an independent confirmation holdout.
+
+Follow-up selection
+-------------------
+The JSON configuration records how screened candidates and controls advance
+to full Tune. Compare the best non-control family member with that family's
+unrestricted control, the best practical fill, and the best alternate dense
+input with the new current-input control. Ties within1e-12 prefer a smaller
+average realized pool, then lexicographic variant name. Preserve controls in
+the full comparison; do not select using the completed Audit arm.
+Do not interpret a pool-only improvement as a learned reranker improvement.
+Any new reranker requires its own fit-only training and a declared evaluation
+policy. No capacity or feature is chosen from the already opened Audit scores.
+
+Example screen command, from the WSL research checkout
+-----------------------------------------------------
+PYTHONPATH=src:scripts /home/alex/avitotestproject/.venv/bin/python \
+ scripts/evaluate_retrieval_hypotheses.py \
+ --protocol-dir artifacts/fresh-validation-2026-10-13/protocol \
+ --cache-dir artifacts/fresh-validation-2026-10-13/cache \
+ --supplement artifacts/microcategory-research-2026-10-13/query-variants.jsonl.gz \
+ --supplement-metadata artifacts/microcategory-research-2026-10-13/query-variants.jsonl.gz.json \
+ --supplement artifacts/microcategory-research-2026-10-13/lexical.jsonl.gz \
+ --supplement-metadata artifacts/microcategory-research-2026-10-13/lexical.jsonl.gz.json \
+ --supplement artifacts/microcategory-research-2026-10-13/micro.jsonl.gz \
+ --supplement-metadata artifacts/microcategory-research-2026-10-13/micro.jsonl.gz.json \
+ --configuration artifacts/microcategory-research-2026-10-13/hypotheses-v1.json \
+ --text-limit 2000 --bootstrap-replicates 2000 \
+ --output artifacts/microcategory-research-2026-10-13/screen-v1.json
+
+The evaluator refuses to overwrite an existing result.

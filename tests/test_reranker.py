@@ -5,6 +5,10 @@ from tempfile import TemporaryDirectory
 import unittest
 
 import pandas as pd
+import pyarrow.parquet as pq
+import json
+from collections import Counter
+from unittest.mock import patch
 
 from avito_candidates.core import held_out, normalize, query_key
 from avito_candidates.reranker import (
@@ -24,6 +28,94 @@ class FakeRetriever:
 
 
 class RerankerTest(unittest.TestCase):
+    def test_unspecified_zero_category_has_same_features_as_missing_category(self):
+        from avito_candidates.reranker import V4_FEATURES
+        items = [{"item_id": "zero", "item_category_id": "0"},
+                 {"item_id": "known", "item_category_id": "service"},
+                 {"item_id": "missing", "item_category_id": ""}]
+        config = {"method": "bm25", "candidate_k": 3, "title_weight": 1.0,
+                  "params_weight": 0.0, "description_weight": 0.0,
+                  "stem_title_weight": 0.0, "stem_params_weight": 0.0,
+                  "location_bonus": 0.0, "bm25_rrf_k": 30}
+        details = {"candidate_pool": ["zero", "known", "missing"],
+                   "channels": {"title": ["zero", "known", "missing"]}}
+        builder = FeatureBuilder(items, config, feature_names=V4_FEATURES)
+        missing = builder.transform({"search_query": "repair"}, details, ["zero"])
+        for sentinel in ("0", 0):
+            matrix = builder.transform({"search_query": "repair", "search_category": sentinel},
+                                       details, ["zero"])
+            self.assertTrue((matrix == missing).all())
+            for name in ("category_match", "category_known"):
+                self.assertEqual(matrix[:, V4_FEATURES.index(name)].tolist(), [0.0, 0.0, 0.0])
+        known = builder.transform({"search_query": "repair", "search_category": "service"},
+                                  details, ["zero"])
+        self.assertEqual(known[:, V4_FEATURES.index("category_match")].tolist(), [0.0, 1.0, 0.0])
+        self.assertEqual(known[1, V4_FEATURES.index("category_known")], 1.0)
+        self.assertEqual(known[2, V4_FEATURES.index("category_known")], 0.0)
+
+    def test_geo_features_use_only_remaining_query_text_history(self):
+        from avito_candidates.geography import LocationAssociations
+        associations = LocationAssociations(
+            {"own", "other"},
+            counts={"region": Counter({"own": 20, "other": 5})},
+            totals=Counter({"region": 25}),
+            query_counts={"ремонт": {"region": Counter({"own": 20})}})
+        items = [{"item_id": item_id, "item_location_id": item_id}
+                 for item_id in ("own", "other")]
+        config = {"method": "bm25", "candidate_k": 2, "title_weight": 1.0,
+                  "params_weight": 0.0, "description_weight": 0.0,
+                  "stem_title_weight": 0.0, "stem_params_weight": 0.0,
+                  "location_bonus": 0.0, "bm25_rrf_k": 30, "geo_min_history": 20}
+        details = {"candidate_pool": ["own", "other"],
+                   "channels": {"title": ["own", "other"]}}
+        query = {"search_query": "РЕМОНТ", "search_location_id": "region"}
+        ordinary = FeatureBuilder(items, config, geo_associations=associations).transform(
+            query, details, ["own"])
+        training = FeatureBuilder(items, config, geo_associations=associations,
+                                  leave_geography_query_out=True).transform(
+            query, details, ["own"])
+        self.assertAlmostEqual(ordinary[0, FEATURES.index("geo_click_probability")], 0.8)
+        for feature in ("geo_click_probability", "geo_click_lift", "geo_click_rank"):
+            self.assertEqual(training[:, FEATURES.index(feature)].tolist(), [0.0, 0.0])
+
+    def test_preparation_preserves_group_identity_without_using_ids_as_features(self):
+        items = [{"item_id": f"item-{index}", "item_title_raw": "ремонт"}
+                 for index in range(66)]
+        config = {"method": "bm25", "candidate_k": 66, "title_weight": 1.0,
+                  "params_weight": 0.0, "description_weight": 0.0,
+                  "stem_title_weight": 0.0, "stem_params_weight": 0.0,
+                  "location_bonus": 0.0, "bm25_rrf_k": 30}
+        queries = [{"search_query": text, "search_location_id": location}
+                   for text, location in ((" РЕМОНТ ", "one"), ("ремонт", "two"))]
+        representatives = {query_key(query): query for query in queries}
+        truth = {key: {"item-0", "not-in-pool"} for key in representatives}
+        with TemporaryDirectory() as directory:
+            path = Path(directory) / "train.parquet"
+            metadata = prepare_training_data(
+                path, FakeRetriever(items), FeatureBuilder(items, config), truth,
+                representatives, split="queries", fraction=0.2, seed=42,
+                negatives=64, batch_size=1)
+            rows = pq.read_table(path).to_pylist()
+            self.assertEqual(len(rows), 130)
+            self.assertEqual({row["query_text"] for row in rows}, {"ремонт"})
+            self.assertEqual(len({row["group_id"] for row in rows}), 2)
+            self.assertEqual({row["relevant_count"] for row in rows}, {2})
+            for group_id in {row["group_id"] for row in rows}:
+                group = [row for row in rows if row["group_id"] == group_id]
+                self.assertEqual(sum(row["label"] for row in group), 1)
+                self.assertEqual(len(group) - sum(row["label"] for row in group), 64)
+                key = tuple(json.loads(group[0]["query_key_json"]))
+                self.assertIn(key, truth)
+                self.assertTrue(all(row["label"] == int(row["item_id"] in truth[key])
+                                    for row in group))
+            self.assertEqual(metadata["training_data_schema_version"], 2)
+            self.assertTrue(set(metadata["group_columns"]).isdisjoint(metadata["feature_names"]))
+            actual_read = pq.read_table
+            with patch("avito_candidates.reranker.pq.read_table", wraps=actual_read) as read_table:
+                fit_model(path, Path(directory) / "model.joblib", max_iter=2)
+            self.assertEqual(read_table.call_args.kwargs["columns"],
+                             [*FEATURES, "label", "weight"])
+
     def test_hard_negatives_include_multiple_channels(self):
         baseline = ["positive", *[f"local-{index}" for index in range(50)]]
         channels = {"title": baseline,
@@ -34,6 +126,30 @@ class RerankerTest(unittest.TestCase):
         self.assertEqual(chosen[0], "positive")
         self.assertTrue(any(item_id.startswith("geo-") for item_id in chosen[:33]))
         self.assertTrue(any(item_id.startswith("dense-") for item_id in chosen[:33]))
+
+    def test_top50_microcategory_share_and_v4_schema(self):
+        from avito_candidates.reranker import V4_FEATURES
+
+        items = [{"item_id": item_id, "item_microcat_id": microcat}
+                 for item_id, microcat in (("a", "x"), ("b", "x"),
+                                           ("c", "y"), ("d", "x"))]
+        config = {"method": "bm25", "candidate_k": 4,
+                  "title_weight": 1.0, "params_weight": 0.0,
+                  "description_weight": 0.0, "stem_title_weight": 0.0,
+                  "stem_params_weight": 0.0, "location_bonus": 0.0,
+                  "bm25_rrf_k": 30}
+        details = {"candidate_pool": ["a", "b", "c", "d"],
+                   "channels": {"title": ["a", "b", "c", "d"]}}
+        baseline = ["a", "b", "c"]
+        matrix = FeatureBuilder(items, config).transform(
+            {}, details, baseline, ["a", "c", "d"])
+        for actual, expected in zip(
+                matrix[:, FEATURES.index("microcat_top50_share")],
+                [2 / 3, 1 / 3, 2 / 3]):
+            self.assertAlmostEqual(actual, expected)
+        old_matrix = FeatureBuilder(items, config, feature_names=V4_FEATURES).transform(
+            {}, details, baseline, ["a", "c", "d"])
+        self.assertEqual(old_matrix.shape, (3, len(V4_FEATURES)))
 
     def test_hybrid_features_use_bm25_and_dense_lists(self):
         items = [{"item_id": "a", "item_title_raw": "ремонт", "item_location_id": "1"},

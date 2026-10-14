@@ -1,0 +1,142 @@
+DOCUMENT COMPLEMENT STUDY V1 — SCREEN AND FULL TUNE
+2026-10-13
+
+Scope and declaration
+---------------------
+This is a POSTHOC exploratory follow-up. The prior compact replacement result
+(103 positive pairs found and 86 lost) motivated complementary views. The four
+new candidate variants and their selection rule were written BEFORE outcomes
+of this new contrast. This is not retroactive overall preregistration. Completed
+Audit labels/report were never opened or used to choose variants or settings.
+
+The encoder, 128-token maximum, sampled 200000-item catalog, ef_search 1000,
+location bonus 0.02 and original protected candidate union were held fixed.
+That union contains description top-449, current dense top-449 and geo top-100.
+Every protected item is kept; novel IDs can fill only 998 minus its unique size.
+No selected positive was inserted and native item IDs remain strings.
+
+Existing sealed query-variants, lexical, micro and document-compact streams were
+reused. No GPU, index, vector encoding, classifier inference or model training
+was launched. Frozen evaluator, producer, helper and encoder source stayed intact.
+
+The novel-candidate rule has equal route weights, reciprocal-rank constant 60,
+ORIGINAL raw ranks before skipping protected IDs, and item-ID ties. This rule
+chooses a candidate pool; it does not choose the final answer's top 50.
+
+Declared route choices
+----------------------
+F_hybrid_routes (control): typed title, typed params, micro combined top-3,
+                         and extra current-document dense neighbors.
+F_compact_only:           compact-document dense neighbors only.
+F_compact_instead_depth:  typed title, typed params, micro combined top-3,
+                         and compact-document dense neighbors.
+F_five_views:             all four control routes plus compact neighbors.
+
+The original current dense top-449 remains PROTECTED in every variant. Thus
+F_compact_instead_depth replaces only the additional-depth route, not the
+current dense channel in the protected pool. Compact supplies its saved raw
+top-449 list; current extra-depth supplies its saved raw top-998 list.
+
+All variants share the 998-ID upper cap. Realized unique pool sizes can differ;
+this does not isolate a causal effect of document formatting alone.
+
+Screen: 2000 hash-selected normalized texts / 3902 contexts
+----------------------------------------------------------
+Primary available-target metrics use 988 texts / 1515 contexts. All selected
+texts and contexts, including zero availability, remain in full-truth metrics.
+Complete available/full GT denominators were retained. The text hash salt is
+retrieval-hypotheses-tune-texts-v1, identical to earlier Tune screens.
+
+Variant                     Candidate Recall  Mean pool  Maximum  New GT / lost
+F_hybrid_routes                  0.90563187     998.0000      998       25 / 0
+F_compact_only                   0.90734288     913.7127      998       26 / 0
+F_compact_instead_depth          0.90866831     987.0682      998       28 / 0
+F_five_views                     0.90613794     998.0000      998       26 / 0
+
+New/lost positive counts above are relative to the ORIGINAL protected pool,
+not to the four-route control. The additions from different variants can differ.
+
+Direct paired 95% candidate-Recall intervals versus F_hybrid_routes:
+  compact only:          +0.00171101, [-0.00647050, +0.01035762]
+  compact instead depth: +0.00303644, [-0.00126518, +0.00784413]
+  five views:            +0.00050607, [-0.00430162, +0.00506073]
+
+The declared primary metric selected F_compact_instead_depth. No tie override
+was needed. Exactly that winner and F_hybrid_routes went to full Tune; the
+other variants were not added to the full run after inspecting its outcome.
+
+Full Tune: control plus screen winner
+-------------------------------------
+Report: artifacts/microcategory-research-2026-10-13/document-complement-full-tune.json
+SHA256: ab1c0677bc226438e402e84d0bdc9a37c3ca7938961d0748b3fc924f88523c68
+
+All 6111 normalized texts / 12103 contexts are included. Available-target metrics
+use 3069 texts / 4750 contexts; 4871 of 12800 relevant pairs are present in this
+sampled research catalog (38.055%). There are 7353 zero-availability contexts.
+
+Metric                                   Four-route control   Compact extra view
+Conditional text-macro candidate Recall       0.90616785            0.90912109
+Conditional group-macro candidate Recall      0.90978947            0.91200000
+Full-truth text-macro candidate Recall        0.34162716            0.34278037
+Mean unique pool                              998.0000              986.7508
+Maximum unique pool                                998                   998
+New / lost positives versus protected base       85 / 0                96 / 0
+Mean new candidates versus protected base      176.6467              165.3975
+
+Direct primary delta: +0.00295324 (about +0.295 percentage points).
+Paired text-bootstrap 95% interval: [+0.00048229, +0.00569055].
+Both share the same protected pool, complete denominators and same upper cap.
+The winner has 11 fewer candidates on average and 11 MORE positive pairs in
+aggregate than the control, but the control's extra positives are not guaranteed
+to be a subset of the winner's. Only original protected positives are preserved.
+
+Against the unchanged original protected pool, the winner improves candidate
+Recall from 0.88864498 to 0.90912109: +0.02047610, interval
+[+0.01579023, +0.02529018]. This larger contrast also includes filling free slots,
+so it is not a standalone document-representation or microcategory effect.
+
+One-word available slice: 152 texts / 289 contexts; control 0.77705201, winner
+0.79263784. This is descriptive after selection, not independently confirmed.
+
+Interpretation and production decision boundary
+----------------------------------------------
+This is useful evidence of complementary retrieval signals: retaining the
+original current dense candidates and using compact neighbors for some free
+slots performs better here than using extra current dense depth for those slots.
+Simply adding compact as a fifth equal-weight route did not win the screen.
+Allocation and overlap matter alongside the document representation.
+
+The full-Tune interval lies above zero, but this is still an exploratory effect:
+the choice was informed by earlier compact outcomes, then selected on a screen
+contained inside full Tune. The interval is uncorrected for this adaptive search.
+It is not independent proof of a generalization or official-score improvement.
+
+The measured quantity is candidate coverage, an upper bound for a final ranker.
+No new-pool reranker Recall@50, official answer score or Audit evaluation was
+measured by this study. Root's current-document V8 training continues unchanged.
+The existing production four-route helper is not silently changed. Adopting a
+second compact index and training/ranking features requires a later explicit
+integration decision and separate exact-pool parity checks.
+
+Token-retention analysis remains a mechanism hypothesis. These actual results
+support testing complementary views, not increasing token length: length stayed
+128 throughout, and direct compact replacement was previously inconclusive.
+
+Reproduction
+------------
+CPU-only evaluator: OMP_NUM_THREADS=2, --batch-size 8192, --text-limit 2000 for
+screen / 0 for full Tune, --bootstrap-replicates 2000, seed 20261013.
+The four existing JSONL.gz streams and their complete '.gz.json' companions are
+passed with repeated --supplement and --supplement-metadata arguments.
+
+Source declaration: scripts/document_complement_hypotheses_v1.json
+Source follow-up:   scripts/document_complement_followup_v1.json
+Artifacts:
+  document-complement-hypotheses-v1.json
+  document-complement-screen-2000.json
+  document-complement-full-followup-v1.json
+  document-complement-full-tune.json
+  document-complement-v1-interpretation.txt
+
+No completed fresh report was overwritten, no Audit labels/report were parsed,
+and no new GPU/model/index work was launched by this study.

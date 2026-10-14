@@ -1,0 +1,28 @@
+Сохранённые inference priors в CLI
+
+evaluate/predict с Reranker V7/V8 передают уже загруженный объект в
+build_retriever(..., saved_reranker_override=reranker). Поиск использует тот же
+классификатор микрокатегорий и тот же объект географической истории, что и
+FeatureBuilder. Второй OOF-классификатор не десериализуется; Parquet allowlist
+повторно не читается. Векторы коэффициентов не копируются.
+
+Защиты сохранены:
+- конфигурация и SHA внешнего classifier-файла проверяются через прежний
+  check_retrieval_identity/retrieval_config;
+- SHA текущего data-dir/train.parquet проверяется одним потоковым чтением;
+- classifier metadata должны совпасть с immutable snapshot в Reranker;
+- corpus fingerprint, схема, число/ключи OOF-моделей, seed/split и digest
+  реально использованных нормализованных fit-текстов проверяются;
+- evaluate требует исходный split/seed/fraction;
+- несовместимый override географии или отсутствие требуемой истории
+  вызывают ошибку вместо автоматического обучения истории на всех строках.
+
+Подготовка обучения не принимает этот override. Самостоятельный запуск без
+saved Reranker сохраняет прежнюю загрузку classifier/source/allowlist.
+Feature schemas, коэффициенты, шаблоны эмбеддингов и формулы не менялись.
+
+Восемь узких проверок выполняют точный AST production guard-функций на
+хосте с dependency spies, чтобы не запускать ML-процесс в WSL во время
+подготовки с почти заполненной RAM. Проверены object identity, отсутствие
+load/allowlist scan, один train SHA-pass, изменённые train/model bytes,
+неверный corpus/snapshot/text digest/OOF/split и reuse географии.
